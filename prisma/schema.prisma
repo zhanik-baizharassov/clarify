@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  COMPANY
+  ADMIN
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  PENDING
+  REJECTED
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReportTargetType {
+  PLACE
+  REVIEW
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String?
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  Session[]
+  companies Company[] @relation("CompanyOwner")
+  reviews   Review[]
+  reports   Report[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  claims  Claim[]
+  replies ReviewReply[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  places   Place[]
+
+  @@index([parentId])
+}
+
+model Place {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  categoryId  String
+  city        String
+  region      String?
+  address     String?
+  lat         Float?
+  lng         Float?
+  phone       String?
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  avgRating   Float    @default(0)
+  ratingCount Int      @default(0)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  branches Branch[]
+  reviews  Review[]
+  claims   Claim[]
+  reports  Report[]
+
+  @@index([categoryId])
+  @@index([city])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  placeId   String
+  name      String?
+  address   String?
+  city      String?
+  region    String?
+  lat       Float?
+  lng       Float?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([placeId])
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String
+  slug  String @unique
+
+  reviewTags ReviewTag[]
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  placeId     String
+  authorId    String?
+  authorName  String?
+  authorPhone String?
+  rating      Int
+  text        String
+  status      ReviewStatus @default(PUBLISHED)
+  isVerified  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  place   Place        @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  author  User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags    ReviewTag[]
+  replies ReviewReply[]
+  reports Report[]
+
+  @@index([placeId])
+  @@index([createdAt])
+}
+
+model ReviewTag {
+  reviewId String
+  tagId    String
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([reviewId, tagId])
+  @@index([tagId])
+}
+
+model ReviewReply {
+  id        String   @id @default(cuid())
+  reviewId  String
+  companyId String
+  text      String
+  createdAt DateTime @default(now())
+
+  review  Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([companyId])
+}
+
+model Claim {
+  id        String      @id @default(cuid())
+  placeId   String
+  companyId String
+  status    ClaimStatus @default(PENDING)
+  message   String?
+  createdAt DateTime    @default(now())
+
+  place   Place   @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([placeId])
+  @@index([companyId])
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String?
+  targetType ReportTargetType
+  placeId    String?
+  reviewId   String?
+  reason     String
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+
+  reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  place    Place?  @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([targetType])
+  @@index([status])
+  @@index([createdAt])
+}
