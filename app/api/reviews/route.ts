@@ -8,8 +8,6 @@ const CreateReviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
   text: z.string().min(5).max(5000),
   tagSlugs: z.array(z.string()).optional(),
-  authorName: z.string().min(2).max(80).optional(),
-  authorPhone: z.string().min(5).max(30).optional(),
 });
 
 export async function POST(req: Request) {
@@ -17,7 +15,12 @@ export async function POST(req: Request) {
   const input = CreateReviewSchema.parse(body);
 
   const user = await getSessionUser();
-  const isUser = user?.role === "USER";
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (user.role !== "USER") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const place = await prisma.place.findUnique({ where: { slug: input.placeSlug } });
   if (!place) return NextResponse.json({ error: "Place not found" }, { status: 404 });
@@ -30,16 +33,10 @@ export async function POST(req: Request) {
     const review = await tx.review.create({
       data: {
         placeId: place.id,
+        authorId: user.id, // ✅ всегда для USER
+        authorName: user.name ?? null, // можно показывать имя (позже заменим на ник)
         rating: input.rating,
         text: input.text,
-
-        // ✅ главное: автор проставляется автоматически для залогиненного USER
-        authorId: isUser ? user!.id : undefined,
-
-        // гостевые поля — только для гостя (для USER можно подставить имя из профиля)
-        authorName: isUser ? (user?.name ?? null) : (input.authorName ?? null),
-        authorPhone: isUser ? null : (input.authorPhone ?? null),
-
         status: "PUBLISHED",
         tags: tags.length
           ? { createMany: { data: tags.map((t) => ({ tagId: t.id })) } }
@@ -47,7 +44,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // пересчёт рейтинга (быстрый MVP)
     const newCount = place.ratingCount + 1;
     const newAvg = (place.avgRating * place.ratingCount + input.rating) / newCount;
 
