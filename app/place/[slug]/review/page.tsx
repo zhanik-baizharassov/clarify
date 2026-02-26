@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth";
 import ReviewForm from "./review-form";
 
 export default async function AddReviewPage({
@@ -10,6 +11,16 @@ export default async function AddReviewPage({
 }) {
   const { slug } = await params;
   if (!slug) return notFound();
+
+  const user = await getSessionUser();
+
+  // ✅ Только залогиненный USER может оставлять отзывы
+  if (!user) {
+    redirect(`/signup?next=${encodeURIComponent(`/place/${slug}/review`)}`);
+  }
+  if (user.role !== "USER") {
+    redirect(`/`); // COMPANY/ADMIN — не могут оставлять отзыв
+  }
 
   const place = await prisma.place.findUnique({ where: { slug } });
   if (!place) return notFound();
