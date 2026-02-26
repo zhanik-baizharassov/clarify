@@ -16,8 +16,6 @@ export default function ReviewForm({
 
   const [rating, setRating] = useState<number>(5);
   const [text, setText] = useState("");
-  const [authorName, setAuthorName] = useState("");
-  const [authorPhone, setAuthorPhone] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +44,6 @@ export default function ReviewForm({
           rating,
           text,
           tagSlugs: selectedSlugs,
-          authorName: authorName.trim() || undefined,
-          authorPhone: authorPhone.trim() || undefined,
         }),
       });
 
@@ -111,25 +107,6 @@ export default function ReviewForm({
             </label>
           ))}
         </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Имя (необязательно)</span>
-          <input
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            className="h-10 rounded-md border px-3"
-          />
-        </label>
-        <label className="grid gap-1">
-          <span className="text-sm font-medium">Телефон (необязательно)</span>
-          <input
-            value={authorPhone}
-            onChange={(e) => setAuthorPhone(e.target.value)}
-            className="h-10 rounded-md border px-3"
-          />
-        </label>
       </div>
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
