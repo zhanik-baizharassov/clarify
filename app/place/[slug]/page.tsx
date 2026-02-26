@@ -21,6 +21,15 @@ export default async function PlacePage({
         orderBy: { createdAt: "desc" },
         take: 50,
         include: {
+          author: {
+            select: {
+              nickname: true,
+              firstName: true,
+              lastName: true,
+              name: true,
+              email: true,
+            },
+          },
           tags: { include: { tag: true } },
           replies: { include: { company: true } },
         },
@@ -47,13 +56,19 @@ export default async function PlacePage({
             </div>
 
             {place.description ? (
-              <p className="mt-3 whitespace-pre-wrap text-sm">{place.description}</p>
+              <p className="mt-3 whitespace-pre-wrap text-sm">
+                {place.description}
+              </p>
             ) : null}
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold">{place.avgRating.toFixed(2)}</div>
-            <div className="text-xs text-muted-foreground">{place.ratingCount} отзывов</div>
+            <div className="text-2xl font-bold">
+              {place.avgRating.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {place.ratingCount} отзывов
+            </div>
           </div>
         </div>
 
@@ -70,38 +85,55 @@ export default async function PlacePage({
       <h2 className="mt-8 text-lg font-semibold">Отзывы</h2>
 
       <div className="mt-3 grid gap-3">
-        {place.reviews.map((r) => (
-          <div key={r.id} className="rounded-xl border p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">{r.authorName ?? "Аноним"}</div>
-              <div className="text-sm font-semibold">{r.rating}/5</div>
+        {place.reviews.map((r) => {
+          const nick = r.author?.nickname ?? "";
+          const fullName = [r.author?.firstName, r.author?.lastName]
+            .filter(Boolean)
+            .join(" ");
+          const name = r.author?.name ?? "";
+          const email = r.author?.email ?? "";
+
+          const authorLabel =
+            nick || fullName || name || email || "Пользователь";
+
+          return (
+            <div key={r.id} className="rounded-xl border p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium">{authorLabel}</div>
+                <div className="text-sm font-semibold">{r.rating}/5</div>
+              </div>
+
+              <p className="mt-2 whitespace-pre-wrap text-sm">{r.text}</p>
+
+              {r.tags.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {r.tags.map((t) => (
+                    <span
+                      key={t.tagId}
+                      className="rounded-full border px-2 py-1 text-xs"
+                    >
+                      {t.tag.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {r.replies.length > 0 ? (
+                <div className="mt-4 rounded-lg bg-muted/40 p-3 text-sm">
+                  <div className="font-medium">Ответ компании:</div>
+                  {r.replies.map((rep) => (
+                    <div key={rep.id} className="mt-2">
+                      <div className="text-xs text-muted-foreground">
+                        {rep.company.name}
+                      </div>
+                      <div className="whitespace-pre-wrap">{rep.text}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-
-            <p className="mt-2 whitespace-pre-wrap text-sm">{r.text}</p>
-
-            {r.tags.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {r.tags.map((t) => (
-                  <span key={t.tagId} className="rounded-full border px-2 py-1 text-xs">
-                    {t.tag.name}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {r.replies.length > 0 ? (
-              <div className="mt-4 rounded-lg bg-muted/40 p-3 text-sm">
-                <div className="font-medium">Ответ компании:</div>
-                {r.replies.map((rep) => (
-                  <div key={rep.id} className="mt-2">
-                    <div className="text-xs text-muted-foreground">{rep.company.name}</div>
-                    <div className="whitespace-pre-wrap">{rep.text}</div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))}
+          );
+        })}
 
         {place.reviews.length === 0 && (
           <div className="rounded-xl border p-6 text-sm text-muted-foreground">
