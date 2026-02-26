@@ -71,12 +71,18 @@ model Company {
   id        String   @id @default(cuid())
   name      String
   ownerId   String
+
+  bin       String?  @unique
+  address   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   owner   User          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   claims  Claim[]
   replies ReviewReply[]
+
+  @@index([ownerId])
 }
 
 model Category {
@@ -148,25 +154,24 @@ model Tag {
 }
 
 model Review {
-  id          String       @id @default(cuid())
-  placeId     String
-  authorId    String?
-  authorName  String?
-  authorPhone String?
-  rating      Int
-  text        String
-  status      ReviewStatus @default(PUBLISHED)
-  isVerified  Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  placeId    String
+  authorId   String
+  rating     Int
+  text       String
+  status     ReviewStatus @default(PUBLISHED)
+  isVerified Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   place   Place        @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  author  User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author  User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
   tags    ReviewTag[]
   replies ReviewReply[]
   reports Report[]
 
   @@index([placeId])
+  @@index([authorId])
   @@index([createdAt])
 }
 
