@@ -15,12 +15,8 @@ export async function POST(req: Request) {
   const input = CreateReviewSchema.parse(body);
 
   const user = await getSessionUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (user.role !== "USER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (user.role !== "USER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const place = await prisma.place.findUnique({ where: { slug: input.placeSlug } });
   if (!place) return NextResponse.json({ error: "Place not found" }, { status: 404 });
@@ -33,8 +29,8 @@ export async function POST(req: Request) {
     const review = await tx.review.create({
       data: {
         placeId: place.id,
-        authorId: user.id, // ✅ всегда для USER
-        authorName: user.name ?? null, // можно показывать имя (позже заменим на ник)
+        authorId: user.id, // ✅
+        authorName: user.name ?? null,
         rating: input.rating,
         text: input.text,
         status: "PUBLISHED",
