@@ -29,8 +29,7 @@ export async function POST(req: Request) {
     const review = await tx.review.create({
       data: {
         placeId: place.id,
-        authorId: user.id, // ✅
-        authorName: user.name ?? null,
+        authorId: user.id,
         rating: input.rating,
         text: input.text,
         status: "PUBLISHED",
