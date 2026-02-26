@@ -81,6 +81,7 @@ model Company {
   owner   User          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   claims  Claim[]
   replies ReviewReply[]
+  places Place[]
 
   @@index([ownerId])
 }
@@ -112,12 +113,15 @@ model Place {
   lng         Float?
   phone       String?
   website     String?
+  companyId   String?
+  workHours   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   avgRating   Float    @default(0)
   ratingCount Int      @default(0)
 
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   branches Branch[]
   reviews  Review[]
@@ -126,6 +130,7 @@ model Place {
 
   @@index([categoryId])
   @@index([city])
+  @@index([companyId])
 }
 
 model Branch {
