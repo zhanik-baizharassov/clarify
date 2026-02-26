@@ -4,26 +4,60 @@ import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = "nodejs"; // важно, чтобы Prisma работал в node runtime
+export const runtime = "nodejs";
+
+const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 
 const Schema = z.object({
-  name: z.string().min(2).max(80).optional(),
-  email: z.string().email(),
-  password: z.string().min(8).max(200),
+  firstName: z.string().trim().min(2).max(50),
+  lastName: z.string().trim().min(2).max(50),
+  nickname: z
+    .string()
+    .trim()
+    .min(2)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_.-]+$/, "Ник: только латиница/цифры/._-"),
+  phone: z.string().trim().min(5).max(30),
+  email: z
+    .string()
+    .trim()
+    .email("Некорректный email")
+    .refine((v) => {
+      const m = v.toLowerCase().match(/\.([a-z]{2,})$/);
+      if (!m) return false;
+      return allowedTlds.includes(m[1]);
+    }, `Email должен заканчиваться на: ${allowedTlds.map((t) => "." + t).join(", ")}`),
+  password: z
+    .string()
+    .min(8)
+    .max(200)
+    .refine((v) => /[A-Z]/.test(v), "Пароль: нужна хотя бы 1 заглавная буква")
+    .refine((v) => /[a-z]/.test(v), "Пароль: нужна хотя бы 1 строчная буква")
+    .refine((v) => /\d/.test(v), "Пароль: нужна хотя бы 1 цифра"),
 });
 
 export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
-    const exists = await prisma.user.findUnique({ where: { email: input.email } });
-    if (exists) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+    const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
+    if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+
+    const existsPhone = await prisma.user.findUnique({ where: { phone: input.phone } });
+    if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
+
+    const existsNick = await prisma.user.findUnique({ where: { nickname: input.nickname } });
+    if (existsNick) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
     const user = await prisma.user.create({
       data: {
-        name: input.name,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        nickname: input.nickname,
+        phone: input.phone,
+        name: `${input.firstName} ${input.lastName}`,
         email: input.email,
         passwordHash,
         role: "USER",
@@ -47,9 +81,9 @@ export async function POST(req: Request) {
     });
     return res;
   } catch (err: any) {
-    // всегда JSON, чтобы фронт не падал
     if (err?.name === "ZodError") {
-      return NextResponse.json({ error: "Неверные данные формы" }, { status: 400 });
+      const first = err.issues?.[0]?.message ?? "Неверные данные формы";
+      return NextResponse.json({ error: first }, { status: 400 });
     }
     console.error("SIGNUP ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера при регистрации" }, { status: 500 });
