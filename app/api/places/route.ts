@@ -1,33 +1,80 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  try {
+    const url = new URL(req.url);
 
-  const q = (searchParams.get("q") ?? "").trim();
-  const category = searchParams.get("category") ?? undefined; // slug категории
-  const city = (searchParams.get("city") ?? "").trim() || undefined;
+    const q = (url.searchParams.get("q") ?? "").trim();
+    const city = (url.searchParams.get("city") ?? "").trim();
+    const categoryId = (url.searchParams.get("categoryId") ?? "").trim();
+    const categorySlug = (url.searchParams.get("categorySlug") ?? "").trim();
+    const sort = (url.searchParams.get("sort") ?? "rating_desc").trim();
 
-  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-  const pageSize = Math.min(50, Math.max(5, Number(searchParams.get("pageSize") ?? "10")));
-  const skip = (page - 1) * pageSize;
+    let resolvedCategoryId: string | undefined = undefined;
 
-  const where: any = {
-    ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-    ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
-    ...(category ? { category: { slug: category } } : {}),
-  };
+    if (categoryId) {
+      resolvedCategoryId = categoryId;
+    } else if (categorySlug) {
+      const cat = await prisma.category.findUnique({
+        where: { slug: categorySlug },
+        select: { id: true },
+      });
+      resolvedCategoryId = cat?.id;
+    }
 
-  const [items, total] = await prisma.$transaction([
-    prisma.place.findMany({
+    const and: any[] = [];
+
+    if (q) {
+      and.push({
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { address: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (city) {
+      and.push({ city: { equals: city, mode: "insensitive" } });
+    }
+
+    if (resolvedCategoryId) {
+      and.push({ categoryId: resolvedCategoryId });
+    }
+
+    const where = and.length ? { AND: and } : undefined;
+
+    const orderBy =
+      sort === "reviews_desc"
+        ? [{ ratingCount: "desc" as const }, { avgRating: "desc" as const }]
+        : sort === "new_desc"
+        ? [{ createdAt: "desc" as const }]
+        : sort === "name_asc"
+        ? [{ name: "asc" as const }]
+        : [{ avgRating: "desc" as const }, { ratingCount: "desc" as const }]; // rating_desc default
+
+    const places = await prisma.place.findMany({
       where,
-      include: { category: true },
-      orderBy: [{ avgRating: "desc" }, { ratingCount: "desc" }, { name: "asc" }],
-      skip,
-      take: pageSize,
-    }),
-    prisma.place.count({ where }),
-  ]);
+      orderBy,
+      take: 50,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        city: true,
+        address: true,
+        avgRating: true,
+        ratingCount: true,
+        category: { select: { name: true } },
+      },
+    });
 
-  return NextResponse.json({ items, page, pageSize, total });
+    return NextResponse.json({ items: places });
+  } catch (err) {
+    console.error("PLACES GET ERROR:", err);
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
+  }
 }
