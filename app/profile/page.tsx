@@ -29,7 +29,7 @@ export default async function ProfilePage() {
   const locked = user.profileEditCount >= 1;
 
   const fullName =
-    [user.firstName, user.lastName].filter(Boolean).join(" ") || user.nickname;
+    [user.firstName, user.lastName].filter(Boolean).join(" ") || user.nickname || "Пользователь";
 
   const createdAt = new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "medium",
@@ -66,9 +66,7 @@ export default async function ProfilePage() {
                 alt="avatar"
                 className="h-24 w-24 rounded-2xl border object-cover"
               />
-              <div className="mt-2 text-center text-xs text-muted-foreground">
-                Аватар
-              </div>
+              <div className="mt-2 text-center text-xs text-muted-foreground">Аватар</div>
             </div>
 
             <div className="min-w-0 flex-1">
@@ -80,7 +78,7 @@ export default async function ProfilePage() {
               </div>
 
               <div className="mt-1 text-sm text-muted-foreground">
-                @{user.nickname}
+                @{user.nickname ?? "—"}
               </div>
 
               <div className="mt-4 grid gap-2 text-sm">

@@ -39,27 +39,32 @@ export default function ProfileEditForm({
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const objectUrl = useMemo(() => {
+    if (!avatarFile) return null;
+    return URL.createObjectURL(avatarFile);
+  }, [avatarFile]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [objectUrl]);
+
   const previewUrl = useMemo(() => {
-    if (avatarFile) return URL.createObjectURL(avatarFile);
+    if (objectUrl) return objectUrl;
     if (avatarClear) return "/avatar-placeholder.png";
     return initial.avatarUrl || "/avatar-placeholder.png";
-  }, [avatarFile, avatarClear, initial.avatarUrl]);
-
-  // чтобы не текла память при смене файлов
-  useEffect(() => {
-    if (!avatarFile) return;
-    const url = URL.createObjectURL(avatarFile);
-    return () => URL.revokeObjectURL(url);
-  }, [avatarFile]);
+  }, [objectUrl, avatarClear, initial.avatarUrl]);
 
   function validateClient(): string | null {
     if (locked) return "Редактирование заблокировано";
     if (firstName.trim().length < 2) return "Имя: минимум 2 символа";
     if (lastName.trim().length < 2) return "Фамилия: минимум 2 символа";
 
-    if (nickname.trim().length < 3) return "Никнейм: минимум 3 символа";
-    if (nickname.trim().length > 20) return "Никнейм: максимум 20 символов";
-    if (!/^[a-zA-Z0-9_]+$/.test(nickname.trim()))
+    const nn = nickname.trim();
+    if (nn.length < 3) return "Никнейм: минимум 3 символа";
+    if (nn.length > 20) return "Никнейм: максимум 20 символов";
+    if (!/^[a-zA-Z0-9_]+$/.test(nn))
       return "Никнейм: только латиница, цифры и _ (без пробелов)";
 
     if (!email.trim()) return "Введите email";
@@ -72,7 +77,7 @@ export default function ProfileEditForm({
       const okTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!okTypes.includes(avatarFile.type))
         return "Аватар: разрешены только JPG / PNG / WEBP";
-      const maxBytes = 1_000_000; // 1MB
+      const maxBytes = 1_000_000;
       if (avatarFile.size > maxBytes)
         return "Аватар: файл слишком большой (макс. 1MB)";
     }
@@ -118,6 +123,8 @@ export default function ProfileEditForm({
       setPassword("");
       setAvatarFile(null);
       setAvatarClear(false);
+      if (fileRef.current) fileRef.current.value = "";
+
       setOk("Сохранено. Профиль заблокирован для дальнейших изменений.");
       router.refresh();
     } catch (e: any) {
@@ -163,6 +170,7 @@ export default function ProfileEditForm({
         {/* Avatar */}
         <div className="rounded-xl border p-4">
           <div className="text-sm font-medium">Аватар</div>
+
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <img
               src={previewUrl}
@@ -170,20 +178,20 @@ export default function ProfileEditForm({
               className="h-16 w-16 rounded-xl border object-cover"
             />
 
-            <div className="flex flex-wrap gap-2">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                disabled={locked || loading}
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  setAvatarFile(f);
-                  setAvatarClear(false);
-                }}
-              />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              disabled={locked || loading}
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                setAvatarFile(f);
+                setAvatarClear(false);
+              }}
+            />
 
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={locked || loading}
@@ -227,7 +235,7 @@ export default function ProfileEditForm({
           </div>
         </div>
 
-        {/* Main fields */}
+        {/* Main */}
         <div className="grid gap-4 rounded-xl border p-4">
           <div className="text-sm font-medium">Основные данные</div>
 
@@ -299,7 +307,9 @@ export default function ProfileEditForm({
           {showPasswordBlock ? (
             <div className="mt-3 grid gap-2">
               <label className="grid gap-1">
-                <span className="text-xs text-muted-foreground">Новый пароль (необязательно)</span>
+                <span className="text-xs text-muted-foreground">
+                  Новый пароль (необязательно)
+                </span>
                 <div className="flex gap-2">
                   <input
                     disabled={locked || loading}

@@ -33,15 +33,12 @@ const Schema = z.object({
     }, `Email должен заканчиваться на: ${allowedTlds.map((t) => "." + t).join(", ")}`),
 
   password: z.string().min(8).max(200).optional(),
-
-  // avatar управляем отдельно
   avatarClear: z.boolean().optional(),
 });
 
 async function readBody(req: Request) {
   const ct = req.headers.get("content-type") || "";
 
-  // multipart/form-data
   if (ct.includes("multipart/form-data")) {
     const fd = await req.formData();
 
@@ -55,13 +52,12 @@ async function readBody(req: Request) {
       typeof passwordRaw === "string" && passwordRaw.trim() ? passwordRaw : undefined;
 
     const avatarClear = String(fd.get("avatarClear") ?? "") === "1";
-
     const avatar = fd.get("avatar"); // File | string | null
 
     return { firstName, lastName, nickname, email, password, avatarClear, avatar };
   }
 
-  // JSON (на всякий случай оставим совместимость)
+  // fallback JSON
   const json = await req.json();
   return { ...json, avatarClear: Boolean(json?.avatarClear), avatar: null };
 }
@@ -69,6 +65,7 @@ async function readBody(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await readBody(req);
+
     const input = Schema.parse({
       firstName: body.firstName,
       lastName: body.lastName,
@@ -82,12 +79,10 @@ export async function PATCH(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (user.role !== "USER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    // profanity check
     assertNoProfanity(input.firstName, "Имя");
     assertNoProfanity(input.lastName, "Фамилия");
     assertNoProfanity(input.nickname, "Никнейм");
 
-    // password checks (если меняют)
     let passwordHash: string | undefined = undefined;
     if (input.password) {
       if (!/[A-Z]/.test(input.password))
@@ -113,40 +108,19 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // email unique (если меняют)
-    if (input.email !== current.email) {
-      const exists = await prisma.user.findUnique({ where: { email: input.email } });
-      if (exists) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
-    }
-
-    // nickname unique (не гадаем про @unique — делаем findFirst)
-    if (input.nickname !== current.nickname) {
-      const existsNick = await prisma.user.findFirst({
-        where: { nickname: input.nickname, NOT: { id: user.id } },
-        select: { id: true },
-      });
-      if (existsNick) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
-    }
-
-    // avatar: если пришёл файл — кладём как data-url в avatarUrl (без внешних URL и без файловой системы)
+    // avatar -> data-url
     let newAvatarUrl: string | null | undefined = undefined;
 
     if (body.avatar && typeof body.avatar !== "string") {
       const file = body.avatar as File;
 
       if (!allowedAvatarTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: "Аватар: разрешены только JPG / PNG / WEBP" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Аватар: разрешены только JPG / PNG / WEBP" }, { status: 400 });
       }
 
       const ab = await file.arrayBuffer();
       if (ab.byteLength > maxAvatarBytes) {
-        return NextResponse.json(
-          { error: "Аватар: файл слишком большой (макс. 1MB)" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Аватар: файл слишком большой (макс. 1MB)" }, { status: 400 });
       }
 
       const b64 = Buffer.from(ab).toString("base64");
@@ -155,26 +129,36 @@ export async function PATCH(req: Request) {
       newAvatarUrl = null;
     }
 
-    // атомарно: редактирование только 1 раз
-    const updated = await prisma.user.updateMany({
-      where: { id: user.id, profileEditCount: 0 },
-      data: {
-        firstName: input.firstName,
-        lastName: input.lastName,
-        nickname: input.nickname,
-        email: input.email,
-        ...(newAvatarUrl !== undefined ? { avatarUrl: newAvatarUrl } : {}),
-        ...(passwordHash ? { passwordHash } : {}),
-        profileEditCount: 1,
-        profileEditedAt: new Date(),
-      },
-    });
+    try {
+      const updated = await prisma.user.updateMany({
+        where: { id: user.id, profileEditCount: 0 },
+        data: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          nickname: input.nickname,
+          email: input.email,
+          ...(newAvatarUrl !== undefined ? { avatarUrl: newAvatarUrl } : {}),
+          ...(passwordHash ? { passwordHash } : {}),
+          profileEditCount: 1,
+          profileEditedAt: new Date(),
+        },
+      });
 
-    if (updated.count !== 1) {
-      return NextResponse.json(
-        { error: "Профиль уже изменён. Можно изменить данные только 1 раз." },
-        { status: 409 },
-      );
+      if (updated.count !== 1) {
+        return NextResponse.json(
+          { error: "Профиль уже изменён. Можно изменить данные только 1 раз." },
+          { status: 409 },
+        );
+      }
+    } catch (e: any) {
+      // уникальные ограничения (email/nickname/phone)
+      if (e?.code === "P2002") {
+        const target = Array.isArray(e?.meta?.target) ? e.meta.target.join(",") : String(e?.meta?.target ?? "");
+        if (target.includes("email")) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+        if (target.includes("nickname")) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
+        return NextResponse.json({ error: "Уникальное значение уже занято" }, { status: 409 });
+      }
+      throw e;
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });
