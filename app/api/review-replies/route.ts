@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { assertNoProfanity } from "@/lib/profanity";
 
 export const runtime = "nodejs";
 
@@ -18,8 +19,14 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (user.role !== "COMPANY") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const company = await prisma.company.findFirst({ where: { ownerId: user.id }, select: { id: true, name: true } });
+    const company = await prisma.company.findFirst({
+      where: { ownerId: user.id },
+      select: { id: true },
+    });
     if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+
+    // ✅ profanity-check
+    assertNoProfanity(input.text, "Ответ компании");
 
     const review = await prisma.review.findUnique({
       where: { id: input.reviewId },
@@ -39,7 +46,11 @@ export async function POST(req: Request) {
     if (exists) return NextResponse.json({ error: "Вы уже отвечали на этот отзыв" }, { status: 409 });
 
     const reply = await prisma.reviewReply.create({
-      data: { reviewId: input.reviewId, companyId: company.id, text: input.text },
+      data: {
+        reviewId: input.reviewId,
+        companyId: company.id,
+        text: input.text,
+      },
     });
 
     return NextResponse.json(reply, { status: 201 });
@@ -48,7 +59,10 @@ export async function POST(req: Request) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
-    console.error("REPLY ERROR:", err);
+    if (err?.message?.includes("недопустимые слова")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    console.error("REVIEW REPLY ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

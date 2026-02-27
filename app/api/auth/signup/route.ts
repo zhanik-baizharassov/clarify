@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { assertNoProfanity } from "@/lib/profanity";
 
 export const runtime = "nodejs";
 
@@ -40,13 +41,20 @@ export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
+    // ✅ profanity-check (жёстко на сервере)
+    assertNoProfanity(input.firstName, "Имя");
+    assertNoProfanity(input.lastName, "Фамилия");
+    assertNoProfanity(input.nickname, "Никнейм");
+    assertNoProfanity(input.email, "Email");
+
     const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
     if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
 
     const existsPhone = await prisma.user.findUnique({ where: { phone: input.phone } });
     if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
 
-    const existsNick = await prisma.user.findUnique({ where: { nickname: input.nickname } });
+    // nickname может быть @unique или нет — findFirst работает в любом случае
+    const existsNick = await prisma.user.findFirst({ where: { nickname: input.nickname } });
     if (existsNick) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
 
     const passwordHash = await bcrypt.hash(input.password, 10);
@@ -57,7 +65,6 @@ export async function POST(req: Request) {
         lastName: input.lastName,
         nickname: input.nickname,
         phone: input.phone,
-        name: `${input.firstName} ${input.lastName}`,
         email: input.email,
         passwordHash,
         role: "USER",
@@ -82,8 +89,11 @@ export async function POST(req: Request) {
     return res;
   } catch (err: any) {
     if (err?.name === "ZodError") {
-      const first = err.issues?.[0]?.message ?? "Неверные данные формы";
-      return NextResponse.json({ error: first }, { status: 400 });
+      const msg = err.issues?.[0]?.message ?? "Неверные данные формы";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    if (err?.message?.includes("недопустимые слова")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("SIGNUP ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера при регистрации" }, { status: 500 });
