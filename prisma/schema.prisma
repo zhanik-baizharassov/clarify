@@ -47,7 +47,10 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
+  avatarUrl        String?
+  profileEditCount Int      @default(0)
+  profileEditedAt  DateTime?
+  
   sessions  Session[]
   companies Company[] @relation("CompanyOwner")
   reviews   Review[]
