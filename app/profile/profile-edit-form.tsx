@@ -12,6 +12,35 @@ type Initial = {
   avatarUrl: string | null;
 };
 
+// ✅ СЖАТИЕ АВАТАРА ДО ЗАГРУЗКИ (уменьшает длину avatarUrl в базе)
+async function compressAvatar(file: File): Promise<File> {
+  const MAX = 256; // размер аватара в px (256 обычно достаточно)
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+
+  ctx.drawImage(bitmap, 0, 0, w, h);
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+      "image/webp",
+      0.82, // качество (можно 0.75 для ещё меньшего размера)
+    );
+  });
+
+  return new File([blob], "avatar.webp", { type: blob.type });
+}
+
 export default function ProfileEditForm({
   initial,
   locked,
@@ -184,10 +213,21 @@ export default function ProfileEditForm({
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
               disabled={locked || loading}
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                setAvatarFile(f);
-                setAvatarClear(false);
+              onChange={async (e) => {
+                const raw = e.target.files?.[0] ?? null;
+                if (!raw) return;
+
+                setErr(null);
+                try {
+                  // ✅ ключевая часть: сжимаем/уменьшаем до webp
+                  const compressed = await compressAvatar(raw);
+                  setAvatarFile(compressed);
+                  setAvatarClear(false);
+                } catch {
+                  // если что-то пошло не так — используем оригинал
+                  setAvatarFile(raw);
+                  setAvatarClear(false);
+                }
               }}
             />
 
@@ -231,7 +271,7 @@ export default function ProfileEditForm({
           </div>
 
           <div className="mt-2 text-xs text-muted-foreground">
-            Форматы: JPG/PNG/WEBP. Размер: до 1MB.
+            Форматы: JPG/PNG/WEBP. Размер: до 1MB. (Файл будет уменьшен перед отправкой.)
           </div>
         </div>
 
