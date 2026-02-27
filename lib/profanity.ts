@@ -31,6 +31,7 @@ const RU_BAD_WORDS = new Set([
   "уёб", "ебан", "гон", "гондон",
   "врун","балабол","гамункул",
   "хуесос","лох","лошара",
+  "хуйло",
 ]);
 
 const EN_BAD_WORDS = new Set([
@@ -46,7 +47,7 @@ const EN_BAD_WORDS = new Set([
   "pizda", "pizdec", "jopa",
   "balabol", "dolba", "sperm",
   "uebok", "pisun", "huesos",
-  "loh", "lox",
+  "loh", "lox", "huilo",
 ]);
 
 // ===== 2) ШАБЛОНЫ (семейства слов) =====
