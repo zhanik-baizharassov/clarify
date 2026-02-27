@@ -19,7 +19,7 @@ export default async function AddReviewPage({
     redirect(`/signup?next=${encodeURIComponent(`/place/${slug}/review`)}`);
   }
   if (user.role !== "USER") {
-    redirect(`/`); // COMPANY/ADMIN — не могут оставлять отзыв
+    redirect(`/place/${slug}`); // COMPANY/ADMIN — возвращаем на филиал
   }
 
   const place = await prisma.place.findUnique({ where: { slug } });
@@ -29,7 +29,10 @@ export default async function AddReviewPage({
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <Link href={`/place/${place.slug}`} className="text-sm text-muted-foreground hover:underline">
+      <Link
+        href={`/place/${place.slug}`}
+        className="text-sm text-muted-foreground hover:underline"
+      >
         ← Назад к месту
       </Link>
 
