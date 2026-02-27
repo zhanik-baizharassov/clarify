@@ -9,7 +9,7 @@ export default async function Header() {
     <header className="border-b">
       <div className="mx-auto flex max-w-5xl items-center justify-between p-4">
         <Link href="/" className="font-semibold">
-          Review
+          Clarify
         </Link>
 
         {/* ГОСТЬ */}

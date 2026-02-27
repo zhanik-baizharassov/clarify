@@ -87,10 +87,6 @@ export default async function Home({
           </div>
         )}
       </div>
-
-      <div className="mt-8 text-xs text-muted-foreground">
-        Для теста открой: <b>/place/coffee-hub-almaty</b> или <b>/place/fix-phone-almaty</b>
-      </div>
     </main>
   );
 }
