@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { assertNoProfanity } from "@/lib/profanity";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,10 @@ export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
+    // ✅ profanity-check
+    assertNoProfanity(input.companyName, "Название компании");
+    assertNoProfanity(input.address, "Адрес компании");
+
     const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
     if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
 
@@ -42,7 +47,8 @@ export async function POST(req: Request) {
     if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
 
     const existsBin = await prisma.company.findFirst({ where: { bin: input.bin } });
-    if (existsBin) return NextResponse.json({ error: "Компания с таким БИН уже зарегистрирована" }, { status: 409 });
+    if (existsBin)
+      return NextResponse.json({ error: "Компания с таким БИН уже зарегистрирована" }, { status: 409 });
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
@@ -82,8 +88,11 @@ export async function POST(req: Request) {
     return res;
   } catch (err: any) {
     if (err?.name === "ZodError") {
-      const first = err.issues?.[0]?.message ?? "Неверные данные формы";
-      return NextResponse.json({ error: first }, { status: 400 });
+      const msg = err.issues?.[0]?.message ?? "Неверные данные";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    if (err?.message?.includes("недопустимые слова")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("COMPANY SIGNUP ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера при регистрации компании" }, { status: 500 });

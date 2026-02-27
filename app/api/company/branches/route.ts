@@ -3,6 +3,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { assertNoProfanity } from "@/lib/profanity";
 
 export const runtime = "nodejs";
 
@@ -39,23 +40,30 @@ export async function POST(req: Request) {
     });
     if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
-    const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true } });
+    const category = await prisma.category.findUnique({
+      where: { id: input.categoryId },
+      select: { id: true },
+    });
     if (!category) return NextResponse.json({ error: "Category not found" }, { status: 400 });
 
-    const slug = `${slugifyAscii(company.name)}-${company.bin ?? company.id.slice(0, 6)}-${Date.now().toString(36)}-${crypto
-      .randomUUID()
-      .slice(0, 6)}`;
+    // ✅ profanity-check
+    assertNoProfanity(company.name, "Название компании");
+    assertNoProfanity(input.address, "Адрес филиала");
+
+    const slug = `${slugifyAscii(company.name)}-${company.bin ?? company.id.slice(0, 6)}-${Date.now().toString(
+      36
+    )}-${crypto.randomUUID().slice(0, 6)}`;
 
     const place = await prisma.place.create({
       data: {
-        name: company.name,          // ✅ по умолчанию название филиала = название компании
+        name: company.name,
         slug,
         categoryId: input.categoryId,
         city: input.city,
         address: input.address,
         phone: input.phone,
         workHours: input.workHours,
-        companyId: company.id,       // ✅ связываем с компанией
+        companyId: company.id,
       },
       select: { id: true, slug: true },
     });
@@ -65,6 +73,9 @@ export async function POST(req: Request) {
     if (err?.name === "ZodError") {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    if (err?.message?.includes("недопустимые слова")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("CREATE BRANCH ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
