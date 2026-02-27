@@ -32,7 +32,7 @@ const RU_BAD_WORDS = new Set([
   "врун","балабол","гамункул",
   "хуесос","лох","лошара",
   "хуйло", "хер", "санина",
-  "трепло",
+  "трепло", "котакбас",
 ]);
 
 const EN_BAD_WORDS = new Set([
@@ -43,12 +43,13 @@ const EN_BAD_WORDS = new Set([
   "slut", "anal", "anus", "suka",
   "blyad", "blyat", "pidor",
   "chlen", "gnida", "debil",
-  "govn", "ueba", "ueban",
+  "govno", "ueba", "ueban",
   "hui", "shluha", "gondon",
   "pizda", "pizdec", "jopa",
   "balabol", "dolba", "sperm",
   "uebok", "pisun", "huesos",
   "loh", "lox", "huilo",
+  "kotakbac", "kotakbas", "kotakbass",
 ]);
 
 // ===== 2) ШАБЛОНЫ (семейства слов) =====
@@ -89,9 +90,6 @@ const EN_PATTERNS: RegExp[] = [
   /^(asshole|dick|whore|motherfucker)[a-z0-9]*$/u,
 ];
 
-// Дополнительные “невидимые” обходы типа f.u.c.k или f_u_c_k:
-// мы уже токенизируем по буквам/цифрам, но такие штуки могут разъезжаться.
-// Поэтому делаем второй проход — склеенная строка без разделителей.
 function squashed(s: string) {
   return normalizeBase(s).replace(/[^a-zа-я0-9]+/gu, "");
 }
