@@ -2,6 +2,23 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { isKzMobilePhone, normalizePhone } from "@/lib/kz";
+
+function normalizePhoneInput(v: string) {
+  const raw = normalizePhone(v); // оставит + и цифры
+  if (raw.startsWith("+")) return raw;
+
+  // 8XXXXXXXXXX -> +7XXXXXXXXXX
+  if (/^8\d{10}$/.test(raw)) return "+7" + raw.slice(1);
+
+  // 7XXXXXXXXXX -> +7XXXXXXXXXX
+  if (/^7\d{10}$/.test(raw)) return "+" + raw;
+
+  // 10 цифр (например 701...) -> +7 + 10 цифр
+  if (/^\d{10}$/.test(raw)) return "+7" + raw;
+
+  return raw;
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -27,7 +44,10 @@ export default function SignupPage() {
     if (lastName.trim().length < 2) return setErr("Введите фамилию (мин 2 символа)");
     if (nickname.trim().length < 2) return setErr("Введите никнейм (мин 2 символа)");
     if (!/^[a-zA-Z0-9_.-]+$/.test(nickname.trim())) return setErr("Ник: только латиница/цифры/._-");
-    if (phone.trim().length < 5) return setErr("Введите номер телефона");
+
+    const normalizedPhone = normalizePhoneInput(phone);
+    if (!isKzMobilePhone(normalizedPhone)) return setErr("Введите казахстанский номер");
+
     if (!email.trim()) return setErr("Введите email");
 
     if (password.length < 8) return setErr("Пароль минимум 8 символов");
@@ -44,7 +64,7 @@ export default function SignupPage() {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           nickname: nickname.trim(),
-          phone: phone.trim(),
+          phone: normalizedPhone, // ✅ отправляем нормализованный
           email: email.trim(),
           password,
         }),
@@ -74,23 +94,55 @@ export default function SignupPage() {
       <h1 className="text-2xl font-semibold text-center">Регистрация</h1>
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-3">
-        <input className="h-10 rounded-md border px-3" placeholder="Имя"
-          value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Имя"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          autoComplete="given-name"
+        />
 
-        <input className="h-10 rounded-md border px-3" placeholder="Фамилия"
-          value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Фамилия"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          autoComplete="family-name"
+        />
 
-        <input className="h-10 rounded-md border px-3" placeholder="Никнейм (латиница/цифры/._-)"
-          value={nickname} onChange={(e) => setNickname(e.target.value)} autoComplete="username" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Никнейм (латиница/цифры/._-)"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          autoComplete="username"
+        />
 
-        <input className="h-10 rounded-md border px-3" placeholder="Телефон"
-          value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Телефон (+7XXXXXXXXXX)"
+          value={phone}
+          onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
+          autoComplete="tel"
+          inputMode="tel"
+        />
 
-        <input className="h-10 rounded-md border px-3" placeholder="Email"
-          value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+        />
 
-        <input className="h-10 rounded-md border px-3" placeholder="Пароль (мин 8, A-z, 0-9)"
-          type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Пароль (мин 8, A-z, 0-9)"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+        />
 
         {err ? <div className="text-sm text-red-600">{err}</div> : null}
 

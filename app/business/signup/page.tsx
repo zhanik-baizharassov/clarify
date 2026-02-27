@@ -2,6 +2,18 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { isKzMobilePhone, normalizePhone } from "@/lib/kz";
+
+function normalizePhoneInput(v: string) {
+  const raw = normalizePhone(v);
+  if (raw.startsWith("+")) return raw;
+
+  if (/^8\d{10}$/.test(raw)) return "+7" + raw.slice(1);
+  if (/^7\d{10}$/.test(raw)) return "+" + raw;
+  if (/^\d{10}$/.test(raw)) return "+7" + raw;
+
+  return raw;
+}
 
 export default function BusinessSignupPage() {
   const router = useRouter();
@@ -24,7 +36,10 @@ export default function BusinessSignupPage() {
 
     if (companyName.trim().length < 2) return setErr("Введите название компании");
     if (!/^\d{12}$/.test(bin.trim())) return setErr("БИН должен состоять из 12 цифр");
-    if (phone.trim().length < 5) return setErr("Введите номер телефона");
+
+    const normalizedPhone = normalizePhoneInput(phone);
+    if (!isKzMobilePhone(normalizedPhone)) return setErr("Введите казахстанский номер");
+
     if (!email.trim()) return setErr("Введите email");
     if (address.trim().length < 5) return setErr("Введите адрес (мин 5 символов)");
 
@@ -41,7 +56,7 @@ export default function BusinessSignupPage() {
         body: JSON.stringify({
           companyName: companyName.trim(),
           bin: bin.trim(),
-          phone: phone.trim(),
+          phone: normalizedPhone, // ✅ нормализованный
           email: email.trim(),
           address: address.trim(),
           password,
@@ -89,10 +104,11 @@ export default function BusinessSignupPage() {
 
         <input
           className="h-10 rounded-md border px-3"
-          placeholder="Телефон"
+          placeholder="Телефон (+7XXXXXXXXXX)"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
           autoComplete="tel"
+          inputMode="tel"
         />
 
         <input

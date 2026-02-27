@@ -4,14 +4,24 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { assertNoProfanity } from "@/lib/profanity";
+import { assertKzCity, assertKzMobilePhone, isKzCity, isKzMobilePhone } from "@/lib/kz";
 
 export const runtime = "nodejs";
 
 const Schema = z.object({
   categoryId: z.string().min(1),
-  city: z.string().trim().min(2).max(60),
+  city: z
+    .string()
+    .trim()
+    .min(2)
+    .max(60)
+    .refine((v) => isKzCity(v), "Выберите город Казахстана"),
   address: z.string().trim().min(5).max(200),
-  phone: z.string().trim().min(5).max(30),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Введите номер телефона")
+    .refine((v) => isKzMobilePhone(v), "Введите казахстанский номер"),
   workHours: z.string().trim().min(2).max(120),
 });
 
@@ -46,6 +56,10 @@ export async function POST(req: Request) {
     });
     if (!category) return NextResponse.json({ error: "Category not found" }, { status: 400 });
 
+    // ✅ нормализация/валидация KZ
+    const city = assertKzCity(input.city);
+    const phone = assertKzMobilePhone(input.phone);
+
     // ✅ profanity-check
     assertNoProfanity(company.name, "Название компании");
     assertNoProfanity(input.address, "Адрес филиала");
@@ -59,9 +73,9 @@ export async function POST(req: Request) {
         name: company.name,
         slug,
         categoryId: input.categoryId,
-        city: input.city,
+        city, // ✅ нормализованный
         address: input.address,
-        phone: input.phone,
+        phone, // ✅ нормализованный
         workHours: input.workHours,
         companyId: company.id,
       },
@@ -76,6 +90,9 @@ export async function POST(req: Request) {
     }
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err?.message === "Введите казахстанский номер") {
+      return NextResponse.json({ error: "Введите казахстанский номер" }, { status: 400 });
     }
     console.error("CREATE BRANCH ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });

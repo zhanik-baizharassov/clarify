@@ -4,6 +4,7 @@ import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { assertNoProfanity } from "@/lib/profanity";
+import { assertKzMobilePhone, isKzMobilePhone } from "@/lib/kz";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,11 @@ const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const Schema = z.object({
   companyName: z.string().trim().min(2).max(120),
   bin: z.string().trim().regex(/^\d{12}$/, "БИН должен состоять из 12 цифр"),
-  phone: z.string().trim().min(5).max(30),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Введите номер телефона")
+    .refine((v) => isKzMobilePhone(v), "Введите казахстанский номер"),
   email: z
     .string()
     .trim()
@@ -36,6 +41,8 @@ export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
+    const phone = assertKzMobilePhone(input.phone);
+
     // ✅ profanity-check
     assertNoProfanity(input.companyName, "Название компании");
     assertNoProfanity(input.address, "Адрес компании");
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
     const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
     if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
 
-    const existsPhone = await prisma.user.findUnique({ where: { phone: input.phone } });
+    const existsPhone = await prisma.user.findUnique({ where: { phone } });
     if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
 
     const existsBin = await prisma.company.findFirst({ where: { bin: input.bin } });
@@ -55,7 +62,7 @@ export async function POST(req: Request) {
     const user = await prisma.user.create({
       data: {
         email: input.email,
-        phone: input.phone,
+        phone, // ✅ нормализованный
         passwordHash,
         role: "COMPANY",
       },
@@ -93,6 +100,9 @@ export async function POST(req: Request) {
     }
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err?.message === "Введите казахстанский номер") {
+      return NextResponse.json({ error: "Введите казахстанский номер" }, { status: 400 });
     }
     console.error("COMPANY SIGNUP ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера при регистрации компании" }, { status: 500 });
