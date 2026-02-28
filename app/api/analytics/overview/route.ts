@@ -15,6 +15,7 @@ export async function GET() {
   // топ городов по кол-ву карточек + средний рейтинг + кол-во отзывов (ratingCount)
   const topCitiesRaw = await prisma.place.groupBy({
     by: ["city"],
+    where: { city: { not: "" } },
     _count: { _all: true },
     _avg: { avgRating: true },
     _sum: { ratingCount: true },
