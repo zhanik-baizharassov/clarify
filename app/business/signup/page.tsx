@@ -2,18 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { isKzMobilePhone, normalizePhone } from "@/lib/kz";
-
-function normalizePhoneInput(v: string) {
-  const raw = normalizePhone(v);
-  if (raw.startsWith("+")) return raw;
-
-  if (/^8\d{10}$/.test(raw)) return "+7" + raw.slice(1);
-  if (/^7\d{10}$/.test(raw)) return "+" + raw;
-  if (/^\d{10}$/.test(raw)) return "+7" + raw;
-
-  return raw;
-}
+import { keepKzPhoneInput, normalizeKzPhone } from "@/lib/kz";
 
 export default function BusinessSignupPage() {
   const router = useRouter();
@@ -22,7 +11,7 @@ export default function BusinessSignupPage() {
 
   const [companyName, setCompanyName] = useState("");
   const [bin, setBin] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+7");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -34,16 +23,20 @@ export default function BusinessSignupPage() {
     e.preventDefault();
     setErr(null);
 
-    if (companyName.trim().length < 2) return setErr("Введите название компании");
-    if (!/^\d{12}$/.test(bin.trim())) return setErr("БИН должен состоять из 12 цифр");
+    if (companyName.trim().length < 2) return setErr("Название компании: минимум 2 символа");
+    if (!/^\d{12}$/.test(bin.trim())) return setErr("БИН: должен состоять из 12 цифр");
 
-    const normalizedPhone = normalizePhoneInput(phone);
-    if (!isKzMobilePhone(normalizedPhone)) return setErr("Введите казахстанский номер");
+    let phoneNorm = "";
+    try {
+      phoneNorm = normalizeKzPhone(phone, "Телефон");
+    } catch (e: any) {
+      return setErr(e?.message ?? "Телефон: некорректный формат");
+    }
 
-    if (!email.trim()) return setErr("Введите email");
-    if (address.trim().length < 5) return setErr("Введите адрес (мин 5 символов)");
+    if (!email.trim()) return setErr("Email: введите email");
+    if (address.trim().length < 5) return setErr("Адрес: минимум 5 символов");
 
-    if (password.length < 8) return setErr("Пароль минимум 8 символов");
+    if (password.length < 8) return setErr("Пароль: минимум 8 символов");
     if (!/[A-Z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 заглавная буква");
     if (!/[a-z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 строчная буква");
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
@@ -56,7 +49,7 @@ export default function BusinessSignupPage() {
         body: JSON.stringify({
           companyName: companyName.trim(),
           bin: bin.trim(),
-          phone: normalizedPhone, // ✅ нормализованный
+          phone: phoneNorm,
           email: email.trim(),
           address: address.trim(),
           password,
@@ -106,7 +99,7 @@ export default function BusinessSignupPage() {
           className="h-10 rounded-md border px-3"
           placeholder="Телефон (+7XXXXXXXXXX)"
           value={phone}
-          onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
+          onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
           autoComplete="tel"
           inputMode="tel"
         />

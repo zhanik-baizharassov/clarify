@@ -2,23 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { isKzMobilePhone, normalizePhone } from "@/lib/kz";
-
-function normalizePhoneInput(v: string) {
-  const raw = normalizePhone(v); // оставит + и цифры
-  if (raw.startsWith("+")) return raw;
-
-  // 8XXXXXXXXXX -> +7XXXXXXXXXX
-  if (/^8\d{10}$/.test(raw)) return "+7" + raw.slice(1);
-
-  // 7XXXXXXXXXX -> +7XXXXXXXXXX
-  if (/^7\d{10}$/.test(raw)) return "+" + raw;
-
-  // 10 цифр (например 701...) -> +7 + 10 цифр
-  if (/^\d{10}$/.test(raw)) return "+7" + raw;
-
-  return raw;
-}
+import { keepKzPhoneInput, normalizeKzPhone } from "@/lib/kz";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -28,7 +12,7 @@ export default function SignupPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nickname, setNickname] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+7");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,17 +24,22 @@ export default function SignupPage() {
     e.preventDefault();
     setErr(null);
 
-    if (firstName.trim().length < 2) return setErr("Введите имя (мин 2 символа)");
-    if (lastName.trim().length < 2) return setErr("Введите фамилию (мин 2 символа)");
-    if (nickname.trim().length < 2) return setErr("Введите никнейм (мин 2 символа)");
-    if (!/^[a-zA-Z0-9_.-]+$/.test(nickname.trim())) return setErr("Ник: только латиница/цифры/._-");
+    if (firstName.trim().length < 2) return setErr("Имя: минимум 2 символа");
+    if (lastName.trim().length < 2) return setErr("Фамилия: минимум 2 символа");
+    if (nickname.trim().length < 2) return setErr("Никнейм: минимум 2 символа");
+    if (!/^[a-zA-Z0-9_.-]+$/.test(nickname.trim())) {
+      return setErr("Никнейм: только латиница/цифры/._-");
+    }
+    if (!email.trim()) return setErr("Email: введите email");
 
-    const normalizedPhone = normalizePhoneInput(phone);
-    if (!isKzMobilePhone(normalizedPhone)) return setErr("Введите казахстанский номер");
+    let phoneNorm = "";
+    try {
+      phoneNorm = normalizeKzPhone(phone, "Телефон");
+    } catch (e: any) {
+      return setErr(e?.message ?? "Телефон: некорректный формат");
+    }
 
-    if (!email.trim()) return setErr("Введите email");
-
-    if (password.length < 8) return setErr("Пароль минимум 8 символов");
+    if (password.length < 8) return setErr("Пароль: минимум 8 символов");
     if (!/[A-Z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 заглавная буква");
     if (!/[a-z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 строчная буква");
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
@@ -64,7 +53,7 @@ export default function SignupPage() {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           nickname: nickname.trim(),
-          phone: normalizedPhone, // ✅ отправляем нормализованный
+          phone: phoneNorm,
           email: email.trim(),
           password,
         }),
@@ -122,7 +111,7 @@ export default function SignupPage() {
           className="h-10 rounded-md border px-3"
           placeholder="Телефон (+7XXXXXXXXXX)"
           value={phone}
-          onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
+          onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
           autoComplete="tel"
           inputMode="tel"
         />

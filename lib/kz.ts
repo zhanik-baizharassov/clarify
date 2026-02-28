@@ -1,3 +1,5 @@
+// lib/kz.ts
+
 export const KZ_CITIES = [
   "Алматы",
   "Астана",
@@ -34,43 +36,48 @@ export function isKzCity(v: string) {
 
 export function assertKzCity(v: string, field = "Город") {
   const c = normalizeCity(v);
-  if (!isKzCity(c)) throw new Error(`${field}: допустимы только города Казахстана`);
+  if (!c) throw new Error(`${field}: выберите город`);
+  if (!isKzCity(c)) throw new Error(`${field}: выберите город из списка Казахстана`);
   return c;
 }
 
 /**
- * KZ мобильные операторы (как ты указал):
+ * KZ мобильные операторы:
  * +7 (700|701|702|705|706|775|778) XXXXXXX
  */
 export const KZ_MOBILE_CODES = ["700", "701", "702", "705", "706", "775", "778"] as const;
+const KZ_MOBILE_SET = new Set<string>(KZ_MOBILE_CODES);
 
-export function normalizePhone(input: string) {
-  // убираем пробелы, скобки, дефисы и т.п.
-  return (input ?? "").trim().replace(/[^\d+]/g, "");
-}
+// Нормализация: убираем пробелы/скобки/дефисы, приводим к "+7XXXXXXXXXX"
+export function normalizeKzPhone(input: string, fieldLabel = "Телефон") {
+  const raw = String(input ?? "").trim();
 
-export function isKzMobilePhone(input: string) {
-  const v = normalizePhone(input);
+  // убираем пробелы/скобки/дефисы, оставляем + и цифры
+  const s = raw.replace(/[()\s-]/g, "").replace(/(?!^\+)[^\d]/g, "");
 
-  // строго +7 и ровно 10 цифр после (итого 11 цифр без "+")
-  if (!/^\+7\d{10}$/.test(v)) return false;
-
-  const code = v.slice(2, 5);
-  return (KZ_MOBILE_CODES as readonly string[]).includes(code);
-}
-
-export function assertKzMobilePhone(input: string) {
-  const v = normalizePhone(input);
-
-  // единый текст ошибки как ты просил
-  if (!/^\+7\d{10}$/.test(v)) {
-    throw new Error("Введите казахстанский номер");
+  if (!s.startsWith("+7")) {
+    throw new Error(`${fieldLabel}: номер должен начинаться с +7`);
   }
 
-  const code = v.slice(2, 5);
-  if (!(KZ_MOBILE_CODES as readonly string[]).includes(code)) {
-    throw new Error("Введите казахстанский номер");
+  const digits = s.replace(/\D/g, ""); // только цифры
+  // ожидаем 11 цифр: 7 + 10 цифр номера
+  if (digits.length !== 11) {
+    throw new Error(`${fieldLabel}: номер должен содержать 11 цифр в формате +7XXXXXXXXXX`);
   }
 
-  return v; // нормализованный формат: +7XXXXXXXXXX
+  const code = digits.slice(1, 4); // 3 цифры после "7"
+  if (!KZ_MOBILE_SET.has(code)) {
+    throw new Error(
+      `${fieldLabel}: введите казахстанский номер. Допустимые коды: ${KZ_MOBILE_CODES.join(", ")}`
+    );
+  }
+
+  return `+7${digits.slice(1)}`;
+}
+
+// Для client input: держим "+7" и максимум 10 цифр после неё
+export function keepKzPhoneInput(value: string) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  const rest = digits.startsWith("7") ? digits.slice(1) : digits;
+  return `+7${rest.slice(0, 10)}`;
 }
