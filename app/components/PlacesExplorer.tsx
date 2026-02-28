@@ -169,7 +169,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         <div className="mt-6 flex flex-wrap gap-2">
           <a
             href="#search"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
           >
             <Search className="h-4 w-4" />
             Найти места
@@ -363,7 +363,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
             <button
               type="button"
-              className="h-11 rounded-xl bg-black px-6 text-white disabled:opacity-50"
+              className="h-11 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
               onClick={load}
               disabled={loading}
             >
@@ -536,7 +536,7 @@ function Chip({
       className={[
         "whitespace-nowrap rounded-full border px-4 py-2 text-sm transition",
         active
-          ? "border-black bg-black text-white"
+          ? "border-primary bg-primary text-primary-foreground"
           : "bg-background hover:bg-muted/40",
       ].join(" ")}
     >

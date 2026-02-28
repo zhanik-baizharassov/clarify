@@ -23,8 +23,10 @@ export default function BusinessSignupPage() {
     e.preventDefault();
     setErr(null);
 
-    if (companyName.trim().length < 2) return setErr("Название компании: минимум 2 символа");
-    if (!/^\d{12}$/.test(bin.trim())) return setErr("БИН: должен состоять из 12 цифр");
+    if (companyName.trim().length < 2)
+      return setErr("Название компании: минимум 2 символа");
+    if (!/^\d{12}$/.test(bin.trim()))
+      return setErr("БИН: должен состоять из 12 цифр");
 
     let phoneNorm = "";
     try {
@@ -37,8 +39,10 @@ export default function BusinessSignupPage() {
     if (address.trim().length < 5) return setErr("Адрес: минимум 5 символов");
 
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
-    if (!/[A-Z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 заглавная буква");
-    if (!/[a-z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 строчная буква");
+    if (!/[A-Z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 заглавная буква");
+    if (!/[a-z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 строчная буква");
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
 
     setLoading(true);
@@ -64,7 +68,8 @@ export default function BusinessSignupPage() {
         data = null;
       }
 
-      if (!res.ok) throw new Error(data?.error ?? "Ошибка регистрации компании");
+      if (!res.ok)
+        throw new Error(data?.error ?? "Ошибка регистрации компании");
 
       router.push(next);
       router.refresh();
@@ -77,7 +82,9 @@ export default function BusinessSignupPage() {
 
   return (
     <main className="mx-auto max-w-md p-6">
-      <h1 className="text-2xl font-semibold text-center">Регистрация компании</h1>
+      <h1 className="text-2xl font-semibold text-center">
+        Регистрация компании
+      </h1>
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-3">
         <input
@@ -130,7 +137,11 @@ export default function BusinessSignupPage() {
 
         {err ? <div className="text-sm text-red-600">{err}</div> : null}
 
-        <button disabled={loading} className="h-10 rounded-md bg-black px-4 text-white disabled:opacity-50">
+        <button
+          disabled={loading}
+          className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        >
+          {" "}
           {loading ? "Создание..." : "Создать бизнес-аккаунт"}
         </button>
       </form>

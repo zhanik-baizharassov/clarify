@@ -29,7 +29,9 @@ export default async function ProfilePage() {
   const locked = user.profileEditCount >= 1;
 
   const fullName =
-    [user.firstName, user.lastName].filter(Boolean).join(" ") || user.nickname || "Пользователь";
+    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+    user.nickname ||
+    "Пользователь";
 
   const createdAt = new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "medium",
@@ -50,10 +52,12 @@ export default async function ProfilePage() {
             "inline-flex items-center rounded-full border px-3 py-1 text-sm",
             locked
               ? "bg-muted/40 text-muted-foreground"
-              : "bg-black text-white border-black",
+              : "bg-primary text-primary-foreground border-primary",
           ].join(" ")}
         >
-          {locked ? "Редактирование: заблокировано" : "Редактирование: доступно 1 раз"}
+          {locked
+            ? "Редактирование: заблокировано"
+            : "Редактирование: доступно 1 раз"}
         </span>
       </div>
 
@@ -66,7 +70,9 @@ export default async function ProfilePage() {
                 alt="avatar"
                 className="h-24 w-24 rounded-2xl border object-cover"
               />
-              <div className="mt-2 text-center text-xs text-muted-foreground">Аватар</div>
+              <div className="mt-2 text-center text-xs text-muted-foreground">
+                Аватар
+              </div>
             </div>
 
             <div className="min-w-0 flex-1">
@@ -92,7 +98,8 @@ export default async function ProfilePage() {
           <div className="mt-5 rounded-xl bg-muted/40 p-4">
             <div className="text-sm font-medium">Ограничение</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Данные профиля можно изменить только один раз. После сохранения форма блокируется.
+              Данные профиля можно изменить только один раз. После сохранения
+              форма блокируется.
             </div>
           </div>
         </section>

@@ -98,9 +98,12 @@ export default function ProfileEditForm({
 
     if (!email.trim()) return "Введите email";
 
-    if (containsProfanity(firstName)) return 'Поле "Имя" содержит недопустимые слова';
-    if (containsProfanity(lastName)) return 'Поле "Фамилия" содержит недопустимые слова';
-    if (containsProfanity(nickname)) return 'Поле "Никнейм" содержит недопустимые слова';
+    if (containsProfanity(firstName))
+      return 'Поле "Имя" содержит недопустимые слова';
+    if (containsProfanity(lastName))
+      return 'Поле "Фамилия" содержит недопустимые слова';
+    if (containsProfanity(nickname))
+      return 'Поле "Никнейм" содержит недопустимые слова';
 
     if (avatarFile) {
       const okTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -113,8 +116,10 @@ export default function ProfileEditForm({
 
     if (showPasswordBlock && password) {
       if (password.length < 8) return "Пароль: минимум 8 символов";
-      if (!/[A-Z]/.test(password)) return "Пароль: нужна хотя бы 1 заглавная буква";
-      if (!/[a-z]/.test(password)) return "Пароль: нужна хотя бы 1 строчная буква";
+      if (!/[A-Z]/.test(password))
+        return "Пароль: нужна хотя бы 1 заглавная буква";
+      if (!/[a-z]/.test(password))
+        return "Пароль: нужна хотя бы 1 строчная буква";
       if (!/\d/.test(password)) return "Пароль: нужна хотя бы 1 цифра";
     }
 
@@ -147,7 +152,8 @@ export default function ProfileEditForm({
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось сохранить профиль");
+      if (!res.ok)
+        throw new Error(data?.error ?? "Не удалось сохранить профиль");
 
       setPassword("");
       setAvatarFile(null);
@@ -178,7 +184,7 @@ export default function ProfileEditForm({
             "inline-flex items-center rounded-full border px-3 py-1 text-sm",
             locked
               ? "bg-muted/40 text-muted-foreground"
-              : "bg-black text-white border-black",
+              : "bg-primary text-primary-foreground border-primary",
           ].join(" ")}
         >
           {locked ? "Заблокировано" : "Доступно (1 раз)"}
@@ -243,7 +249,9 @@ export default function ProfileEditForm({
 
               <button
                 type="button"
-                disabled={locked || loading || (!initial.avatarUrl && !avatarFile)}
+                disabled={
+                  locked || loading || (!initial.avatarUrl && !avatarFile)
+                }
                 onClick={() => {
                   setAvatarFile(null);
                   setAvatarClear(true);
@@ -271,7 +279,8 @@ export default function ProfileEditForm({
           </div>
 
           <div className="mt-2 text-xs text-muted-foreground">
-            Форматы: JPG/PNG/WEBP. Размер: до 1MB. (Файл будет уменьшен перед отправкой.)
+            Форматы: JPG/PNG/WEBP. Размер: до 1MB. (Файл будет уменьшен перед
+            отправкой.)
           </div>
         </div>
 
@@ -371,7 +380,8 @@ export default function ProfileEditForm({
               </label>
 
               <div className="text-xs text-muted-foreground">
-                Требования: минимум 8 символов, 1 заглавная, 1 строчная, 1 цифра.
+                Требования: минимум 8 символов, 1 заглавная, 1 строчная, 1
+                цифра.
               </div>
             </div>
           ) : (
@@ -395,7 +405,7 @@ export default function ProfileEditForm({
 
         <button
           disabled={locked || loading}
-          className="h-11 rounded-xl bg-black px-4 text-white disabled:opacity-50"
+          className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
         >
           {loading ? "Сохранение..." : "Сохранить (1 раз)"}
         </button>

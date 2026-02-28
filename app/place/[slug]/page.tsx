@@ -73,13 +73,19 @@ export default async function PlacePage({
             </div>
 
             {place.description ? (
-              <p className="mt-3 whitespace-pre-wrap text-sm">{place.description}</p>
+              <p className="mt-3 whitespace-pre-wrap text-sm">
+                {place.description}
+              </p>
             ) : null}
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold">{place.avgRating.toFixed(2)}</div>
-            <div className="text-xs text-muted-foreground">{place.ratingCount} отзывов</div>
+            <div className="text-2xl font-bold">
+              {place.avgRating.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {place.ratingCount} отзывов
+            </div>
           </div>
         </div>
 
@@ -88,7 +94,7 @@ export default async function PlacePage({
           {sessionUser?.role === "USER" ? (
             <Link
               href={`/place/${place.slug}/review`}
-              className="inline-flex h-10 items-center rounded-md bg-black px-4 text-white"
+              className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90"
             >
               Оставить отзыв
             </Link>
@@ -96,10 +102,14 @@ export default async function PlacePage({
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
               <div className="font-medium">Это филиал вашей компании</div>
               <div className="mt-1 text-muted-foreground">
-                Компании не оставляют отзывы. Вы можете отвечать на отзывы пользователей в кабинете компании.
+                Компании не оставляют отзывы. Вы можете отвечать на отзывы
+                пользователей в кабинете компании.
               </div>
               <div className="mt-3">
-                <Link href="/company" className="text-sm font-medium underline underline-offset-4">
+                <Link
+                  href="/company"
+                  className="text-sm font-medium underline underline-offset-4"
+                >
                   Перейти в кабинет компании
                 </Link>
               </div>
@@ -128,11 +138,14 @@ export default async function PlacePage({
       <div className="mt-3 grid gap-3">
         {place.reviews.map((r) => {
           const nick = r.author?.nickname ?? "";
-          const fullName = [r.author?.firstName, r.author?.lastName].filter(Boolean).join(" ");
+          const fullName = [r.author?.firstName, r.author?.lastName]
+            .filter(Boolean)
+            .join(" ");
           const name = r.author?.name ?? "";
           const email = r.author?.email ?? "";
 
-          const authorLabel = nick || fullName || name || email || "Пользователь";
+          const authorLabel =
+            nick || fullName || name || email || "Пользователь";
 
           return (
             <div key={r.id} className="rounded-xl border p-4">
@@ -146,7 +159,10 @@ export default async function PlacePage({
               {r.tags.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {r.tags.map((t) => (
-                    <span key={t.tagId} className="rounded-full border px-2 py-1 text-xs">
+                    <span
+                      key={t.tagId}
+                      className="rounded-full border px-2 py-1 text-xs"
+                    >
                       {t.tag.name}
                     </span>
                   ))}
@@ -158,7 +174,9 @@ export default async function PlacePage({
                   <div className="font-medium">Ответ компании:</div>
                   {r.replies.map((rep) => (
                     <div key={rep.id} className="mt-2">
-                      <div className="text-xs text-muted-foreground">{rep.company.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {rep.company.name}
+                      </div>
                       <div className="whitespace-pre-wrap">{rep.text}</div>
                     </div>
                   ))}

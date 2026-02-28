@@ -24,7 +24,11 @@ function buildTimeOptions(stepMin = 30): TimeOption[] {
   return out;
 }
 
-export default function CreateBranchForm({ categories }: { categories: Category[] }) {
+export default function CreateBranchForm({
+  categories,
+}: {
+  categories: Category[];
+}) {
   const router = useRouter();
 
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
@@ -37,7 +41,10 @@ export default function CreateBranchForm({ categories }: { categories: Category[
   const [openTime, setOpenTime] = useState("09:00");
   const [closeTime, setCloseTime] = useState("21:00");
 
-  const workHours = useMemo(() => `${openTime}–${closeTime}`, [openTime, closeTime]);
+  const workHours = useMemo(
+    () => `${openTime}–${closeTime}`,
+    [openTime, closeTime],
+  );
 
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -93,7 +100,9 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
   return (
     <form onSubmit={onSubmit} className="mt-4 grid gap-3 rounded-xl border p-5">
-      <div className="text-sm font-medium">Создать филиал (карточку для отзывов)</div>
+      <div className="text-sm font-medium">
+        Создать филиал (карточку для отзывов)
+      </div>
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Категория</span>
@@ -136,7 +145,9 @@ export default function CreateBranchForm({ categories }: { categories: Category[
       </label>
 
       <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Телефон (+7XXXXXXXXXX)</span>
+        <span className="text-xs text-muted-foreground">
+          Телефон (+7XXXXXXXXXX)
+        </span>
         <input
           className="h-11 rounded-xl border px-3"
           placeholder="+7XXXXXXXXXX"
@@ -189,7 +200,11 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
       {err ? <div className="text-sm text-red-600">{err}</div> : null}
 
-      <button disabled={loading} className="h-11 rounded-xl bg-black px-4 text-white disabled:opacity-50">
+      <button
+        disabled={loading}
+        className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+      >
+        {" "}
         {loading ? "Создание..." : "Создать филиал"}
       </button>
     </form>

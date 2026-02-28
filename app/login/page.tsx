@@ -34,10 +34,25 @@ export default function LoginPage() {
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">Вход</h1>
       <form onSubmit={onSubmit} className="mt-6 grid gap-3">
-        <input className="h-10 rounded-md border px-3" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input className="h-10 rounded-md border px-3" placeholder="Пароль" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          className="h-10 rounded-md border px-3"
+          placeholder="Пароль"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         {err ? <div className="text-sm text-red-600">{err}</div> : null}
-        <button disabled={loading} className="h-10 rounded-md bg-black px-4 text-white disabled:opacity-50">
+        <button
+          disabled={loading}
+          className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        >
+          {" "}
           {loading ? "..." : "Войти"}
         </button>
       </form>
