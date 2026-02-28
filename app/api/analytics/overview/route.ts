@@ -18,7 +18,7 @@ export async function GET() {
     _count: { _all: true },
     _avg: { avgRating: true },
     _sum: { ratingCount: true },
-    orderBy: { _count: { _all: "desc" } },
+    orderBy: { _count: { id: "desc" } },
     take: 8,
   });
 
@@ -33,7 +33,7 @@ export async function GET() {
   const topCatRaw = await prisma.place.groupBy({
     by: ["categoryId"],
     _count: { _all: true },
-    orderBy: { _count: { _all: "desc" } },
+    orderBy: { _count: { id: "desc" } },
     take: 8,
   });
 
