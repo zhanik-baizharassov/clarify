@@ -34,18 +34,27 @@ export function isKzCity(v: string) {
   return (KZ_CITIES as readonly string[]).includes(c);
 }
 
-export function assertKzCity(v: string, field = "Город") {
+export function assertKzCity(v: string, field = "Город"): KzCity {
   const c = normalizeCity(v);
   if (!c) throw new Error(`${field}: выберите город`);
-  if (!isKzCity(c)) throw new Error(`${field}: выберите город из списка Казахстана`);
-  return c;
+  if (!isKzCity(c))
+    throw new Error(`${field}: выберите город из списка Казахстана`);
+  return c as KzCity;
 }
 
 /**
  * KZ мобильные операторы:
  * +7 (700|701|702|705|706|775|778) XXXXXXX
  */
-export const KZ_MOBILE_CODES = ["700", "701", "702", "705", "706", "775", "778"] as const;
+export const KZ_MOBILE_CODES = [
+  "700",
+  "701",
+  "702",
+  "705",
+  "706",
+  "775",
+  "778",
+] as const;
 const KZ_MOBILE_SET = new Set<string>(KZ_MOBILE_CODES);
 
 // Нормализация: убираем пробелы/скобки/дефисы, приводим к "+7XXXXXXXXXX"
@@ -62,13 +71,15 @@ export function normalizeKzPhone(input: string, fieldLabel = "Телефон") {
   const digits = s.replace(/\D/g, ""); // только цифры
   // ожидаем 11 цифр: 7 + 10 цифр номера
   if (digits.length !== 11) {
-    throw new Error(`${fieldLabel}: номер должен содержать 11 цифр в формате +7XXXXXXXXXX`);
+    throw new Error(
+      `${fieldLabel}: номер должен содержать 11 цифр в формате +7XXXXXXXXXX`,
+    );
   }
 
   const code = digits.slice(1, 4); // 3 цифры после "7"
   if (!KZ_MOBILE_SET.has(code)) {
     throw new Error(
-      `${fieldLabel}: введите казахстанский номер. Допустимые коды: ${KZ_MOBILE_CODES.join(", ")}`
+      `${fieldLabel}: после +7 код оператора должен быть ${KZ_MOBILE_CODES.join(", ")}`,
     );
   }
 
