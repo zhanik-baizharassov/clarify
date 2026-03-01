@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { assertNoProfanity } from "@/lib/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/lib/kz";
+import { validateKzAddress } from "@/lib/address";
 
 export const runtime = "nodejs";
 
@@ -33,31 +34,42 @@ export async function POST(req: Request) {
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "COMPANY") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (user.role !== "COMPANY")
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const company = await prisma.company.findFirst({
       where: { ownerId: user.id },
       select: { id: true, name: true, bin: true },
     });
-    if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    if (!company)
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
       select: { id: true },
     });
-    if (!category) return NextResponse.json({ error: "Category not found" }, { status: 400 });
+    if (!category)
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 400 },
+      );
 
     // ✅ KZ-only
     const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон филиала");
-
+    // ✅ address exists (geocode) + сохраним координаты
+    const { lat, lng } = await validateKzAddress({
+      city,
+      address: input.address,
+    });
     // ✅ profanity-check
     assertNoProfanity(company.name, "Название компании");
     assertNoProfanity(input.address, "Адрес филиала");
 
     const slug = `${slugifyAscii(company.name)}-${company.bin ?? company.id.slice(0, 6)}-${Date.now().toString(
-      36
+      36,
     )}-${crypto.randomUUID().slice(0, 6)}`;
 
     const place = await prisma.place.create({
@@ -70,6 +82,8 @@ export async function POST(req: Request) {
         phone,
         workHours: input.workHours,
         companyId: company.id,
+        lat,
+        lng,
       },
       select: { id: true, slug: true },
     });
@@ -81,7 +95,8 @@ export async function POST(req: Request) {
       if (
         err.message.includes("номер") ||
         err.message.includes("Телефон") ||
-        err.message.includes("Город")
+        err.message.includes("Город") ||
+        err.message.includes("Адрес")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }

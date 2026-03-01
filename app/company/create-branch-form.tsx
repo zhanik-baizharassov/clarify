@@ -56,7 +56,13 @@ export default function CreateBranchForm({
     if (!categoryId) return setErr("Категория: выберите категорию");
     if (!city) return setErr("Город: выберите город из списка Казахстана");
 
-    if (address.trim().length < 5) return setErr("Адрес: минимум 5 символов");
+    const addr = address.trim();
+    if (addr.length < 5) return setErr("Адрес: минимум 5 символов");
+
+    // ✅ простая локальная проверка (режет “Бейбитшилик” без номера дома)
+    if (!/\d/.test(addr)) {
+      return setErr("Адрес: укажите номер дома (например «Сейфуллина 34»)");
+    }
 
     let phoneNorm = "";
     try {
@@ -77,7 +83,7 @@ export default function CreateBranchForm({
         body: JSON.stringify({
           categoryId,
           city, // уже валидный KZ город из списка
-          address: address.trim(),
+          address: addr,
           phone: phoneNorm,
           workHours, // "09:00–21:00"
         }),
@@ -204,7 +210,6 @@ export default function CreateBranchForm({
         disabled={loading}
         className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
       >
-        {" "}
         {loading ? "Создание..." : "Создать филиал"}
       </button>
     </form>
