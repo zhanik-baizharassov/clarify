@@ -1,11 +1,11 @@
-// app/api/auth/signup/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { assertNoProfanity } from "@/lib/profanity";
 import { normalizeKzPhone } from "@/lib/kz";
+import { generate6DigitCode, hashCode, codeTtlMs } from "@/lib/emailVerification";
+import { sendEmailVerificationCode } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 
@@ -43,22 +43,58 @@ export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
-    // ✅ profanity-check (жёстко на сервере)
     assertNoProfanity(input.firstName, "Имя");
     assertNoProfanity(input.lastName, "Фамилия");
     assertNoProfanity(input.nickname, "Никнейм");
     assertNoProfanity(input.email, "Email");
 
-    // ✅ KZ phone normalization + validation
     const phone = normalizeKzPhone(input.phone, "Телефон");
 
-    const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
-    if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+    // 1) если email уже есть
+    const existsEmail = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: { id: true, emailVerifiedAt: true },
+    });
 
+    // если email уже подтверждён — обычный конфликт
+    if (existsEmail?.emailVerifiedAt) {
+      return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+    }
+
+    // если email есть, но НЕ подтверждён — просто переотправим код
+    if (existsEmail && !existsEmail.emailVerifiedAt) {
+      // минимальный анти-спам: если код отправляли недавно — просим подождать
+      const last = await prisma.emailVerification.findUnique({
+        where: { userId_email: { userId: existsEmail.id, email: input.email } },
+        select: { createdAt: true },
+      });
+
+      if (last && Date.now() - new Date(last.createdAt).getTime() < 60_000) {
+        return NextResponse.json(
+          { error: "Код уже отправлен. Попробуйте через минуту." },
+          { status: 429 },
+        );
+      }
+
+      const code = generate6DigitCode();
+      const codeHash = hashCode(code);
+      const expiresAt = new Date(Date.now() + codeTtlMs());
+
+      await prisma.emailVerification.upsert({
+        where: { userId_email: { userId: existsEmail.id, email: input.email } },
+        update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
+        create: { userId: existsEmail.id, email: input.email, codeHash, expiresAt },
+      });
+
+      await sendEmailVerificationCode(input.email, code);
+
+      return NextResponse.json({ ok: true, needsEmailVerification: true, email: input.email });
+    }
+
+    // 2) проверки уникальности (для нового пользователя)
     const existsPhone = await prisma.user.findUnique({ where: { phone } });
     if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
 
-    // nickname может быть @unique или нет — findFirst работает в любом случае
     const existsNick = await prisma.user.findFirst({ where: { nickname: input.nickname } });
     if (existsNick) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
 
@@ -73,31 +109,30 @@ export async function POST(req: Request) {
         email: input.email,
         passwordHash,
         role: "USER",
+        emailVerifiedAt: null,
       },
+      select: { id: true, email: true },
     });
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const code = generate6DigitCode();
+    const codeHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + codeTtlMs());
 
-    await prisma.session.create({
-      data: { userId: user.id, token, expiresAt },
+    await prisma.emailVerification.create({
+      data: { userId: user.id, email: user.email, codeHash, expiresAt },
     });
 
-    const res = NextResponse.json({ ok: true });
-    res.cookies.set("session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      expires: expiresAt,
-    });
-    return res;
+    await sendEmailVerificationCode(user.email, code);
+
+    // ✅ не выдаём session cookie тут — сначала подтверждение
+    return NextResponse.json({ ok: true, needsEmailVerification: true, email: user.email });
   } catch (err: any) {
-    // ✅ наши "понятные" ошибки (телефон/город и т.д.)
     if (err instanceof Error && err.message) {
-      // normalizeKzPhone / assertKzCity кидают Error(...)
       if (err.message.includes("номер") || err.message.includes("Телефон")) {
         return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      if (err.message.startsWith("Mail: env")) {
+        return NextResponse.json({ error: "Почта не настроена (SMTP env)" }, { status: 500 });
       }
     }
 
