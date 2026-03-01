@@ -3,6 +3,32 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+async function collectCategoryIds(rootId: string) {
+  // Собираем root + всех потомков (любой глубины)
+  const seen = new Set<string>();
+  const queue: string[] = [rootId];
+  seen.add(rootId);
+
+  while (queue.length) {
+    // маленькими пачками, чтобы не делать огромный IN на всякий случай
+    const batch = queue.splice(0, 50);
+
+    const children = await prisma.category.findMany({
+      where: { parentId: { in: batch } },
+      select: { id: true },
+    });
+
+    for (const c of children) {
+      if (!seen.has(c.id)) {
+        seen.add(c.id);
+        queue.push(c.id);
+      }
+    }
+  }
+
+  return Array.from(seen);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -13,16 +39,16 @@ export async function GET(req: Request) {
     const categorySlug = (url.searchParams.get("categorySlug") ?? "").trim();
     const sort = (url.searchParams.get("sort") ?? "rating_desc").trim();
 
-    let resolvedCategoryId: string | undefined = undefined;
+    let baseCategoryId: string | undefined = undefined;
 
     if (categoryId) {
-      resolvedCategoryId = categoryId;
+      baseCategoryId = categoryId;
     } else if (categorySlug) {
       const cat = await prisma.category.findUnique({
         where: { slug: categorySlug },
         select: { id: true },
       });
-      resolvedCategoryId = cat?.id;
+      baseCategoryId = cat?.id;
     }
 
     const and: any[] = [];
@@ -41,8 +67,9 @@ export async function GET(req: Request) {
       and.push({ city: { equals: city, mode: "insensitive" } });
     }
 
-    if (resolvedCategoryId) {
-      and.push({ categoryId: resolvedCategoryId });
+    if (baseCategoryId) {
+      const ids = await collectCategoryIds(baseCategoryId);
+      and.push({ categoryId: { in: ids } });
     }
 
     const where = and.length ? { AND: and } : undefined;
@@ -51,10 +78,10 @@ export async function GET(req: Request) {
       sort === "reviews_desc"
         ? [{ ratingCount: "desc" as const }, { avgRating: "desc" as const }]
         : sort === "new_desc"
-        ? [{ createdAt: "desc" as const }]
-        : sort === "name_asc"
-        ? [{ name: "asc" as const }]
-        : [{ avgRating: "desc" as const }, { ratingCount: "desc" as const }]; // rating_desc default
+          ? [{ createdAt: "desc" as const }]
+          : sort === "name_asc"
+            ? [{ name: "asc" as const }]
+            : [{ avgRating: "desc" as const }, { ratingCount: "desc" as const }];
 
     const places = await prisma.place.findMany({
       where,
