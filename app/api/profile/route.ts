@@ -20,17 +20,23 @@ const Schema = z.object({
     .trim()
     .min(3, "Никнейм: минимум 3 символа")
     .max(20, "Никнейм: максимум 20 символов")
-    .regex(/^[a-zA-Z0-9_]+$/, "Никнейм: только латиница, цифры и _ (без пробелов)"),
+    .regex(
+      /^[a-zA-Z0-9_]+$/,
+      "Никнейм: только латиница, цифры и _ (без пробелов)",
+    ),
 
   email: z
     .string()
     .trim()
     .email("Некорректный email")
-    .refine((v) => {
-      const m = v.toLowerCase().match(/\.([a-z]{2,})$/);
-      if (!m) return false;
-      return allowedTlds.includes(m[1]);
-    }, `Email должен заканчиваться на: ${allowedTlds.map((t) => "." + t).join(", ")}`),
+    .refine(
+      (v) => {
+        const m = v.toLowerCase().match(/\.([a-z]{2,})$/);
+        if (!m) return false;
+        return allowedTlds.includes(m[1]);
+      },
+      `Email должен заканчиваться на: ${allowedTlds.map((t) => "." + t).join(", ")}`,
+    ),
 
   password: z.string().min(8).max(200).optional(),
   avatarClear: z.boolean().optional(),
@@ -49,12 +55,22 @@ async function readBody(req: Request) {
 
     const passwordRaw = fd.get("password");
     const password =
-      typeof passwordRaw === "string" && passwordRaw.trim() ? passwordRaw : undefined;
+      typeof passwordRaw === "string" && passwordRaw.trim()
+        ? passwordRaw
+        : undefined;
 
     const avatarClear = String(fd.get("avatarClear") ?? "") === "1";
     const avatar = fd.get("avatar"); // File | string | null
 
-    return { firstName, lastName, nickname, email, password, avatarClear, avatar };
+    return {
+      firstName,
+      lastName,
+      nickname,
+      email,
+      password,
+      avatarClear,
+      avatar,
+    };
   }
 
   // fallback JSON
@@ -76,8 +92,10 @@ export async function PATCH(req: Request) {
     });
 
     const user = await getSessionUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "USER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (user.role !== "USER")
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     assertNoProfanity(input.firstName, "Имя");
     assertNoProfanity(input.lastName, "Фамилия");
@@ -86,11 +104,20 @@ export async function PATCH(req: Request) {
     let passwordHash: string | undefined = undefined;
     if (input.password) {
       if (!/[A-Z]/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 заглавная буква" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 заглавная буква" },
+          { status: 400 },
+        );
       if (!/[a-z]/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 строчная буква" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 строчная буква" },
+          { status: 400 },
+        );
       if (!/\d/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 цифра" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 цифра" },
+          { status: 400 },
+        );
 
       passwordHash = await bcrypt.hash(input.password, 10);
     }
@@ -99,7 +126,8 @@ export async function PATCH(req: Request) {
       where: { id: user.id },
       select: { email: true, nickname: true, profileEditCount: true },
     });
-    if (!current) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!current)
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (current.profileEditCount >= 1) {
       return NextResponse.json(
@@ -115,12 +143,18 @@ export async function PATCH(req: Request) {
       const file = body.avatar as File;
 
       if (!allowedAvatarTypes.includes(file.type)) {
-        return NextResponse.json({ error: "Аватар: разрешены только JPG / PNG / WEBP" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Аватар: разрешены только JPG / PNG / WEBP" },
+          { status: 400 },
+        );
       }
 
       const ab = await file.arrayBuffer();
       if (ab.byteLength > maxAvatarBytes) {
-        return NextResponse.json({ error: "Аватар: файл слишком большой (макс. 1MB)" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Аватар: файл слишком большой (макс. 1MB)" },
+          { status: 400 },
+        );
       }
 
       const b64 = Buffer.from(ab).toString("base64");
@@ -153,10 +187,23 @@ export async function PATCH(req: Request) {
     } catch (e: any) {
       // уникальные ограничения (email/nickname/phone)
       if (e?.code === "P2002") {
-        const target = Array.isArray(e?.meta?.target) ? e.meta.target.join(",") : String(e?.meta?.target ?? "");
-        if (target.includes("email")) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
-        if (target.includes("nickname")) return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
-        return NextResponse.json({ error: "Уникальное значение уже занято" }, { status: 409 });
+        const target = Array.isArray(e?.meta?.target)
+          ? e.meta.target.join(",")
+          : String(e?.meta?.target ?? "");
+        if (target.includes("email"))
+          return NextResponse.json(
+            { error: "Email уже занят" },
+            { status: 409 },
+          );
+        if (target.includes("nickname"))
+          return NextResponse.json(
+            { error: "Никнейм уже занят" },
+            { status: 409 },
+          );
+        return NextResponse.json(
+          { error: "Уникальное значение уже занято" },
+          { status: 409 },
+        );
       }
       throw e;
     }
@@ -164,8 +211,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err: any) {
     if (err?.name === "ZodError") {
-      const msg = err.issues?.[0]?.message ?? "Неверные данные";
-      return NextResponse.json({ error: msg }, { status: 400 });
+      const issue = err.issues?.[0];
+      const path = issue?.path?.join(".") || "field";
+      const msg = issue?.message ?? "Неверные данные";
+      return NextResponse.json({ error: `${path}: ${msg}` }, { status: 400 });
     }
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
