@@ -2,10 +2,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { assertNoProfanity } from "@/lib/profanity";
 import { normalizeKzPhone } from "@/lib/kz";
+import { generate6DigitCode, hashCode, codeTtlMs } from "@/lib/emailVerification";
+import { sendEmailVerificationCode } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 
@@ -41,13 +42,65 @@ export async function POST(req: Request) {
     // ✅ profanity-check
     assertNoProfanity(input.companyName, "Название компании");
     assertNoProfanity(input.address, "Адрес компании");
+    assertNoProfanity(input.email, "Email");
 
     // ✅ KZ phone normalization + validation
     const phone = normalizeKzPhone(input.phone, "Телефон");
 
-    const existsEmail = await prisma.user.findUnique({ where: { email: input.email } });
-    if (existsEmail) return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+    // 1) если email уже есть
+    const existsEmail = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: { id: true, emailVerifiedAt: true, role: true },
+    });
 
+    // если email уже подтверждён — обычный конфликт
+    if (existsEmail?.emailVerifiedAt) {
+      return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+    }
+
+    // если email есть, но НЕ подтверждён
+    if (existsEmail && !existsEmail.emailVerifiedAt) {
+      // если это не COMPANY — не даём «перехватить» email
+      if (existsEmail.role !== "COMPANY") {
+        return NextResponse.json(
+          { error: "Этот email уже используется как пользовательский аккаунт" },
+          { status: 409 },
+        );
+      }
+
+      // минимальный анти-спам: если код отправляли недавно — просим подождать
+      const last = await prisma.emailVerification.findUnique({
+        where: { userId_email: { userId: existsEmail.id, email: input.email } },
+        select: { createdAt: true },
+      });
+
+      if (last && Date.now() - new Date(last.createdAt).getTime() < 60_000) {
+        return NextResponse.json(
+          { error: "Код уже отправлен. Попробуйте через минуту." },
+          { status: 429 },
+        );
+      }
+
+      const code = generate6DigitCode();
+      const codeHash = hashCode(code);
+      const expiresAt = new Date(Date.now() + codeTtlMs());
+
+      await prisma.emailVerification.upsert({
+        where: { userId_email: { userId: existsEmail.id, email: input.email } },
+        update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
+        create: { userId: existsEmail.id, email: input.email, codeHash, expiresAt },
+      });
+
+      await sendEmailVerificationCode(input.email, code);
+
+      return NextResponse.json({
+        ok: true,
+        needsEmailVerification: true,
+        email: input.email,
+      });
+    }
+
+    // 2) проверки уникальности для нового бизнес-аккаунта
     const existsPhone = await prisma.user.findUnique({ where: { phone } });
     if (existsPhone) return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
 
@@ -55,19 +108,22 @@ export async function POST(req: Request) {
     if (existsBin) {
       return NextResponse.json(
         { error: "Компания с таким БИН уже зарегистрирована" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
+    // ✅ создаём USER(role=COMPANY), но НЕ логиним
     const user = await prisma.user.create({
       data: {
         email: input.email,
         phone,
         passwordHash,
         role: "COMPANY",
+        emailVerifiedAt: null,
       },
+      select: { id: true, email: true },
     });
 
     await prisma.company.create({
@@ -79,27 +135,30 @@ export async function POST(req: Request) {
       },
     });
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    // ✅ создаём и отправляем код
+    const code = generate6DigitCode();
+    const codeHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + codeTtlMs());
 
-    await prisma.session.create({
-      data: { userId: user.id, token, expiresAt },
+    await prisma.emailVerification.create({
+      data: { userId: user.id, email: user.email, codeHash, expiresAt },
     });
 
-    const res = NextResponse.json({ ok: true });
-    res.cookies.set("session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      expires: expiresAt,
+    await sendEmailVerificationCode(user.email, code);
+
+    // ✅ сессию НЕ создаём, пока email не подтверждён
+    return NextResponse.json({
+      ok: true,
+      needsEmailVerification: true,
+      email: user.email,
     });
-    return res;
   } catch (err: any) {
-    // ✅ наши "понятные" ошибки (телефон/город и т.д.)
     if (err instanceof Error && err.message) {
       if (err.message.includes("номер") || err.message.includes("Телефон")) {
         return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      if (err.message.startsWith("Mail: env")) {
+        return NextResponse.json({ error: "Почта не настроена (SMTP env)" }, { status: 500 });
       }
     }
 

@@ -1,3 +1,4 @@
+// app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
@@ -17,14 +18,23 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: input.email },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, emailVerifiedAt: true },
     });
 
     // ✅ если пользователя нет
     if (!user) {
-      return NextResponse.json({ error: "Пользователь с таким email не найден" }, { status: 401 });
-      // если хочешь короче:
-      // return NextResponse.json({ error: "Неверный email" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Пользователь с таким email не найден" },
+        { status: 401 },
+      );
+    }
+
+    // ✅ блокируем вход, если email не подтверждён
+    if (!user.emailVerifiedAt) {
+      return NextResponse.json(
+        { error: "Подтвердите email: введите код из письма и попробуйте снова" },
+        { status: 403 },
+      );
     }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
@@ -56,6 +66,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
     console.error("LOGIN ERROR:", err);
-    return NextResponse.json({ error: "Ошибка сервера при входе" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Ошибка сервера при входе" },
+      { status: 500 },
+    );
   }
 }

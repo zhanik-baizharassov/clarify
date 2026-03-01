@@ -20,5 +20,10 @@ export async function getSessionUser() {
     return null;
   }
 
+  if (!session.user.emailVerifiedAt) {
+    await prisma.session.deleteMany({ where: { token } });
+    return null;
+  }
+
   return session.user; // { id, email, role, ... }
 }
