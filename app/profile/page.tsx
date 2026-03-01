@@ -1,13 +1,27 @@
-// app/profile/page.tsx
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import ProfileEditForm from "./profile-edit-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+type ProfileTab = "main" | "security" | "reviews" | "notifications";
+
+function pickTab(v?: string): ProfileTab {
+  const t = (v ?? "main").toLowerCase();
+  if (t === "security" || t === "reviews" || t === "notifications" || t === "main") return t;
+  return "main";
+}
+
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeTab = pickTab(sp?.tab);
+
   const sessionUser = await getSessionUser();
   if (!sessionUser) redirect("/login");
   if (sessionUser.role !== "USER") redirect("/");
@@ -20,7 +34,6 @@ export default async function ProfilePage() {
       nickname: true,
       phone: true,
       email: true,
-      emailVerifiedAt: true,
       avatarUrl: true,
       createdAt: true,
       profileEditCount: true,
@@ -36,14 +49,19 @@ export default async function ProfilePage() {
     user.nickname ||
     "Пользователь";
 
-  const createdAt = new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "medium",
-  }).format(user.createdAt);
+  const createdAt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(
+    user.createdAt,
+  );
 
-  const isVerified = Boolean(user.emailVerifiedAt);
+  const tabs: { key: ProfileTab; label: string }[] = [
+    { key: "main", label: "Основное" },
+    { key: "security", label: "Безопасность" },
+    { key: "reviews", label: "Мои отзывы" },
+    { key: "notifications", label: "Уведомления" },
+  ];
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
+    <main className="mx-auto max-w-6xl p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Профиль</h1>
@@ -54,136 +72,132 @@ export default async function ProfilePage() {
 
         <span
           className={[
-            "inline-flex items-center rounded-full border px-3 py-1 text-sm",
+            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
             locked
               ? "bg-muted/40 text-muted-foreground"
               : "bg-primary text-primary-foreground border-primary",
           ].join(" ")}
         >
-          {locked
-            ? "Редактирование: заблокировано"
-            : "Редактирование: доступно 1 раз"}
+          <span className={["inline-flex h-2 w-2 rounded-full", locked ? "bg-muted-foreground/50" : "bg-white/90"].join(" ")} />
+          {locked ? "Недоступно" : "Можно изменить 1 раз"}
         </span>
       </div>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-[1fr_1.25fr]">
-        {/* LEFT CARD */}
+      <div className="mt-6 grid gap-6 md:grid-cols-[360px_1fr]">
+        {/* LEFT: summary */}
         <section className="rounded-2xl border bg-background p-5">
           <div className="flex items-start gap-4">
-            <div className="shrink-0">
+            <div className="grid justify-items-center gap-2">
               <img
                 src={user.avatarUrl || "/avatar-placeholder.png"}
                 alt="avatar"
-                className="h-20 w-20 rounded-2xl border object-cover"
+                className="h-24 w-24 rounded-2xl border object-cover"
               />
-              <div className="mt-2 text-center text-xs text-muted-foreground">
-                Аватар
-              </div>
+              <div className="text-xs text-muted-foreground">Аватар</div>
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-0 truncate text-lg font-semibold">
-                  {fullName}
-                </div>
-
-                <span className="rounded-full bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-                  USER
-                </span>
-
-                {/* ✅ аккуратный бейдж верификации рядом с ролью */}
-                <span
-                  className={[
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
-                    isVerified
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                      : "border-muted-foreground/20 bg-muted/30 text-muted-foreground",
-                  ].join(" ")}
-                  title={isVerified ? "Email подтверждён" : "Email не подтверждён"}
-                >
-                  <span
-                    className={[
-                      "h-1.5 w-1.5 rounded-full",
-                      isVerified ? "bg-emerald-600" : "bg-muted-foreground",
-                    ].join(" ")}
-                  />
-                  {isVerified ? "Email подтверждён" : "Email не подтверждён"}
-                </span>
-              </div>
-
+              <div className="truncate text-lg font-semibold">{fullName}</div>
               <div className="mt-1 text-sm text-muted-foreground">
                 @{user.nickname ?? "—"}
               </div>
 
-              {/* ✅ компактный и ровный список */}
-              <div className="mt-4 grid gap-2 text-sm">
-                <InfoRow label="Телефон" value={<span className="font-medium">{user.phone ?? "—"}</span>} />
-
-                {/* ✅ email переносится красиво по @ и точкам */}
-                <InfoRow
-                  label="Email"
-                  value={<EmailPretty value={user.email} />}
-                />
-
-                <InfoRow
-                  label="Аккаунт создан"
-                  value={<span className="font-medium">{createdAt}</span>}
-                />
+              {/* ✅ статус вынесен отдельно и компактно */}
+              <div className="mt-3">
+                <span className="inline-flex items-center gap-2 rounded-full border bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  Email подтверждён
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl bg-muted/40 p-4">
+          <div className="mt-4 rounded-xl border bg-muted/20 p-4">
+            <div className="grid gap-2 text-sm">
+              <InfoRow label="Телефон" value={user.phone ?? "—"} />
+              <InfoRow label="Email" value={user.email} />
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border bg-background p-4">
+            <InfoRow label="Аккаунт создан" value={createdAt} />
+          </div>
+
+          <div className="mt-4 rounded-xl bg-muted/30 p-4">
             <div className="text-sm font-medium">Ограничение</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Данные профиля можно изменить только один раз. После сохранения
-              форма блокируется.
+              Данные профиля можно изменить только один раз. После сохранения форма блокируется.
             </div>
           </div>
         </section>
 
-        {/* RIGHT CARD */}
-        <ProfileEditForm
-          locked={locked}
-          initial={{
-            firstName: user.firstName ?? "",
-            lastName: user.lastName ?? "",
-            nickname: user.nickname ?? "",
-            email: user.email,
-            avatarUrl: user.avatarUrl ?? null,
-          }}
-        />
+        {/* RIGHT: tabs + content */}
+        <section className="rounded-2xl border bg-background p-5">
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((t) => (
+              <Link
+                key={t.key}
+                href={`/profile?tab=${t.key}`}
+                className={[
+                  "inline-flex h-10 items-center rounded-xl border px-4 text-sm font-medium transition",
+                  activeTab === t.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-muted/40",
+                ].join(" ")}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            {activeTab === "main" ? (
+              <ProfileEditForm
+                locked={locked}
+                initial={{
+                  firstName: user.firstName ?? "",
+                  lastName: user.lastName ?? "",
+                  nickname: user.nickname ?? "",
+                  email: user.email,
+                  avatarUrl: user.avatarUrl ?? null,
+                }}
+              />
+            ) : activeTab === "security" ? (
+              <div className="rounded-2xl border bg-muted/20 p-5">
+                <div className="text-sm font-semibold">Безопасность</div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Здесь будет управление безопасностью аккаунта (например, смена пароля).
+                </div>
+              </div>
+            ) : activeTab === "reviews" ? (
+              <div className="rounded-2xl border bg-muted/20 p-5">
+                <div className="text-sm font-semibold">Мои отзывы</div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Здесь будет список ваших отзывов и статусы модерации.
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border bg-muted/20 p-5">
+                <div className="text-sm font-semibold">Уведомления</div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Здесь будут уведомления (ответы компаний, изменения статусов и т.д.).
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[110px_1fr] items-start gap-3">
+    <div className="flex items-start justify-between gap-3">
       <div className="text-muted-foreground">{label}</div>
-      <div className="min-w-0">{value}</div>
+      <div className="max-w-[65%] text-right font-medium break-words">
+        {value}
+      </div>
     </div>
-  );
-}
-
-/**
- * Делает переносы в email "красиво": после @ и после точек.
- * Без break-all (он ломает слово некрасиво).
- */
-function EmailPretty({ value }: { value: string }) {
-  const parts = value.split(/([@.])/g); // сохраняем разделители
-  return (
-    <span className="font-medium break-words">
-      {parts.map((p, i) => {
-        const isSep = p === "@" || p === ".";
-        return (
-          <span key={`${p}-${i}`}>
-            {p}
-            {isSep ? <wbr /> : null}
-          </span>
-        );
-      })}
-    </span>
   );
 }

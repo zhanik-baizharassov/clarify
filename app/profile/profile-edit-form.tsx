@@ -13,6 +13,8 @@ type InitialVM = {
   avatarUrl: string | null;
 };
 
+type ProfileTab = "main" | "security" | "reviews" | "notifications";
+
 const NICK_RE = /^[a-zA-Z0-9_]+$/; // ✅ как в твоём API /api/profile
 const MAX_CLIENT_MB = 1; // под твой серверный лимит 1MB
 
@@ -65,8 +67,6 @@ async function resizeToFile(
 
   // size-check (мягкий, но полезный)
   if (blob.size > MAX_CLIENT_MB * 1024 * 1024) {
-    // всё равно попробуем отправить — сервер тоже проверит,
-    // но лучше сразу предупредить
     throw new Error(`Аватар: файл больше ${MAX_CLIENT_MB}MB`);
   }
 
@@ -77,9 +77,11 @@ async function resizeToFile(
 export default function ProfileEditForm({
   locked,
   initial,
+  activeTab = "main",
 }: {
   locked: boolean;
   initial: InitialVM;
+  activeTab?: ProfileTab;
 }) {
   const router = useRouter();
   const canEdit = !locked;
@@ -242,9 +244,12 @@ export default function ProfileEditForm({
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-        После успешного сохранения форма станет недоступной.
-      </div>
+      {/* ✅ Показываем подсказку ТОЛЬКО во вкладке "Основное" */}
+      {activeTab === "main" ? (
+        <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+          После успешного сохранения форма станет недоступной.
+        </div>
+      ) : null}
 
       {/* Avatar */}
       <div className="rounded-2xl border bg-background p-5">
@@ -305,7 +310,6 @@ export default function ProfileEditForm({
       <div className="rounded-2xl border bg-background p-5">
         <div className="text-sm font-semibold">Основные данные</div>
 
-        {/* ✅ FIX: grid + gap => поля не накладываются */}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label="Имя">
             <input
@@ -430,7 +434,9 @@ function Field({
     <label className="grid min-w-0 gap-1">
       <div className="flex items-end justify-between gap-3">
         <span className="text-sm font-medium">{label}</span>
-        {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+        {hint ? (
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        ) : null}
       </div>
       {children}
     </label>
