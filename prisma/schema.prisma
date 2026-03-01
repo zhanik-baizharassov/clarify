@@ -36,25 +36,27 @@ enum ReportStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String?
-  firstName    String?
-  lastName     String?
-  nickname     String?  @unique
-  email        String   @unique
-  phone        String?  @unique
-  passwordHash String
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(cuid())
+  name             String?
+  firstName        String?
+  lastName         String?
+  nickname         String?   @unique
+  email            String    @unique
+  phone            String?   @unique
+  passwordHash     String
+  role             Role      @default(USER)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   avatarUrl        String?
-  profileEditCount Int      @default(0)
+  profileEditCount Int       @default(0)
   profileEditedAt  DateTime?
-  
-  sessions  Session[]
-  companies Company[] @relation("CompanyOwner")
-  reviews   Review[]
-  reports   Report[]
+  emailVerifiedAt  DateTime?
+
+  sessions           Session[]
+  emailVerifications EmailVerification[]
+  companies          Company[]           @relation("CompanyOwner")
+  reviews            Review[]
+  reports            Report[]
 }
 
 model Session {
@@ -71,12 +73,12 @@ model Session {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String
+  id      String @id @default(cuid())
+  name    String
+  ownerId String
 
-  bin       String?  @unique
-  address   String?
+  bin     String? @unique
+  address String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,7 +86,7 @@ model Company {
   owner   User          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   claims  Claim[]
   replies ReviewReply[]
-  places Place[]
+  places  Place[]
 
   @@index([ownerId])
 }
@@ -121,10 +123,10 @@ model Place {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  avgRating   Float    @default(0)
-  ratingCount Int      @default(0)
+  avgRating   Float @default(0)
+  ratingCount Int   @default(0)
 
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  company  Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   branches Branch[]
   reviews  Review[]
@@ -154,9 +156,9 @@ model Branch {
 }
 
 model Tag {
-  id    String @id @default(cuid())
-  name  String
-  slug  String @unique
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
 
   reviewTags ReviewTag[]
 }
@@ -172,8 +174,8 @@ model Review {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  place   Place        @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  author  User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  place   Place         @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  author  User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   tags    ReviewTag[]
   replies ReviewReply[]
   reports Report[]
@@ -230,8 +232,8 @@ model Report {
   placeId    String?
   reviewId   String?
   reason     String
-  status     ReportStatus @default(OPEN)
-  createdAt  DateTime     @default(now())
+  status     ReportStatus     @default(OPEN)
+  createdAt  DateTime         @default(now())
 
   reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
   place    Place?  @relation(fields: [placeId], references: [id], onDelete: Cascade)
@@ -240,4 +242,20 @@ model Report {
   @@index([targetType])
   @@index([status])
   @@index([createdAt])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([email])
+  @@index([expiresAt])
 }
