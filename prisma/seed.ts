@@ -29,23 +29,35 @@ async function main() {
 
   const food = await prisma.category.findUnique({ where: { slug: "food" } });
   const shops = await prisma.category.findUnique({ where: { slug: "shops" } });
-  const services = await prisma.category.findUnique({ where: { slug: "services" } });
+  const services = await prisma.category.findUnique({
+    where: { slug: "services" },
+  });
 
   const children = [
     // Еда
     { parentId: food!.id, name: "Кафе", slug: "cafe" },
     { parentId: food!.id, name: "Рестораны", slug: "restaurants" },
     { parentId: food!.id, name: "Доставка еды", slug: "food-delivery" },
+    { parentId: food!.id, name: "Фастфуд", slug: "fast-food" },
+    { parentId: food!.id, name: "Кофейни", slug: "coffee" },
+    { parentId: food!.id, name: "Пекарни и кондитерские", slug: "bakery" },
 
     // Магазины
-    { parentId: shops!.id, name: "Продукты", slug: "grocery" },
-    { parentId: shops!.id, name: "Одежда", slug: "clothes" },
-    { parentId: shops!.id, name: "Техника", slug: "electronics" },
+    { parentId: shops!.id, name: "Продуктовые магазины", slug: "grocery" }, // было "Продукты"
+    { parentId: shops!.id, name: "Одежда и обувь", slug: "clothes" }, // было "Одежда"
+    { parentId: shops!.id, name: "Техника и электроника", slug: "electronics" }, // было "Техника"
+    { parentId: shops!.id, name: "Цветочные магазины", slug: "flowers" },
+    { parentId: shops!.id, name: "Аптеки", slug: "pharmacy" },
+    { parentId: shops!.id, name: "Зоомагазины", slug: "pets" },
+    { parentId: shops!.id, name: "Косметика и парфюм", slug: "cosmetics" },
+    { parentId: shops!.id, name: "Детские товары", slug: "kids" },
 
     // Сервисы
     { parentId: services!.id, name: "Ремонт телефонов", slug: "phone-repair" },
     { parentId: services!.id, name: "Ремонт компьютеров", slug: "pc-repair" },
     { parentId: services!.id, name: "Салоны красоты", slug: "beauty" },
+    { parentId: services!.id, name: "SPA центры", slug: "spa" },
+    { parentId: services!.id, name: "Фитнес клубы", slug: "fitness" },
     { parentId: services!.id, name: "Автосервисы", slug: "auto-repair" },
   ];
 
@@ -80,10 +92,14 @@ async function main() {
       create: t,
     });
   }
-    // --- ТЕСТОВЫЕ МЕСТА (Place) ---
+  // --- ТЕСТОВЫЕ МЕСТА (Place) ---
   const cafeCat = await prisma.category.findUnique({ where: { slug: "cafe" } });
-  const phoneRepairCat = await prisma.category.findUnique({ where: { slug: "phone-repair" } });
-  const groceryCat = await prisma.category.findUnique({ where: { slug: "grocery" } });
+  const phoneRepairCat = await prisma.category.findUnique({
+    where: { slug: "phone-repair" },
+  });
+  const groceryCat = await prisma.category.findUnique({
+    where: { slug: "grocery" },
+  });
 
   if (!cafeCat || !phoneRepairCat || !groceryCat) {
     throw new Error("Не найдены нужные категории (cafe/phone-repair/grocery).");

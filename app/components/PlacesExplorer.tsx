@@ -111,10 +111,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
     })();
   }, []);
 
-  const subCategories = useMemo(
-    () => categories.filter((c) => c.parentId !== null),
-    [categories],
-  );
+  const allCategories = useMemo(() => categories, [categories]);
 
   async function load() {
     setLoading(true);
@@ -309,7 +306,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
       </div>
 
       {/* Категории-слайдер */}
-      {subCategories.length ? (
+      {allCategories.length ? (
         <div className="mt-6">
           <div className="mb-2 text-sm font-semibold">Категории</div>
 
@@ -320,7 +317,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
                 onClick={() => setCategoryId("")}
                 text="Все"
               />
-              {subCategories.map((c) => (
+              {allCategories.map((c) => (
                 <Chip
                   key={c.id}
                   active={categoryId === c.id}
@@ -395,9 +392,9 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
               onChange={(e) => setCategoryId(e.target.value)}
             >
               <option value="">Все категории</option>
-              {subCategories.map((c) => (
+              {allCategories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.parentId ? `— ${c.name}` : c.name}
                 </option>
               ))}
             </select>
