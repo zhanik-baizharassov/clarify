@@ -1,9 +1,10 @@
-// app/profile/profile-edit-form.tsx
 "use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type TabKey = "main" | "security";
 
 type InitialVM = {
   firstName: string;
@@ -13,10 +14,8 @@ type InitialVM = {
   avatarUrl: string | null;
 };
 
-type ProfileTab = "main" | "security" | "reviews" | "notifications";
-
-const NICK_RE = /^[a-zA-Z0-9_]+$/; // ✅ как в твоём API /api/profile
-const MAX_CLIENT_MB = 1; // под твой серверный лимит 1MB
+const NICK_RE = /^[a-zA-Z0-9_]+$/;
+const MAX_CLIENT_MB = 1;
 
 async function resizeToFile(
   file: File,
@@ -53,8 +52,7 @@ async function resizeToFile(
 
   ctx.drawImage(img, 0, 0, tw, th);
 
-  const outType =
-    file.type === "image/png" ? "image/png" : "image/jpeg"; // jpeg лучше ужимает
+  const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
   const ext = outType === "image/png" ? "png" : "jpg";
 
   const blob = await new Promise<Blob>((resolve, reject) => {
@@ -65,7 +63,6 @@ async function resizeToFile(
     );
   });
 
-  // size-check (мягкий, но полезный)
   if (blob.size > MAX_CLIENT_MB * 1024 * 1024) {
     throw new Error(`Аватар: файл больше ${MAX_CLIENT_MB}MB`);
   }
@@ -75,23 +72,24 @@ async function resizeToFile(
 }
 
 export default function ProfileEditForm({
+  tab = "main",
   locked,
   initial,
-  activeTab = "main",
 }: {
+  tab?: TabKey;
   locked: boolean;
   initial: InitialVM;
-  activeTab?: ProfileTab;
 }) {
   const router = useRouter();
   const canEdit = !locked;
 
+  // main fields (нужны и для security-tab, потому что API требует их в PATCH)
   const [firstName, setFirstName] = useState(initial.firstName ?? "");
   const [lastName, setLastName] = useState(initial.lastName ?? "");
   const [nickname, setNickname] = useState(initial.nickname ?? "");
   const [email] = useState(initial.email);
 
-  // avatar
+  // avatar (только main tab)
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     initial.avatarUrl ?? null,
@@ -99,7 +97,7 @@ export default function ProfileEditForm({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarClear, setAvatarClear] = useState(false);
 
-  // password
+  // password (только security tab)
   const [changePassword, setChangePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -108,17 +106,22 @@ export default function ProfileEditForm({
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // чтобы не текли objectURL
+  // auto-open password fields when tab=security
+  useEffect(() => {
+    if (tab === "security") setChangePassword(true);
+  }, [tab]);
+
+  // avoid blob leak
   useEffect(() => {
     return () => {
       if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
     };
   }, [avatarPreview]);
 
-  const saveLabel = useMemo(
-    () => (canEdit ? "Сохранить (1 раз)" : "Сохранить"),
-    [canEdit],
-  );
+  const saveLabel = useMemo(() => {
+    if (tab === "security") return "Сохранить пароль";
+    return canEdit ? "Сохранить (1 раз)" : "Сохранить";
+  }, [tab, canEdit]);
 
   async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -136,7 +139,6 @@ export default function ProfileEditForm({
     try {
       const resized = await resizeToFile(f, 512, 0.86);
 
-      // превью через blob url
       const url = URL.createObjectURL(resized);
       if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
 
@@ -166,17 +168,22 @@ export default function ProfileEditForm({
 
     if (!canEdit) return setErr("Редактирование профиля больше недоступно.");
 
+    // ✅ main tab — валидируем основные поля
     const fn = firstName.trim();
     const ln = lastName.trim();
     const nn = nickname.trim();
 
-    if (fn.length < 2) return setErr("Имя: минимум 2 символа");
-    if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
-    if (nn.length < 3) return setErr("Никнейм: минимум 3 символа");
-    if (!NICK_RE.test(nn))
-      return setErr("Никнейм: только латиница, цифры и _ (без пробелов)");
+    if (tab === "main") {
+      if (fn.length < 2) return setErr("Имя: минимум 2 символа");
+      if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
+      if (nn.length < 3) return setErr("Никнейм: минимум 3 символа");
+      if (!NICK_RE.test(nn))
+        return setErr("Никнейм: только латиница, цифры и _ (без пробелов)");
+    }
 
-    if (changePassword) {
+    // ✅ security tab — требуем пароль
+    if (tab === "security") {
+      if (!changePassword) return setErr("Включите смену пароля.");
       if (password.length < 8) return setErr("Пароль: минимум 8 символов");
       if (!/[A-Z]/.test(password))
         return setErr("Пароль: нужна хотя бы 1 заглавная буква");
@@ -184,25 +191,37 @@ export default function ProfileEditForm({
         return setErr("Пароль: нужна хотя бы 1 строчная буква");
       if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
       if (password !== password2) return setErr("Пароли не совпадают");
+    } else {
+      // main tab — пароль опционален (если включили)
+      if (changePassword) {
+        if (password.length < 8) return setErr("Пароль: минимум 8 символов");
+        if (!/[A-Z]/.test(password))
+          return setErr("Пароль: нужна хотя бы 1 заглавная буква");
+        if (!/[a-z]/.test(password))
+          return setErr("Пароль: нужна хотя бы 1 строчная буква");
+        if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
+        if (password !== password2) return setErr("Пароли не совпадают");
+      }
     }
 
     setLoading(true);
     try {
       const fd = new FormData();
-      fd.set("firstName", fn);
-      fd.set("lastName", ln);
-      fd.set("nickname", nn);
 
-      // ✅ ВАЖНО: API ожидает email (обязательное поле Schema)
+      // ✅ API требует эти поля всегда
+      fd.set("firstName", fn || initial.firstName || "");
+      fd.set("lastName", ln || initial.lastName || "");
+      fd.set("nickname", nn || initial.nickname || "");
       fd.set("email", email);
 
+      // password
       if (changePassword && password.trim()) fd.set("password", password);
 
-      // ✅ как в API: avatarClear = "1"
-      if (avatarClear) fd.set("avatarClear", "1");
-
-      // ✅ как в API: avatar = File
-      if (avatarFile) fd.set("avatar", avatarFile);
+      // ✅ avatar только в main tab
+      if (tab === "main") {
+        if (avatarClear) fd.set("avatarClear", "1");
+        if (avatarFile) fd.set("avatar", avatarFile);
+      }
 
       const res = await fetch("/api/profile", {
         method: "PATCH",
@@ -210,10 +229,14 @@ export default function ProfileEditForm({
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось сохранить профиль");
+      if (!res.ok) throw new Error(data?.error ?? "Не удалось сохранить");
 
-      setOk("Профиль сохранён");
+      setOk(tab === "security" ? "Пароль обновлён" : "Профиль сохранён");
       router.refresh();
+
+      // чуть подчистим парольные поля
+      setPassword("");
+      setPassword2("");
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
     } finally {
@@ -221,6 +244,97 @@ export default function ProfileEditForm({
     }
   }
 
+  // ===========================
+  // UI
+  // ===========================
+
+  if (tab === "security") {
+    return (
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <div>
+          <div className="text-xl font-semibold">Безопасность</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Здесь можно сменить пароль аккаунта.
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-background p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Смена пароля</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Используйте надёжный пароль (мин. 8 символов).
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
+              onClick={() => setChangePassword((v) => !v)}
+              disabled={loading || !canEdit}
+            >
+              {changePassword ? "Скрыть" : "Сменить пароль"}
+            </button>
+          </div>
+
+          {changePassword ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
+                <input
+                  className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading || !canEdit}
+                  autoComplete="new-password"
+                />
+              </Field>
+
+              <Field label="Повторите пароль">
+                <input
+                  className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  type="password"
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
+                  disabled={loading || !canEdit}
+                  autoComplete="new-password"
+                />
+              </Field>
+            </div>
+          ) : null}
+        </div>
+
+        {err ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            {err}
+          </div>
+        ) : null}
+
+        {ok ? (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-700">
+            {ok}
+          </div>
+        ) : null}
+
+        <button
+          disabled={loading || !canEdit || !changePassword}
+          className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
+        >
+          {loading ? "Сохранение..." : saveLabel}
+        </button>
+
+        {!canEdit ? (
+          <div className="text-xs text-muted-foreground">
+            Сейчас смена пароля завязана на лимит “1 раз”, потому что это одна и
+            та же PATCH-логика профиля. Если хочешь — отделим пароль, чтобы его
+            можно было менять всегда.
+          </div>
+        ) : null}
+      </form>
+    );
+  }
+
+  // tab === "main"
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -244,12 +358,9 @@ export default function ProfileEditForm({
         </div>
       </div>
 
-      {/* ✅ Показываем подсказку ТОЛЬКО во вкладке "Основное" */}
-      {activeTab === "main" ? (
-        <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-          После успешного сохранения форма станет недоступной.
-        </div>
-      ) : null}
+      <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+        После успешного сохранения форма станет недоступной.
+      </div>
 
       {/* Avatar */}
       <div className="rounded-2xl border bg-background p-5">
@@ -350,53 +461,10 @@ export default function ProfileEditForm({
             />
           </Field>
         </div>
-      </div>
 
-      {/* Безопасность */}
-      <div className="rounded-2xl border bg-background p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold">Безопасность</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Пароль не изменится, если не включать режим смены пароля.
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
-            onClick={() => setChangePassword((v) => !v)}
-            disabled={loading || !canEdit}
-          >
-            {changePassword ? "Отменить" : "Сменить пароль"}
-          </button>
+        <div className="mt-3 text-xs text-muted-foreground">
+          Смена пароля находится во вкладке <span className="font-medium">«Безопасность»</span>.
         </div>
-
-        {changePassword ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
-              <input
-                className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading || !canEdit}
-                autoComplete="new-password"
-              />
-            </Field>
-
-            <Field label="Повторите пароль">
-              <input
-                className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                type="password"
-                value={password2}
-                onChange={(e) => setPassword2(e.target.value)}
-                disabled={loading || !canEdit}
-                autoComplete="new-password"
-              />
-            </Field>
-          </div>
-        ) : null}
       </div>
 
       {err ? (
