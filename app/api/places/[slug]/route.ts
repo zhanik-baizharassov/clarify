@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/server/db/prisma";
 
-export async function GET(_: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const place = await prisma.place.findUnique({
-    where: { slug: params.slug },
+    where: { slug: slug },
     include: {
       category: true,
       reviews: {

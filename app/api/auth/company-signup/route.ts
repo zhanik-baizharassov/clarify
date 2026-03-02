@@ -2,11 +2,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { assertNoProfanity } from "@/lib/profanity";
-import { normalizeKzPhone } from "@/lib/kz";
-import { generate6DigitCode, hashCode, codeTtlMs } from "@/lib/emailVerification";
-import { sendEmailVerificationCode } from "@/lib/mailer";
+import { prisma } from "@/server/db/prisma";
+import { assertNoProfanity } from "@/server/security/profanity";
+import { normalizeKzPhone } from "@/shared/kz/kz";
+import { generate6DigitCode, hashCode, codeTtlMs } from "@/server/email/verification";
+import { sendEmailVerificationCode } from "@/server/email/mailer";
 
 export const runtime = "nodejs";
 

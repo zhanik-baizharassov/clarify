@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
-import CreateBranchForm from "./create-branch-form";
-import ReplyForm from "./reply-form";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
+import CreateBranchForm from "@/features/company/components/create-branch-form";
+import ReplyForm from "@/features/reviews/components/reply-form";
 
 export const dynamic = "force-dynamic";
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
-import ProfileEditForm from "./profile-edit-form";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
+import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 
 export const dynamic = "force-dynamic";
 

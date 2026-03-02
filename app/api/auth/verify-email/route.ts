@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
-import { hashCode } from "@/lib/emailVerification";
+import { prisma } from "@/server/db/prisma";
+import { hashCode } from "@/server/email/verification";
 
 export const runtime = "nodejs";
 

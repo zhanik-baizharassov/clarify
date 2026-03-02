@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 

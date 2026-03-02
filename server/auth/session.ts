@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/server/db/prisma";
 
 export async function getSessionUser() {
   const store = await cookies();
@@ -27,3 +27,4 @@ export async function getSessionUser() {
 
   return session.user; // { id, email, role, ... }
 }
+

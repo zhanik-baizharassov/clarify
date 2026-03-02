@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/lib/kz";
+import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
 type Category = { id: string; name: string };
 

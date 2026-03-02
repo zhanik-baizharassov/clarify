@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
-import { assertNoProfanity } from "@/lib/profanity";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
+import { assertNoProfanity } from "@/server/security/profanity";
 
 export const runtime = "nodejs";
 

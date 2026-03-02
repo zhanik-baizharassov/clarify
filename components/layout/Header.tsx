@@ -1,6 +1,6 @@
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/server/auth/session";
 
 export default async function Header() {
   const user = await getSessionUser();

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { validateKzAddress } from "@/lib/address";
+import { validateKzAddress } from "@/server/address/validate";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Ошибка" },
+      { ok: false, error: e?.message ?? "РћС€РёР±РєР°" },
       { status: 400 },
     );
   }

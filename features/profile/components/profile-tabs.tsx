@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import ProfileEditForm from "./profile-edit-form";
+import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 
 type Initial = {
   firstName: string;

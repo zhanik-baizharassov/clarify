@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
-import ReviewForm from "./review-form";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
+import ReviewForm from "@/features/reviews/components/review-form";
 
 export default async function AddReviewPage({
   params,

@@ -1,5 +1,5 @@
 // lib/address.ts
-import { assertKzCity } from "@/lib/kz";
+import { assertKzCity } from "@/shared/kz/kz";
 
 export type AddressCheckResult = {
   lat: number;

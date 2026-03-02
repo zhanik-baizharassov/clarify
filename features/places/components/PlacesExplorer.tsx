@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { KZ_CITIES } from "@/lib/kz";
+import { KZ_CITIES } from "@/shared/kz/kz";
 
 type Category = {
   id: string;
@@ -588,3 +588,4 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 
   return debounced;
 }
+

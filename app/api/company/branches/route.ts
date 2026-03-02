@@ -2,11 +2,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
-import { assertNoProfanity } from "@/lib/profanity";
-import { assertKzCity, normalizeKzPhone } from "@/lib/kz";
-import { validateKzAddress } from "@/lib/address";
+import { prisma } from "@/server/db/prisma";
+import { getSessionUser } from "@/server/auth/session";
+import { assertNoProfanity } from "@/server/security/profanity";
+import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
+import { validateKzAddress } from "@/server/address/validate";
 
 export const runtime = "nodejs";
 
@@ -113,3 +113,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
+

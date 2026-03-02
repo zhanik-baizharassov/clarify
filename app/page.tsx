@@ -1,5 +1,5 @@
-import PlacesExplorer from "./components/PlacesExplorer";
-import { getSessionUser } from "@/lib/auth";
+import PlacesExplorer from "@/features/places/components/PlacesExplorer";
+import { getSessionUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
