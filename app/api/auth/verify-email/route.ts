@@ -24,37 +24,40 @@ function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
 
 export async function POST(req: Request) {
   try {
-    const input = Schema.parse(await req.json());
+    const parsed = Schema.parse(await req.json());
+
+    // ✅ нормализуем email
+    const email = parsed.email.toLowerCase();
+    const code = parsed.code;
 
     const user = await prisma.user.findUnique({
-      where: { email: input.email },
+      where: { email },
       select: { id: true, emailVerifiedAt: true },
     });
 
+    // ✅ не раскрываем существование email
     if (!user) {
-      return NextResponse.json({ error: "Email не найден" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Неверный email или код" },
+        { status: 400 },
+      );
     }
 
-    // ✅ если уже подтверждён — просто логиним
+    // ✅ если уже подтвержден — НЕ логиним здесь
+    // (логин — только через /api/auth/login по паролю)
     if (user.emailVerifiedAt) {
-      const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      await prisma.session.create({ data: { userId: user.id, token, expiresAt } });
-
-      const res = NextResponse.json({ ok: true, alreadyVerified: true });
-      setSessionCookie(res, token, expiresAt);
-      return res;
+      return NextResponse.json({ ok: true, alreadyVerified: true });
     }
 
     const rec = await prisma.emailVerification.findUnique({
-      where: { userId_email: { userId: user.id, email: input.email } },
+      where: { userId_email: { userId: user.id, email } },
       select: { codeHash: true, expiresAt: true, attempts: true },
     });
 
+    // ✅ единое сообщение (не палим детали)
     if (!rec) {
       return NextResponse.json(
-        { error: "Код не найден. Нажмите «Отправить заново»." },
+        { error: "Неверный email или код" },
         { status: 400 },
       );
     }
@@ -73,11 +76,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const ok = hashCode(input.code) === rec.codeHash;
+    const ok = hashCode(code) === rec.codeHash;
 
     if (!ok) {
       await prisma.emailVerification.update({
-        where: { userId_email: { userId: user.id, email: input.email } },
+        where: { userId_email: { userId: user.id, email } },
         data: { attempts: { increment: 1 } },
       });
       return NextResponse.json({ error: "Неверный код" }, { status: 400 });
@@ -94,7 +97,7 @@ export async function POST(req: Request) {
       });
 
       await tx.emailVerification.delete({
-        where: { userId_email: { userId: user.id, email: input.email } },
+        where: { userId_email: { userId: user.id, email } },
       });
 
       await tx.session.create({ data: { userId: user.id, token, expiresAt } });
