@@ -4,19 +4,32 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ReviewForm from "@/features/reviews/components/review-form";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export default async function AddReviewPage({
   params,
 }: {
-  params: Promise<{ slug?: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
   if (!slug) return notFound();
 
-  const user = await getSessionUser();
+  // session: безопасно, чтобы сбой БД не ронял страницу
+  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
+  try {
+    user = await getSessionUser();
+  } catch (err) {
+    console.error("AddReviewPage: getSessionUser failed:", err);
+    user = null;
+  }
+
+  const nextUrl = `/place/${slug}/review`;
 
   // ✅ Только залогиненный USER может оставлять отзывы
   if (!user) {
-    redirect(`/signup?next=${encodeURIComponent(`/place/${slug}/review`)}`);
+    // ✅ логичнее: login (там же есть verify-flow для unverified)
+    redirect(`/login?next=${encodeURIComponent(nextUrl)}`);
   }
   if (user.role !== "USER") {
     redirect(`/place/${slug}`); // COMPANY/ADMIN — возвращаем на филиал

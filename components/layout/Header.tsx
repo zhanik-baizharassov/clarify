@@ -3,12 +3,19 @@ import LogoutButton from "./LogoutButton";
 import { getSessionUser } from "@/server/auth/session";
 
 export default async function Header() {
-  const user = await getSessionUser();
+  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
+
+  try {
+    user = await getSessionUser();
+  } catch (err) {
+    console.error("Header: getSessionUser failed:", err);
+    user = null;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/" className="group flex items-center gap-2">
+        <Link href="/" className="group flex items-center gap-2" aria-label="На главную">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition group-hover:scale-[1.02]">
             C
           </span>
@@ -20,7 +27,7 @@ export default async function Header() {
 
         {/* ГОСТЬ */}
         {!user ? (
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className="flex items-center gap-2 text-sm" aria-label="Навигация">
             <Link
               href="/business"
               className="rounded-xl px-3 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
@@ -44,7 +51,7 @@ export default async function Header() {
           </nav>
         ) : (
           /* ЗАЛОГИНЕН */
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className="flex items-center gap-2 text-sm" aria-label="Навигация">
             {user.role === "COMPANY" ? (
               <Link
                 href="/company"

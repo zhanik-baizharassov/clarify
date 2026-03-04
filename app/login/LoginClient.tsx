@@ -30,8 +30,8 @@ export default function LoginClient() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
-  // таймер cooldown
   useEffect(() => {
     if (cooldownSec <= 0) return;
 
@@ -52,17 +52,32 @@ export default function LoginClient() {
     setTimeout(() => focusOtp(0), 0);
   }
 
+  async function requestResendCode(emailToSend: string) {
+    const res = await fetch("/api/auth/resend-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailToSend }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (res.status === 429 && typeof data?.retryAfterSec === "number") {
+        setCooldownSec(data.retryAfterSec);
+      }
+      throw new Error(data?.error ?? "Не удалось отправить код");
+    }
+
+    const cooldown = typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
+    setCooldownSec(cooldown);
+    resetOtp();
+  }
+
   async function doLogin(sendToVerifyUI = true) {
     const em = email.trim();
 
-    if (!em) {
-      setErr("Введите email");
-      return;
-    }
-    if (!password) {
-      setErr("Введите пароль");
-      return;
-    }
+    if (!em) return setErr("Введите email");
+    if (!password) return setErr("Введите пароль");
 
     setLoading(true);
     setErr(null);
@@ -76,7 +91,7 @@ export default function LoginClient() {
 
       const data = await res.json().catch(() => ({}));
 
-      // ✅ если нужен verify — показываем OTP
+      // ✅ unverified
       if (res.status === 403) {
         if (sendToVerifyUI) {
           setPendingEmail(em);
@@ -84,10 +99,17 @@ export default function LoginClient() {
           resetOtp();
         }
 
-        // анти-спам UX
-        setCooldownSec(60);
+        // пробуем реально отправить код через resend-code
+        try {
+          setResendLoading(true);
+          await requestResendCode(em);
+          setErr("Код отправлен. Проверьте почту и введите 6 цифр.");
+        } catch (e: any) {
+          setErr(e?.message ?? data?.error ?? "Подтвердите email: введите код из письма");
+        } finally {
+          setResendLoading(false);
+        }
 
-        setErr(data?.error ?? "Подтвердите email: введите код из письма");
         return;
       }
 
@@ -137,9 +159,17 @@ export default function LoginClient() {
   async function resendCode() {
     setErr(null);
     if (cooldownSec > 0) return;
+    if (!pendingEmail) return setErr("Email для отправки кода не найден");
 
-    // ✅ повторяем логин, чтобы backend отправил код ещё раз (если так реализовано)
-    await doLogin(false);
+    setResendLoading(true);
+    try {
+      await requestResendCode(pendingEmail);
+      setErr("Код отправлен. Проверьте почту.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Не удалось отправить код");
+    } finally {
+      setResendLoading(false);
+    }
   }
 
   function onOtpChange(i: number, raw: string) {
@@ -316,12 +346,14 @@ export default function LoginClient() {
               <button
                 type="button"
                 onClick={resendCode}
-                disabled={verifyLoading || loading || cooldownSec > 0}
+                disabled={verifyLoading || resendLoading || cooldownSec > 0}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
                 {cooldownSec > 0
                   ? `Отправить снова через ${cooldownSec}с`
-                  : "Отправить код ещё раз"}
+                  : resendLoading
+                    ? "Отправляем..."
+                    : "Отправить код ещё раз"}
               </button>
 
               <button

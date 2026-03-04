@@ -14,8 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Review",
-  description: "?????? ? ??????? ?????????",
+  title: {
+    default: "Clarify",
+    template: "%s — Clarify",
+  },
+  // ⚠️ поставил нормальное описание вместо битой строки
+  // если хочешь другой текст — скажи точную формулировку, заменим
+  description: "Отзывы о компаниях и местах в Казахстане",
 };
 
 export default function RootLayout({
@@ -24,10 +29,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="ru" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         <Header />
-        {children}
+        <main>{children}</main>
       </body>
     </html>
   );

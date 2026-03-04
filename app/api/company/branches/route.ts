@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
@@ -9,17 +10,43 @@ import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { validateKzAddress } from "@/server/address/validate";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const Schema = z.object({
-  categoryId: z.string().min(1),
-  city: z.string().trim().min(2).max(60),
-  address: z.string().trim().min(5).max(200),
-  phone: z.string().trim().min(5).max(30),
-  workHours: z.string().trim().min(2).max(120),
-});
+const Schema = z
+  .object({
+    categoryId: z.string().min(1, "Категория обязательна"),
+    city: z.string().trim().min(2, "Город обязателен").max(60, "Город слишком длинный"),
+    address: z.string().trim().min(5, "Адрес: минимум 5 символов").max(200, "Адрес слишком длинный"),
+    phone: z.string().trim().min(5, "Телефон обязателен").max(30, "Телефон слишком длинный"),
+    workHours: z
+      .string()
+      .trim()
+      .min(2, "Время работы обязательно")
+      .max(120, "Время работы слишком длинное")
+      .regex(/^\d{2}:\d{2}[–-]\d{2}:\d{2}$/, "Время работы: формат 09:00–21:00"),
+  })
+  .strict();
+
+function translitRuKz(s: string) {
+  const map: Record<string, string> = {
+    а:"a", б:"b", в:"v", г:"g", д:"d", е:"e", ё:"e", ж:"zh", з:"z", и:"i", й:"y",
+    к:"k", л:"l", м:"m", н:"n", о:"o", п:"p", р:"r", с:"s", т:"t", у:"u", ф:"f",
+    х:"h", ц:"ts", ч:"ch", ш:"sh", щ:"sch", ъ:"", ы:"y", ь:"", э:"e", ю:"yu", я:"ya",
+    ә:"a", ө:"o", ү:"u", ұ:"u", қ:"k", ғ:"g", ң:"n", і:"i", һ:"h",
+  };
+  return s
+    .split("")
+    .map((ch) => {
+      const low = ch.toLowerCase();
+      const tr = map[low];
+      if (!tr) return ch;
+      return ch === low ? tr : tr.toUpperCase();
+    })
+    .join("");
+}
 
 function slugifyAscii(s: string) {
-  const base = s
+  const base = translitRuKz(s)
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -34,38 +61,30 @@ export async function POST(req: Request) {
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
-    }
-    if (user.role !== "COMPANY") {
-      return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
-    }
+    if (!user) return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
+    if (user.role !== "COMPANY") return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
 
-    // ⚠️ Рекомендуется: ownerId должен быть @unique в prisma.schema
     const company = await prisma.company.findUnique({
       where: { ownerId: user.id },
       select: { id: true, name: true, bin: true },
     });
-
-    if (!company) {
-      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
-    }
+    if (!company) return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
       select: { id: true },
     });
-    if (!category) {
-      return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
-    }
+    if (!category) return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+
+    // ✅ дешёвые проверки до геокодинга
+    assertNoProfanity(company.name, "Название компании");
+    assertNoProfanity(input.address, "Адрес филиала");
 
     const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон филиала");
 
+    // ✅ дорогая операция — только после базовых проверок
     const { lat, lng } = await validateKzAddress({ city, address: input.address });
-
-    assertNoProfanity(company.name, "Название компании");
-    assertNoProfanity(input.address, "Адрес филиала");
 
     const slug = `${slugifyAscii(company.name)}-${
       company.bin ?? company.id.slice(0, 6)
@@ -89,14 +108,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json(place, { status: 201 });
   } catch (err: any) {
-    if (err instanceof Error && err.message) {
-      if (
-        err.message.includes("номер") ||
-        err.message.includes("Телефон") ||
-        err.message.includes("Город") ||
-        err.message.includes("Адрес")
-      ) {
-        return NextResponse.json({ error: err.message }, { status: 400 });
+    // Prisma unique / etc
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2002") {
+        return NextResponse.json({ error: "Филиал уже создан (повторите запрос позже)" }, { status: 409 });
       }
     }
 
@@ -105,8 +120,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
+    if (err instanceof Error && err.message) {
+      if (
+        err.message.includes("номер") ||
+        err.message.includes("Телефон") ||
+        err.message.includes("Город") ||
+        err.message.includes("Адрес") ||
+        err.message.includes("недопустимые слова")
+      ) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
     }
 
     console.error("CREATE BRANCH ERROR:", err);

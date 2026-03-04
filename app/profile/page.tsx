@@ -4,6 +4,7 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type TabKey = "main" | "security" | "reviews" | "notifications";
@@ -15,7 +16,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "notifications", label: "Уведомления" },
 ];
 
-function normalizeTab(v: string | undefined): TabKey {
+function normalizeTab(v: string | null | undefined): TabKey {
   const s = (v ?? "main").toLowerCase();
   if (s === "security") return "security";
   if (s === "reviews") return "reviews";
@@ -26,8 +27,8 @@ function normalizeTab(v: string | undefined): TabKey {
 export default async function ProfilePage({
   searchParams,
 }: {
-  // Next.js (у тебя) отдаёт searchParams как Promise — поэтому await
-  searchParams?: Promise<{ tab?: string }>;
+  // поддержим оба варианта: object и Promise<object>
+  searchParams?: { tab?: string } | Promise<{ tab?: string }>;
 }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) redirect("/login");
@@ -44,7 +45,7 @@ export default async function ProfilePage({
       avatarUrl: true,
       createdAt: true,
       profileEditCount: true,
-      emailVerifiedAt: true, // ✅ бейдж подтверждения
+      emailVerifiedAt: true,
     },
   });
 
@@ -52,7 +53,7 @@ export default async function ProfilePage({
 
   const locked = user.profileEditCount >= 1;
 
-  const sp = searchParams ? await searchParams : {};
+  const sp = searchParams ? await Promise.resolve(searchParams) : {};
   const tab = normalizeTab(sp?.tab);
 
   const fullName =
@@ -65,6 +66,14 @@ export default async function ProfilePage({
   }).format(user.createdAt);
 
   const emailVerified = Boolean(user.emailVerifiedAt);
+
+  const initial = {
+    firstName: user.firstName ?? "",
+    lastName: user.lastName ?? "",
+    nickname: user.nickname ?? "",
+    email: user.email,
+    avatarUrl: user.avatarUrl ?? null,
+  };
 
   return (
     <main className="mx-auto max-w-6xl p-6">
@@ -103,6 +112,8 @@ export default async function ProfilePage({
               <img
                 src={user.avatarUrl || "/avatar-placeholder.png"}
                 alt="avatar"
+                width={96}
+                height={96}
                 className="h-24 w-24 rounded-2xl border object-cover"
               />
               <div className="mt-2 text-center text-xs text-muted-foreground">
@@ -116,7 +127,6 @@ export default async function ProfilePage({
                 @{user.nickname ?? "—"}
               </div>
 
-              {/* ✅ компактный статус */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {emailVerified ? (
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-700">
@@ -157,7 +167,6 @@ export default async function ProfilePage({
 
         {/* RIGHT PANEL */}
         <section className="rounded-2xl border bg-background p-5">
-          {/* tabs */}
           <div className="flex flex-wrap gap-2">
             {TABS.map((t) => {
               const active = t.key === tab;
@@ -180,28 +189,12 @@ export default async function ProfilePage({
 
           <div className="mt-5">
             {tab === "main" ? (
-              <ProfileEditForm
-                tab="main"
-                locked={locked}
-                initial={{
-                  firstName: user.firstName ?? "",
-                  lastName: user.lastName ?? "",
-                  nickname: user.nickname ?? "",
-                  email: user.email,
-                  avatarUrl: user.avatarUrl ?? null,
-                }}
-              />
+              <ProfileEditForm tab="main" locked={locked} initial={initial} />
             ) : tab === "security" ? (
               <ProfileEditForm
                 tab="security"
                 locked={locked}
-                initial={{
-                  firstName: user.firstName ?? "",
-                  lastName: user.lastName ?? "",
-                  nickname: user.nickname ?? "",
-                  email: user.email,
-                  avatarUrl: user.avatarUrl ?? null,
-                }}
+                initial={initial}
               />
             ) : tab === "reviews" ? (
               <div className="rounded-2xl border bg-muted/20 p-5 text-sm text-muted-foreground">

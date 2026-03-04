@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 
@@ -14,6 +15,12 @@ type Initial = {
 
 type TabKey = "main" | "security" | "reviews" | "notifications";
 
+function normalizeTab(v: string | null | undefined): TabKey {
+  const t = (v ?? "").toLowerCase();
+  if (t === "security" || t === "reviews" || t === "notifications") return t;
+  return "main";
+}
+
 export default function ProfileTabs({
   defaultTab,
   locked,
@@ -26,20 +33,13 @@ export default function ProfileTabs({
   const router = useRouter();
   const search = useSearchParams();
 
-  const normalizedDefault = useMemo<TabKey>(() => {
-    const t = (defaultTab ?? search.get("tab") ?? "main").toLowerCase();
-    if (t === "security" || t === "reviews" || t === "notifications") return t;
-    return "main";
+  const tab = useMemo<TabKey>(() => {
+    // defaultTab имеет приоритет, если задан
+    if (defaultTab) return normalizeTab(defaultTab);
+    return normalizeTab(search.get("tab") ?? "main");
   }, [defaultTab, search]);
 
-  const [tab, setTab] = useState<TabKey>(normalizedDefault);
-
-  useEffect(() => {
-    setTab(normalizedDefault);
-  }, [normalizedDefault]);
-
   function setTabAndUrl(next: TabKey) {
-    setTab(next);
     const params = new URLSearchParams(Array.from(search.entries()));
     params.set("tab", next);
     router.replace(`/profile?${params.toString()}`, { scroll: false });
@@ -52,18 +52,21 @@ export default function ProfileTabs({
         <TabButton active={tab === "main"} onClick={() => setTabAndUrl("main")}>
           Основное
         </TabButton>
+
         <TabButton
           active={tab === "security"}
           onClick={() => setTabAndUrl("security")}
         >
           Безопасность
         </TabButton>
+
         <TabButton
           active={tab === "reviews"}
           onClick={() => setTabAndUrl("reviews")}
         >
           Мои отзывы
         </TabButton>
+
         <TabButton
           active={tab === "notifications"}
           onClick={() => setTabAndUrl("notifications")}
@@ -73,7 +76,6 @@ export default function ProfileTabs({
       </div>
 
       <div className="mt-4">
-        {/* мягкий инфо-баннер сверху, логично и спокойно */}
         <div className="rounded-xl border bg-muted/20 p-4 text-sm">
           <div className="font-medium">
             {locked ? "Изменения уже сохранены" : "Изменение профиля (1 раз)"}
@@ -85,7 +87,6 @@ export default function ProfileTabs({
           </div>
         </div>
 
-        {/* Content */}
         <div className="mt-4">
           {tab === "main" ? (
             <ProfileEditForm locked={locked} initial={initial} />
@@ -118,7 +119,7 @@ function TabButton({
 }: {
   active?: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button

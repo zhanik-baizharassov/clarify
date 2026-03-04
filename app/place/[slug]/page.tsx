@@ -3,14 +3,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default async function PlacePage({
   params,
 }: {
-  params: Promise<{ slug?: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
 
   if (!slug) return notFound();
 
@@ -29,11 +30,21 @@ export default async function PlacePage({
               firstName: true,
               lastName: true,
               name: true,
-              email: true,
+              // email НЕ отдаём публично
             },
           },
           tags: { include: { tag: true } },
-          replies: { include: { company: true } },
+          replies: {
+            include: {
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  // bin: true, // включай только если реально нужно отображать
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -41,17 +52,31 @@ export default async function PlacePage({
 
   if (!place) return notFound();
 
-  const sessionUser = await getSessionUser();
+  // session: безопасно, чтобы сбой БД не ронял страницу place
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    console.error("PlacePage: getSessionUser failed:", err);
+    sessionUser = null;
+  }
 
   // ✅ определяем: это филиал компании текущего пользователя?
   let isOwnerBranch = false;
 
-  if (sessionUser?.role === "COMPANY") {
-    const myCompany = await prisma.company.findFirst({
-      where: { ownerId: sessionUser.id },
-      select: { id: true },
-    });
-    isOwnerBranch = Boolean(myCompany?.id && place.companyId === myCompany.id);
+  if (sessionUser?.role === "COMPANY" && place.companyId) {
+    try {
+      // ownerId у Company уникальный в schema.prisma → можно findUnique
+      const myCompany = await prisma.company.findUnique({
+        where: { ownerId: sessionUser.id },
+        select: { id: true },
+      });
+
+      isOwnerBranch = Boolean(myCompany?.id && place.companyId === myCompany.id);
+    } catch (err) {
+      console.error("PlacePage: company lookup failed:", err);
+      isOwnerBranch = false;
+    }
   }
 
   const nextUrl = `/place/${place.slug}/review`;
@@ -80,9 +105,7 @@ export default async function PlacePage({
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold">
-              {place.avgRating.toFixed(2)}
-            </div>
+            <div className="text-2xl font-bold">{place.avgRating.toFixed(2)}</div>
             <div className="text-xs text-muted-foreground">
               {place.ratingCount} отзывов
             </div>
@@ -123,11 +146,12 @@ export default async function PlacePage({
               Администратор не оставляет отзывы.
             </div>
           ) : (
+            // ✅ логичнее: login (поддерживает verify-flow), а регистрацию можно открыть с login страницы
             <Link
-              href={`/signup?next=${encodeURIComponent(nextUrl)}`}
+              href={`/login?next=${encodeURIComponent(nextUrl)}`}
               className="inline-flex h-10 items-center rounded-md border px-4"
             >
-              Зарегистрироваться, чтобы оставить отзыв
+              Войти, чтобы оставить отзыв
             </Link>
           )}
         </div>
@@ -142,10 +166,9 @@ export default async function PlacePage({
             .filter(Boolean)
             .join(" ");
           const name = r.author?.name ?? "";
-          const email = r.author?.email ?? "";
 
-          const authorLabel =
-            nick || fullName || name || email || "Пользователь";
+          // email убран — если нет имени/ника, показываем нейтрально
+          const authorLabel = nick || fullName || name || "Пользователь";
 
           return (
             <div key={r.id} className="rounded-xl border p-4">

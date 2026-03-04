@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Building2,
@@ -19,6 +19,7 @@ type Category = {
   slug: string;
   parentId: string | null;
 };
+
 type PlaceCard = {
   id: string;
   slug: string;
@@ -34,12 +35,7 @@ type SortKey = "rating_desc" | "reviews_desc" | "new_desc" | "name_asc";
 
 type Analytics = {
   totals: { places: number; reviews: number; users: number; companies: number };
-  topCities: {
-    city: string;
-    places: number;
-    avgRating: number;
-    reviews: number;
-  }[];
+  topCities: { city: string; places: number; avgRating: number; reviews: number }[];
   topCategories: { id: string; name: string; places: number }[];
 };
 
@@ -62,84 +58,126 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
-  const debouncedQ = useDebouncedValue(q, 350);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const queryString = useMemo(() => {
-    const p = new URLSearchParams();
-    if (debouncedQ.trim()) p.set("q", debouncedQ.trim());
-    if (city.trim()) p.set("city", city.trim());
-    if (categoryId) p.set("categoryId", categoryId);
-    if (sort) p.set("sort", sort);
-    return p.toString();
-  }, [debouncedQ, city, categoryId, sort]);
+  const placesAbortRef = useRef<AbortController | null>(null);
 
+  const buildQueryString = useCallback(
+    (override?: Partial<{ q: string; city: string; categoryId: string; sort: SortKey }>) => {
+      const p = new URLSearchParams();
+
+      const q0 = (override?.q ?? q).trim();
+      const city0 = (override?.city ?? city).trim();
+      const categoryId0 = (override?.categoryId ?? categoryId).trim();
+      const sort0 = override?.sort ?? sort;
+
+      if (q0) p.set("q", q0);
+      if (city0) p.set("city", city0);
+      if (categoryId0) p.set("categoryId", categoryId0);
+      if (sort0) p.set("sort", sort0);
+
+      return p.toString();
+    },
+    [q, city, categoryId, sort],
+  );
+
+  // bootstrap: categories + analytics (это можно грузить сразу)
   useEffect(() => {
+    const ctrl = new AbortController();
+
     (async () => {
       setAnalyticsLoading(true);
       setAnalyticsError(null);
 
       try {
         const [catsRes, aRes] = await Promise.all([
-          fetch("/api/categories", { cache: "no-store" }),
-          fetch("/api/analytics/overview", { cache: "no-store" }),
+          fetch("/api/categories", { cache: "no-store", signal: ctrl.signal }),
+          fetch("/api/analytics/overview", { cache: "no-store", signal: ctrl.signal }),
         ]);
 
-        // categories
-        const catsData = await catsRes.json().catch(() => null);
-        const list = Array.isArray(catsData?.items)
-          ? (catsData.items as Category[])
-          : [];
+        if (ctrl.signal.aborted) return;
+
+        const catsData = await safeJson(catsRes);
+        const list =
+          catsRes.ok && Array.isArray((catsData as any)?.items)
+            ? ((catsData as any).items as Category[])
+            : [];
         setCategories(list);
 
-        // analytics
-        const aText = await aRes.text();
-        const aData = aText ? JSON.parse(aText) : null;
-
+        const aData = await safeJson(aRes);
         if (!aRes.ok) {
           setAnalytics(null);
-          setAnalyticsError(aData?.error ?? "Не удалось загрузить аналитику");
+          setAnalyticsError((aData as any)?.error ?? "Не удалось загрузить аналитику");
         } else {
           setAnalytics(aData as Analytics);
         }
       } catch {
+        if (ctrl.signal.aborted) return;
         setCategories([]);
         setAnalytics(null);
         setAnalyticsError("Не удалось загрузить аналитику");
       } finally {
-        setAnalyticsLoading(false);
+        if (!ctrl.signal.aborted) setAnalyticsLoading(false);
       }
     })();
+
+    return () => ctrl.abort();
   }, []);
 
   const allCategories = useMemo(() => categories, [categories]);
 
-  async function load() {
+  const loadPlaces = useCallback(async (qs: string) => {
+    placesAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    placesAbortRef.current = ctrl;
+
     setLoading(true);
     setErr(null);
+
     try {
-      const res = await fetch(`/api/places?${queryString}`, {
+      const res = await fetch(`/api/places?${qs}`, {
         cache: "no-store",
+        signal: ctrl.signal,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось загрузить места");
-      setItems(Array.isArray(data?.items) ? data.items : []);
+
+      if (ctrl.signal.aborted) return;
+
+      const data = await safeJson(res);
+      if (!res.ok) throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+
+      setItems(Array.isArray((data as any)?.items) ? ((data as any).items as PlaceCard[]) : []);
     } catch (e: any) {
+      if (ctrl.signal.aborted) return;
       setErr(e?.message ?? "Ошибка");
       setItems([]);
     } finally {
-      setLoading(false);
+      if (!ctrl.signal.aborted) setLoading(false);
     }
+  }, []);
+
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      placesAbortRef.current?.abort();
+    };
+  }, []);
+
+  async function onSearchClick() {
+    const qs = buildQueryString();
+    setHasSearched(true);
+    await loadPlaces(qs);
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString]);
-
-  function resetFilters() {
+  async function resetFilters() {
+    setQ("");
     setCity("");
     setCategoryId("");
     setSort("rating_desc");
+
+    // считаем "поиск" явным действием пользователя (нажал Сбросить)
+    const qs = buildQueryString({ q: "", city: "", categoryId: "", sort: "rating_desc" });
+    setHasSearched(true);
+    await loadPlaces(qs);
   }
 
   return (
@@ -148,19 +186,13 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
       <div className="rounded-3xl border bg-muted/20 p-7 md:p-10">
         <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">KZ</span>
-          <span>
-            Настоящие отзывы разных мест только от верифицированных
-            пользователей
-          </span>
+          <span>Настоящие отзывы разных мест только от верифицированных пользователей</span>
         </div>
 
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
-          Нам важно ваше мнение!
-        </h1>
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Нам важно ваше мнение!</h1>
 
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-          Оценивай заведения и сервисы Казахстана честно: еда, магазины, ремонт,
-          услуги и многое другое.
+          Оценивай заведения и сервисы Казахстана честно: еда, магазины, ремонт, услуги и многое другое.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -183,21 +215,9 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         </div>
 
         <div className="mt-7 grid gap-3 md:grid-cols-3">
-          <FeatureCard
-            title="Рейтинг"
-            desc="Средние оценки по филиалам"
-            icon={<BarChart3 className="h-4 w-4" />}
-          />
-          <FeatureCard
-            title="Фильтры"
-            desc="Город, категория, сортировка"
-            icon={<SlidersHorizontal className="h-4 w-4" />}
-          />
-          <FeatureCard
-            title="Модерация"
-            desc="Profanity-check на сервере"
-            icon={<MessageCircle className="h-4 w-4" />}
-          />
+          <FeatureCard title="Рейтинг" desc="Средние оценки по филиалам" icon={<BarChart3 className="h-4 w-4" />} />
+          <FeatureCard title="Фильтры" desc="Город, категория, сортировка" icon={<SlidersHorizontal className="h-4 w-4" />} />
+          <FeatureCard title="Модерация" desc="Profanity-check на сервере" icon={<MessageCircle className="h-4 w-4" />} />
         </div>
       </div>
 
@@ -212,45 +232,22 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           </div>
         ) : analytics ? (
           <div className="grid gap-3 md:grid-cols-4">
-            <Kpi
-              title="Карточек"
-              value={analytics.totals.places}
-              icon={<MapPin className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Отзывов"
-              value={analytics.totals.reviews}
-              icon={<MessageCircle className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Пользователей"
-              value={analytics.totals.users}
-              icon={<Users className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Компаний"
-              value={analytics.totals.companies}
-              icon={<Building2 className="h-4 w-4" />}
-            />
+            <Kpi title="Карточек" value={analytics.totals.places} icon={<MapPin className="h-4 w-4" />} />
+            <Kpi title="Отзывов" value={analytics.totals.reviews} icon={<MessageCircle className="h-4 w-4" />} />
+            <Kpi title="Пользователей" value={analytics.totals.users} icon={<Users className="h-4 w-4" />} />
+            <Kpi title="Компаний" value={analytics.totals.companies} icon={<Building2 className="h-4 w-4" />} />
           </div>
         ) : (
           <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground">
-            Аналитика временно недоступна
-            {analyticsError ? `: ${analyticsError}` : "."}
+            Аналитика временно недоступна{analyticsError ? `: ${analyticsError}` : "."}
           </div>
         )}
 
         {analytics?.topCities?.length ? (
           <div className="mt-4 rounded-2xl border bg-background p-5">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <div className="text-sm font-semibold">
-                  Активность по городам
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Топ городов по количеству карточек
-                </div>
-              </div>
+            <div>
+              <div className="text-sm font-semibold">Активность по городам</div>
+              <div className="mt-1 text-sm text-muted-foreground">Топ городов по количеству карточек</div>
             </div>
 
             <div className="mt-4 grid gap-3">
@@ -267,15 +264,9 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
         {analytics?.topCategories?.length ? (
           <div className="mt-4 rounded-2xl border bg-background p-5">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <div className="text-sm font-semibold">
-                  Популярные категории
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Топ категорий по количеству карточек
-                </div>
-              </div>
+            <div>
+              <div className="text-sm font-semibold">Популярные категории</div>
+              <div className="mt-1 text-sm text-muted-foreground">Топ категорий по количеству карточек</div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -286,7 +277,6 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
                   onClick={() => {
                     setCategoryId(c.id);
                     setShowFilters(true);
-                    // прокрутим к поиску, чтобы было понятно что фильтр применился
                     const el = document.getElementById("search");
                     el?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
@@ -295,9 +285,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
                 >
                   <span className="font-medium">{c.name}</span>
                   <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">
-                    {nf.format(c.places)}
-                  </span>
+                  <span className="text-muted-foreground">{nf.format(c.places)}</span>
                 </button>
               ))}
             </div>
@@ -312,11 +300,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
           <div className="relative">
             <div className="flex gap-2 overflow-x-auto pb-2">
-              <Chip
-                active={!categoryId}
-                onClick={() => setCategoryId("")}
-                text="Все"
-              />
+              <Chip active={!categoryId} onClick={() => setCategoryId("")} text="Все" />
               {allCategories.map((c) => (
                 <Chip
                   key={c.id}
@@ -336,13 +320,10 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
       ) : null}
 
       {/* Поиск */}
-      <div
-        id="search"
-        className="mt-6 scroll-mt-24 rounded-2xl border bg-background p-5"
-      >
+      <div id="search" className="mt-6 scroll-mt-24 rounded-2xl border bg-background p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <input
-            className="h-11 w-full rounded-xl border px-4"
+            className="h-11 w-full rounded-xl border bg-background px-4 outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="Поиск по названию/адресу/описанию…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -351,7 +332,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           <div className="flex gap-2">
             <button
               type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-xl border px-4"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border bg-background px-4 hover:bg-muted/40"
               onClick={() => setShowFilters((v) => !v)}
             >
               <SlidersHorizontal className="h-4 w-4" />
@@ -361,7 +342,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
             <button
               type="button"
               className="h-11 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-              onClick={load}
+              onClick={onSearchClick}
               disabled={loading}
             >
               {loading ? "…" : "Найти"}
@@ -372,9 +353,8 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         {/* Фильтры */}
         {showFilters ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">
-            {/* ✅ ГОРОДА ТОЛЬКО KZ */}
             <select
-              className="h-11 rounded-xl border px-3"
+              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
               value={city}
               onChange={(e) => setCity(e.target.value)}
             >
@@ -387,7 +367,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
             </select>
 
             <select
-              className="h-11 rounded-xl border px-3"
+              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
@@ -400,7 +380,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
             </select>
 
             <select
-              className="h-11 rounded-xl border px-3"
+              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
             >
@@ -412,8 +392,9 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
             <button
               type="button"
-              className="h-11 rounded-xl border px-4"
+              className="h-11 rounded-xl border bg-background px-4 hover:bg-muted/40"
               onClick={resetFilters}
+              disabled={loading}
             >
               Сбросить
             </button>
@@ -421,7 +402,11 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         ) : null}
       </div>
 
-      {err ? <div className="mt-4 text-sm text-red-600">{err}</div> : null}
+      {err ? (
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {err}
+        </div>
+      ) : null}
 
       {/* Карточки */}
       <div className="mt-6 grid gap-3">
@@ -441,42 +426,34 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
               </div>
 
               <div className="text-right">
-                <div className="text-xl font-bold">
-                  {Number(p.avgRating).toFixed(2)}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {nf.format(p.ratingCount)} отзывов
-                </div>
+                <div className="text-xl font-bold">{Number(p.avgRating).toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground">{nf.format(p.ratingCount)} отзывов</div>
               </div>
             </div>
           </Link>
         ))}
 
         {!loading && items.length === 0 ? (
-          <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
-            Ничего не найдено по этим условиям.
-          </div>
+          hasSearched ? (
+            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
+              Ничего не найдено по этим условиям.
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
+              Выберите фильтры и нажмите <b>«Найти»</b>, чтобы увидеть места.
+            </div>
+          )
         ) : null}
       </div>
     </section>
   );
 }
 
-function FeatureCard({
-  title,
-  desc,
-  icon,
-}: {
-  title: string;
-  desc: string;
-  icon: React.ReactNode;
-}) {
+function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon: React.ReactNode }) {
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">
-          {icon}
-        </span>
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">{icon}</span>
         {title}
       </div>
       <div className="mt-2 text-sm text-muted-foreground">{desc}</div>
@@ -484,15 +461,7 @@ function FeatureCard({
   );
 }
 
-function Kpi({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
+function Kpi({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center justify-between gap-3">
@@ -517,24 +486,14 @@ function KpiSkeleton() {
   );
 }
 
-function Chip({
-  text,
-  active,
-  onClick,
-}: {
-  text: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
+function Chip({ text, active, onClick }: { text: string; active?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
         "whitespace-nowrap rounded-full border px-4 py-2 text-sm transition",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "bg-background hover:bg-muted/40",
+        active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted/40",
       ].join(" ")}
     >
       {text}
@@ -542,11 +501,7 @@ function Chip({
   );
 }
 
-function MiniBarChart({
-  rows,
-}: {
-  rows: { label: string; value: number; hint?: string }[];
-}) {
+function MiniBarChart({ rows }: { rows: { label: string; value: number; hint?: string }[] }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
 
   return (
@@ -556,11 +511,7 @@ function MiniBarChart({
           <div className="flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0">
               <div className="truncate text-muted-foreground">{r.label}</div>
-              {r.hint ? (
-                <div className="truncate text-xs text-muted-foreground">
-                  {r.hint}
-                </div>
-              ) : null}
+              {r.hint ? <div className="truncate text-xs text-muted-foreground">{r.hint}</div> : null}
             </div>
             <div className="shrink-0 font-medium">{r.value}</div>
           </div>
@@ -578,14 +529,12 @@ function MiniBarChart({
   );
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(t);
-  }, [value, delayMs]);
-
-  return debounced;
+async function safeJson(res: Response) {
+  try {
+    const text = await res.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
-

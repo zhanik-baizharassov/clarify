@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
 
 export default function AuthShell({
   title,
@@ -11,8 +12,8 @@ export default function AuthShell({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
-  bottomHint?: React.ReactNode;
+  children: ReactNode;
+  bottomHint?: ReactNode;
 }) {
   return (
     <main className="min-h-[calc(100vh-64px)] bg-gradient-to-b from-muted/50 via-background to-background">
@@ -89,7 +90,7 @@ function Feature({
   title,
   text,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   text: string;
 }) {

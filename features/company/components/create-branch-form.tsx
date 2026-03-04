@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
 type Category = { id: string; name: string };
-
 type TimeOption = { label: string; value: string };
 
 function toMinutes(t: string) {
@@ -24,27 +23,18 @@ function buildTimeOptions(stepMin = 30): TimeOption[] {
   return out;
 }
 
-export default function CreateBranchForm({
-  categories,
-}: {
-  categories: Category[];
-}) {
+export default function CreateBranchForm({ categories }: { categories: Category[] }) {
   const router = useRouter();
-
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
-  const [city, setCity] = useState<string>(KZ_CITIES[0] ?? "Алматы");
-
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("+7");
 
   const timeOptions = useMemo(() => buildTimeOptions(30), []);
   const [openTime, setOpenTime] = useState("09:00");
   const [closeTime, setCloseTime] = useState("21:00");
+  const workHours = useMemo(() => `${openTime}–${closeTime}`, [openTime, closeTime]);
 
-  const workHours = useMemo(
-    () => `${openTime}–${closeTime}`,
-    [openTime, closeTime],
-  );
+  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
+  const [city, setCity] = useState<string>(KZ_CITIES[0] ?? "Алматы");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("+7");
 
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,13 +43,12 @@ export default function CreateBranchForm({
     e.preventDefault();
     setErr(null);
 
+    if (!categories.length) return setErr("Категории не загружены. Обновите страницу.");
     if (!categoryId) return setErr("Категория: выберите категорию");
     if (!city) return setErr("Город: выберите город из списка Казахстана");
 
     const addr = address.trim();
     if (addr.length < 5) return setErr("Адрес: минимум 5 символов");
-
-    // ✅ простая локальная проверка (режет “Бейбитшилик” без номера дома)
     if (!/\d/.test(addr)) {
       return setErr("Адрес: укажите номер дома (например «Сейфуллина 34»)");
     }
@@ -82,10 +71,10 @@ export default function CreateBranchForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId,
-          city, // уже валидный KZ город из списка
+          city,
           address: addr,
           phone: phoneNorm,
-          workHours, // "09:00–21:00"
+          workHours,
         }),
       });
 
@@ -106,14 +95,19 @@ export default function CreateBranchForm({
 
   return (
     <form onSubmit={onSubmit} className="mt-4 grid gap-3 rounded-xl border p-5">
-      <div className="text-sm font-medium">
-        Создать филиал (карточку для отзывов)
-      </div>
+      <div className="text-sm font-medium">Создать филиал (карточку для отзывов)</div>
+
+      {!categories.length ? (
+        <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Категории не загружены. Проверь /api/categories или обнови страницу.
+        </div>
+      ) : null}
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Категория</span>
         <select
-          className="h-11 rounded-xl border px-3"
+          disabled={loading || !categories.length}
+          className="h-11 rounded-xl border px-3 disabled:opacity-60"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >
@@ -128,7 +122,8 @@ export default function CreateBranchForm({
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Город (только KZ)</span>
         <select
-          className="h-11 rounded-xl border px-3"
+          disabled={loading}
+          className="h-11 rounded-xl border px-3 disabled:opacity-60"
           value={city}
           onChange={(e) => setCity(e.target.value)}
         >
@@ -143,19 +138,20 @@ export default function CreateBranchForm({
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Адрес</span>
         <input
-          className="h-11 rounded-xl border px-3"
+          disabled={loading}
+          className="h-11 rounded-xl border px-3 disabled:opacity-60"
           placeholder="Например: пр-т Абая 10"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
+          autoComplete="street-address"
         />
       </label>
 
       <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">
-          Телефон (+7XXXXXXXXXX)
-        </span>
+        <span className="text-xs text-muted-foreground">Телефон (+7XXXXXXXXXX)</span>
         <input
-          className="h-11 rounded-xl border px-3"
+          disabled={loading}
+          className="h-11 rounded-xl border px-3 disabled:opacity-60"
           placeholder="+7XXXXXXXXXX"
           value={phone}
           onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
@@ -171,7 +167,8 @@ export default function CreateBranchForm({
           <label className="grid gap-1">
             <span className="text-xs text-muted-foreground">С</span>
             <select
-              className="h-11 rounded-xl border px-3"
+              disabled={loading}
+              className="h-11 rounded-xl border px-3 disabled:opacity-60"
               value={openTime}
               onChange={(e) => setOpenTime(e.target.value)}
             >
@@ -186,7 +183,8 @@ export default function CreateBranchForm({
           <label className="grid gap-1">
             <span className="text-xs text-muted-foreground">До</span>
             <select
-              className="h-11 rounded-xl border px-3"
+              disabled={loading}
+              className="h-11 rounded-xl border px-3 disabled:opacity-60"
               value={closeTime}
               onChange={(e) => setCloseTime(e.target.value)}
             >
@@ -207,7 +205,7 @@ export default function CreateBranchForm({
       {err ? <div className="text-sm text-red-600">{err}</div> : null}
 
       <button
-        disabled={loading}
+        disabled={loading || !categories.length}
         className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
       >
         {loading ? "Создание..." : "Создать филиал"}
