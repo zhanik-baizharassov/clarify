@@ -1,6 +1,4 @@
-'use client';
-
-// app/signup/page.tsx
+// app/signup/SignupClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +21,10 @@ const OTP_LEN = 6;
 export default function SignupPage() {
   const router = useRouter();
   const search = useSearchParams();
+
   const next = search.get("next") || "/";
+  const mode = search.get("mode"); // "verify" | null
+  const emailFromQuery = search.get("email"); // string | null
 
   // form
   const [firstName, setFirstName] = useState("");
@@ -50,12 +51,6 @@ export default function SignupPage() {
 
   const otpValue = otp.join("");
 
-  useEffect(() => {
-    if (cooldownSec <= 0) return;
-    const t = setInterval(() => setCooldownSec((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(t);
-  }, [cooldownSec]);
-
   function focusOtp(i: number) {
     otpRefs.current[i]?.focus();
     otpRefs.current[i]?.select?.();
@@ -65,6 +60,26 @@ export default function SignupPage() {
     setOtp(Array(OTP_LEN).fill(""));
     setTimeout(() => focusOtp(0), 0);
   }
+
+  // ⬇️ поддержка режима /signup?mode=verify&email=... (например после смены email в профиле)
+  useEffect(() => {
+    if (mode === "verify" && emailFromQuery) {
+      setPendingEmail(emailFromQuery);
+      setStep("verify");
+      setCooldownSec(60);
+      resetOtp();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, emailFromQuery]);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+    const t = setInterval(
+      () => setCooldownSec((s) => (s > 0 ? s - 1 : 0)),
+      1000,
+    );
+    return () => clearInterval(t);
+  }, [cooldownSec]);
 
   async function submitSignup(payload: SignupPayload) {
     setLoading(true);
@@ -88,7 +103,7 @@ export default function SignupPage() {
         return;
       }
 
-      // fallback (если вдруг ты оставишь автологин в signup)
+      // fallback (если вдруг автологин)
       router.push(next);
       router.refresh();
     } catch (e: any) {
@@ -111,12 +126,15 @@ export default function SignupPage() {
     if (fn.length < 2) return setErr("Имя: минимум 2 символа");
     if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
     if (nn.length < 2) return setErr("Никнейм: минимум 2 символа");
-    if (!/^[a-zA-Z0-9_.-]+$/.test(nn)) return setErr("Ник: только латиница/цифры/._-");
+    if (!/^[a-zA-Z0-9_.-]+$/.test(nn))
+      return setErr("Ник: только латиница/цифры/._-");
     if (!em) return setErr("Введите email");
 
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
-    if (!/[A-Z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 заглавная буква");
-    if (!/[a-z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 строчная буква");
+    if (!/[A-Z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 заглавная буква");
+    if (!/[a-z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 строчная буква");
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
 
     const payload: SignupPayload = {
@@ -162,14 +180,34 @@ export default function SignupPage() {
     setErr(null);
 
     if (cooldownSec > 0) return;
-    if (!lastPayload) {
-      // без угадываний: в твоей реализации resend работает через повторный signup с теми же данными
-      setStep("form");
-      setPendingEmail("");
-      return setErr("Заполните форму ещё раз, чтобы отправить код повторно.");
+
+    // ✅ если lastPayload есть — повторяем signup (твой текущий подход)
+    if (lastPayload) {
+      await submitSignup(lastPayload);
+      return;
     }
 
-    await submitSignup(lastPayload);
+    // ✅ если lastPayload нет — значит мы в режиме verify (например после смены email)
+    if (!pendingEmail) return setErr("Email для отправки кода не найден");
+
+    setVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Не удалось отправить код");
+
+      setCooldownSec(60);
+      resetOtp();
+    } catch (e: any) {
+      setErr(e?.message ?? "Ошибка");
+    } finally {
+      setVerifyLoading(false);
+    }
   }
 
   function onOtpChange(i: number, raw: string) {
@@ -391,7 +429,9 @@ export default function SignupPage() {
                 disabled={verifyLoading || cooldownSec > 0}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
-                {cooldownSec > 0 ? `Отправить снова через ${cooldownSec}с` : "Отправить код ещё раз"}
+                {cooldownSec > 0
+                  ? `Отправить снова через ${cooldownSec}с`
+                  : "Отправить код ещё раз"}
               </button>
 
               <button

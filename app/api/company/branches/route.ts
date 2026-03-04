@@ -34,43 +34,42 @@ export async function POST(req: Request) {
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();
-    if (!user)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "COMPANY")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
+    }
+    if (user.role !== "COMPANY") {
+      return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+    }
 
-    const company = await prisma.company.findFirst({
+    // ⚠️ Рекомендуется: ownerId должен быть @unique в prisma.schema
+    const company = await prisma.company.findUnique({
       where: { ownerId: user.id },
       select: { id: true, name: true, bin: true },
     });
-    if (!company)
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+
+    if (!company) {
+      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+    }
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
       select: { id: true },
     });
-    if (!category)
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 400 },
-      );
+    if (!category) {
+      return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+    }
 
-    // ✅ KZ-only
     const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон филиала");
-    // ✅ address exists (geocode) + сохраним координаты
-    const { lat, lng } = await validateKzAddress({
-      city,
-      address: input.address,
-    });
-    // ✅ profanity-check
+
+    const { lat, lng } = await validateKzAddress({ city, address: input.address });
+
     assertNoProfanity(company.name, "Название компании");
     assertNoProfanity(input.address, "Адрес филиала");
 
-    const slug = `${slugifyAscii(company.name)}-${company.bin ?? company.id.slice(0, 6)}-${Date.now().toString(
-      36,
-    )}-${crypto.randomUUID().slice(0, 6)}`;
+    const slug = `${slugifyAscii(company.name)}-${
+      company.bin ?? company.id.slice(0, 6)
+    }-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
 
     const place = await prisma.place.create({
       data: {
@@ -90,7 +89,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(place, { status: 201 });
   } catch (err: any) {
-    // ✅ наши "понятные" ошибки (телефон/город)
     if (err instanceof Error && err.message) {
       if (
         err.message.includes("номер") ||
@@ -106,11 +104,12 @@ export async function POST(req: Request) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
+
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
+
     console.error("CREATE BRANCH ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
-

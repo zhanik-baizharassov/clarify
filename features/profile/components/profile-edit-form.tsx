@@ -87,7 +87,7 @@ export default function ProfileEditForm({
   const [firstName, setFirstName] = useState(initial.firstName ?? "");
   const [lastName, setLastName] = useState(initial.lastName ?? "");
   const [nickname, setNickname] = useState(initial.nickname ?? "");
-  const [email] = useState(initial.email);
+  const [email, setEmail] = useState(initial.email ?? "");
 
   // avatar (только main tab)
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -114,7 +114,8 @@ export default function ProfileEditForm({
   // avoid blob leak
   useEffect(() => {
     return () => {
-      if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+      if (avatarPreview?.startsWith("blob:"))
+        URL.revokeObjectURL(avatarPreview);
     };
   }, [avatarPreview]);
 
@@ -140,7 +141,8 @@ export default function ProfileEditForm({
       const resized = await resizeToFile(f, 512, 0.86);
 
       const url = URL.createObjectURL(resized);
-      if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+      if (avatarPreview?.startsWith("blob:"))
+        URL.revokeObjectURL(avatarPreview);
 
       setAvatarFile(resized);
       setAvatarPreview(url);
@@ -199,7 +201,8 @@ export default function ProfileEditForm({
           return setErr("Пароль: нужна хотя бы 1 заглавная буква");
         if (!/[a-z]/.test(password))
           return setErr("Пароль: нужна хотя бы 1 строчная буква");
-        if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
+        if (!/\d/.test(password))
+          return setErr("Пароль: нужна хотя бы 1 цифра");
         if (password !== password2) return setErr("Пароли не совпадают");
       }
     }
@@ -456,14 +459,16 @@ export default function ProfileEditForm({
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
               value={email}
-              disabled
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading || !canEdit}
               autoComplete="email"
             />
           </Field>
         </div>
 
         <div className="mt-3 text-xs text-muted-foreground">
-          Смена пароля находится во вкладке <span className="font-medium">«Безопасность»</span>.
+          Смена пароля находится во вкладке{" "}
+          <span className="font-medium">«Безопасность»</span>.
         </div>
       </div>
 

@@ -1,0 +1,219 @@
+﻿=== app ===
+Структура папок
+Серийный номер тома: 000000E1 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\APP
+|   favicon.ico
+|   globals.css
+|   layout.tsx
+|   page.tsx
+|   
++---api
+|   +---address
+|   |   \---validate
+|   |           route.ts
+|   |           
+|   +---analytics
+|   |   \---overview
+|   |           route.ts
+|   |           
+|   +---auth
+|   |   +---company-signup
+|   |   |       route.ts
+|   |   |       
+|   |   +---login
+|   |   |       route.ts
+|   |   |       
+|   |   +---logout
+|   |   |       route.ts
+|   |   |       
+|   |   +---signup
+|   |   |       route.ts
+|   |   |       
+|   |   \---verify-email
+|   |           route.ts
+|   |           
+|   +---categories
+|   |       route.ts
+|   |       
+|   +---company
+|   |   \---branches
+|   |           route.ts
+|   |           
+|   +---places
+|   |   |   route.ts
+|   |   |   
+|   |   \---[slug]
+|   |           route.ts
+|   |           
+|   +---profile
+|   |       route.ts
+|   |       
+|   +---review-replies
+|   |       route.ts
+|   |       
+|   +---reviews
+|   |       route.ts
+|   |       
+|   \---tags
+|           route.ts
+|           
++---business
+|   |   page.tsx
+|   |   
+|   \---signup
+|           BusinessSignupClient.tsx
+|           page.tsx
+|           
++---company
+|       page.tsx
+|       
++---login
+|       LoginClient.tsx
+|       page.tsx
+|       
++---place
+|   \---[slug]
+|       |   page.tsx
+|       |   
+|       \---review
+|               page.tsx
+|               
++---profile
+|       page.tsx
+|       
+\---signup
+        page.tsx
+        SignupClient.tsx
+        
+
+=== components ===
+Структура папок
+Серийный номер тома: 00000050 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\COMPONENTS
+\---layout
+        Header.tsx
+        LogoutButton.tsx
+        
+
+=== features ===
+Структура папок
+Серийный номер тома: 00000014 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\FEATURES
++---auth
+|   \---components
+|           AuthShell.tsx
+|           
++---company
+|   \---components
+|           create-branch-form.tsx
+|           
++---places
+|   \---components
+|           PlacesExplorer.tsx
+|           
++---profile
+|   \---components
+|           profile-edit-form.tsx
+|           profile-tabs.tsx
+|           
+\---reviews
+    \---components
+            reply-form.tsx
+            review-form.tsx
+            
+
+=== prisma ===
+Структура папок
+Серийный номер тома: 0000007B 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\PRISMA
+|   schema.prisma
+|   seed.ts
+|   
+\---migrations
+    |   migration_lock.toml
+    |   
+    +---20260224163542_init
+    |       migration.sql
+    |       
+    +---20260225081727_auth
+    |       migration.sql
+    |       
+    +---20260226191857_add_user_profile_fields
+    |       migration.sql
+    |       
+    +---20260226195246_remove_guest_reviews
+    |       migration.sql
+    |       
+    +---20260226203035_add_company_bin_address
+    |       migration.sql
+    |       
+    +---20260226210025_company_places_and_workhours
+    |       migration.sql
+    |       
+    +---20260227103506_user_profile_edit_once
+    |       migration.sql
+    |       
+    \---20260301173431_email_verification
+            migration.sql
+            
+
+=== public ===
+Структура папок
+Серийный номер тома: 0000002E 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\PUBLIC
+    avatar-placeholder.png
+    file.svg
+    globe.svg
+    next.svg
+    vercel.svg
+    window.svg
+    
+Подпапки отсутствуют 
+
+
+=== server ===
+Структура папок
+Серийный номер тома: 000000E5 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\SERVER
++---address
+|       validate.ts
+|       
++---auth
+|       session.ts
+|       
++---db
+|       prisma.ts
+|       
++---email
+|       mailer.ts
+|       verification.ts
+|       
+\---security
+        profanity.ts
+        
+
+=== shared ===
+Структура папок
+Серийный номер тома: 000000A5 201A:60EC
+C:\USERS\ZHANIBEK\DESKTOP\REVIEW\SHARED
+|   utils.ts
+|   
+\---kz
+        kz.ts
+        
+
+.env
+.env.local
+.gitignore
+components.json
+docker-compose.yml
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package-lock.json
+package.json
+postcss.config.mjs
+prisma.config.ts
+README.md
+tree.txt
+tsconfig.json

@@ -1,3 +1,4 @@
+// server/auth/session.ts
 import { cookies } from "next/headers";
 import { prisma } from "@/server/db/prisma";
 
@@ -14,17 +15,16 @@ export async function getSessionUser() {
 
   if (!session) return null;
 
-  // если сессия просрочена — удалим и считаем что не залогинен
   if (session.expiresAt < new Date()) {
     await prisma.session.deleteMany({ where: { token } });
     return null;
   }
 
+  // ✅ Верификация обязательна для всех
   if (!session.user.emailVerifiedAt) {
     await prisma.session.deleteMany({ where: { token } });
     return null;
   }
 
-  return session.user; // { id, email, role, ... }
+  return session.user;
 }
-

@@ -1,16 +1,32 @@
+// app/api/places/route.ts
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
+const SortSchema = z.enum(["rating_desc", "reviews_desc", "new_desc", "name_asc"]);
+
+const QuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(60).optional(),
+  categoryId: z.string().trim().optional(),
+  categorySlug: z.string().trim().optional(),
+  sort: SortSchema.default("rating_desc"),
+});
+
+const categoryIdsCache = new Map<string, string[]>();
+
 async function collectCategoryIds(rootId: string) {
-  // Собираем root + всех потомков (любой глубины)
+  const cached = categoryIdsCache.get(rootId);
+  if (cached) return cached;
+
   const seen = new Set<string>();
   const queue: string[] = [rootId];
   seen.add(rootId);
 
   while (queue.length) {
-    // маленькими пачками, чтобы не делать огромный IN на всякий случай
     const batch = queue.splice(0, 50);
 
     const children = await prisma.category.findMany({
@@ -26,32 +42,53 @@ async function collectCategoryIds(rootId: string) {
     }
   }
 
-  return Array.from(seen);
+  const result = Array.from(seen);
+  categoryIdsCache.set(rootId, result);
+  return result;
 }
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
 
-    const q = (url.searchParams.get("q") ?? "").trim();
-    const city = (url.searchParams.get("city") ?? "").trim();
-    const categoryId = (url.searchParams.get("categoryId") ?? "").trim();
-    const categorySlug = (url.searchParams.get("categorySlug") ?? "").trim();
-    const sort = (url.searchParams.get("sort") ?? "rating_desc").trim();
+    const parsed = QuerySchema.safeParse({
+      q: url.searchParams.get("q") ?? undefined,
+      city: url.searchParams.get("city") ?? undefined,
+      categoryId: url.searchParams.get("categoryId") ?? undefined,
+      categorySlug: url.searchParams.get("categorySlug") ?? undefined,
+      sort: url.searchParams.get("sort") ?? undefined,
+    });
 
-    let baseCategoryId: string | undefined = undefined;
+    if (!parsed.success) {
+      const msg = parsed.error.issues?.[0]?.message ?? "Неверные параметры запроса";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+
+    const { q, city, categoryId, categorySlug, sort } = parsed.data;
+
+    let baseCategoryId: string | undefined;
 
     if (categoryId) {
-      baseCategoryId = categoryId;
+      const cat = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { id: true },
+      });
+      if (!cat) {
+        return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+      }
+      baseCategoryId = cat.id;
     } else if (categorySlug) {
       const cat = await prisma.category.findUnique({
         where: { slug: categorySlug },
         select: { id: true },
       });
-      baseCategoryId = cat?.id;
+      if (!cat) {
+        return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+      }
+      baseCategoryId = cat.id;
     }
 
-    const and: any[] = [];
+    const and: Prisma.PlaceWhereInput[] = [];
 
     if (q) {
       and.push({
@@ -72,16 +109,16 @@ export async function GET(req: Request) {
       and.push({ categoryId: { in: ids } });
     }
 
-    const where = and.length ? { AND: and } : undefined;
+    const where: Prisma.PlaceWhereInput | undefined = and.length ? { AND: and } : undefined;
 
-    const orderBy =
+    const orderBy: Prisma.PlaceOrderByWithRelationInput[] =
       sort === "reviews_desc"
-        ? [{ ratingCount: "desc" as const }, { avgRating: "desc" as const }]
+        ? [{ ratingCount: "desc" }, { avgRating: "desc" }]
         : sort === "new_desc"
-          ? [{ createdAt: "desc" as const }]
+          ? [{ createdAt: "desc" }]
           : sort === "name_asc"
-            ? [{ name: "asc" as const }]
-            : [{ avgRating: "desc" as const }, { ratingCount: "desc" as const }];
+            ? [{ name: "asc" }]
+            : [{ avgRating: "desc" }, { ratingCount: "desc" }];
 
     const places = await prisma.place.findMany({
       where,

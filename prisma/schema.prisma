@@ -75,7 +75,7 @@ model Session {
 model Company {
   id      String @id @default(cuid())
   name    String
-  ownerId String
+  ownerId String @unique
 
   bin     String? @unique
   address String?
@@ -208,6 +208,7 @@ model ReviewReply {
 
   @@index([reviewId])
   @@index([companyId])
+  @@unique([reviewId, companyId])
 }
 
 model Claim {
