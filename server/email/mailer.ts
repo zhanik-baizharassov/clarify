@@ -1,4 +1,4 @@
-// lib/mailer.ts
+// server/email/mailer.ts
 import nodemailer from "nodemailer";
 
 type SendResult = { ok: true; messageId?: string };
@@ -62,8 +62,14 @@ export async function sendEmailVerificationCode(
   const appName = process.env.APP_NAME?.trim() || "Clarify";
   const ttlMinutes = opts?.ttlMinutes ?? 10;
 
-  // на всякий случай: код только цифры
+  // ✅ защита от header injection и мусора
+  const safeTo = String(to).trim().replace(/[\r\n]/g, "");
+
+  // ✅ код только цифры
   const safeCode = String(code).replace(/\D/g, "").slice(0, 6);
+  if (safeCode.length !== 6) {
+    throw new Error("Mail: invalid verification code");
+  }
 
   const subject = `Подтверждение email для ${appName}`;
 
@@ -120,7 +126,7 @@ export async function sendEmailVerificationCode(
   const t = getTransporter();
   const info = await t.sendMail({
     from: getFromAddress(),
-    to,
+    to: safeTo,
     subject,
     text,
     html,
