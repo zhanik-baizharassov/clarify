@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Clarify 🇰🇿
+Платформа отзывов по Казахстану.
 
-## Getting Started
+## Возможности
+- **Поиск мест** с фильтрами (город KZ, категория, сортировка)
+- **Карточка места**: средний рейтинг, отзывы, теги, ответы компаний
+- **Отзывы**: только для пользователей с подтверждённой почтой (OTP)
+- **Кабинет компании**: создание филиалов (карточек) + ответы на отзывы
+- **Профиль пользователя**: данные аккаунта + ограничение на редактирование (MVP)
+- **Аналитика**: totals + топ городов/категорий (`/api/analytics/overview`)
 
-First, run the development server:
+## Технологии
+- **Next.js (App Router)**, React
+- **Prisma** + PostgreSQL
+- **Zod** (валидации)
+- **Nodemailer** (OTP email)
+- Tailwind / shadcn/ui (UI)
+
+# Запуск локально (npm)
+
+## Требования
+- Node.js **20+**
+- Docker Desktop (рекомендуется для Postgres)
+- Git
+
+## 1) Клонирование и зависимости
+```bash
+git clone <REPO_URL>
+cd review
+npm install
+````
+
+## 2) ENV: создайте `.env.local`
+
+`.env.local` не хранится в репозитории. Создайте его из примера:
+
+**macOS/Linux**
+
+```bash
+cp .env.example .env.local
+```
+
+**Windows PowerShell**
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Минимально проверьте/заполните в `.env.local`:
+
+* `DATABASE_URL`
+* `EMAIL_CODE_PEPPER` (длинная рандом-строка 32+ символа)
+* `MAIL_MODE="console"` (для локальной разработки — стабильно у всех)
+
+> В режиме `MAIL_MODE="console"` OTP не отправляется на почту, а печатается в терминал.
+
+## 3) Postgres через Docker (рекомендуется)
+
+Запустите базу:
+
+```bash
+docker compose up -d
+```
+
+Затем примените миграции и сиды:
+
+```bash
+npm run prisma:migrate
+npm run prisma:seed
+```
+
+## 4) Запуск приложения
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Открыть: [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# OTP / Email verification
 
-## Learn More
+Проект использует OTP-подтверждение email.
 
-To learn more about Next.js, take a look at the following resources:
+## Локальная разработка (рекомендуется)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+В `.env.local`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+MAIL_MODE="console"
+```
 
-## Deploy on Vercel
+Когда система “отправляет” OTP — он появится **в терминале**, где запущен `npm run dev`, примерно так:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```txt
+[MAIL_MODE=console] Email verification code for user@mail.com: 123456 (ttl 10m)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Реальная отправка (smtp)
+
+Для staging/prod поставьте:
+
+MAIL_MODE="smtp"
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER="your.smtp@gmail.com"
+SMTP_PASS="YOUR_APP_PASSWORD"
+MAIL_FROM="Clarify <your.smtp@gmail.com>"
+
+⚠️ Для Gmail нужен **App Password**, обычный пароль аккаунта не подойдёт.
+
+---
+
+## OTP не печатается в консоль
+
+* проверьте `MAIL_MODE="console"` в `.env.local`
+* перезапустите `npm run dev` (env читается при старте)
+* проверьте `EMAIL_CODE_PEPPER` (обязателен)
+
+## Prisma ошибки / миграции
+
+Если можно сбросить локальную базу:
+
+```bash
+npx prisma migrate reset
+```
+
+⚠️ Удалит локальные данные и накатит миграции заново.
+
+---
+
+# Безопасность
+
+* `.env.local` **не коммитим**
+* `SMTP_PASS` и секреты **не хранить в репозитории**
+* если секреты утекли — **перевыпустить** (App Password / токены)
+
+---
+
+# License
+
+Private / internal (MVP)
+
