@@ -1,3 +1,4 @@
+// app/business/page.tsx
 import Link from "next/link";
 
 export default function BusinessPage() {
@@ -9,15 +10,18 @@ export default function BusinessPage() {
         инструменты продвижения.
       </p>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href="/business/signup"
-          className="rounded-xl bg-primary px-4 py-2 text-primary-foreground shadow-sm transition hover:opacity-90"
+          className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
         >
-          {" "}
           Зарегистрировать компанию
         </Link>
-        <Link href="/login" className="rounded-md border px-4 py-2">
+
+        <Link
+          href={`/login?next=${encodeURIComponent("/company")}`}
+          className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40"
+        >
           Войти
         </Link>
       </div>

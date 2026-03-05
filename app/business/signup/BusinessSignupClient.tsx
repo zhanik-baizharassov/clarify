@@ -1,13 +1,11 @@
-'use client';
-
-// app/business/signup/page.tsx
+// app/business/signup/BusinessSignupClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthShell from "@/features/auth/components/AuthShell";
-import { keepKzPhoneInput } from "@/shared/kz/kz";
+import { keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
 type CompanySignupPayload = {
   companyName: string;
@@ -23,7 +21,9 @@ const OTP_LEN = 6;
 export default function BusinessSignupPage() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/company";
+
+  const nextRaw = search.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/company";
 
   // form
   const [companyName, setCompanyName] = useState("");
@@ -36,7 +36,9 @@ export default function BusinessSignupPage() {
   // flow
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [lastPayload, setLastPayload] = useState<CompanySignupPayload | null>(null);
+  const [lastPayload, setLastPayload] = useState<CompanySignupPayload | null>(
+    null,
+  );
 
   // ui states
   const [err, setErr] = useState<string | null>(null);
@@ -52,7 +54,10 @@ export default function BusinessSignupPage() {
 
   useEffect(() => {
     if (cooldownSec <= 0) return;
-    const t = setInterval(() => setCooldownSec((s) => (s > 0 ? s - 1 : 0)), 1000);
+    const t = setInterval(
+      () => setCooldownSec((s) => (s > 0 ? s - 1 : 0)),
+      1000,
+    );
     return () => clearInterval(t);
   }, [cooldownSec]);
 
@@ -113,15 +118,29 @@ export default function BusinessSignupPage() {
     if (!em) return setErr("Введите email");
     if (addr.length < 5) return setErr("Адрес: минимум 5 символов");
 
+    // ✅ простая проверка, чтобы не принимали “Самал-2” без номера дома
+    if (!/\d/.test(addr)) {
+      return setErr("Адрес: укажите номер дома (например «Самал-2, дом 111»)");
+    }
+
+    let phoneNorm = "";
+    try {
+      phoneNorm = normalizeKzPhone(ph, "Телефон");
+    } catch (e: any) {
+      return setErr(e?.message ?? "Телефон: некорректный формат");
+    }
+
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
-    if (!/[A-Z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 заглавная буква");
-    if (!/[a-z]/.test(password)) return setErr("Пароль: нужна хотя бы 1 строчная буква");
+    if (!/[A-Z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 заглавная буква");
+    if (!/[a-z]/.test(password))
+      return setErr("Пароль: нужна хотя бы 1 строчная буква");
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
 
     const payload: CompanySignupPayload = {
       companyName: cn,
       bin: b,
-      phone: ph,
+      phone: phoneNorm,
       email: em,
       address: addr,
       password,
@@ -273,7 +292,9 @@ export default function BusinessSignupPage() {
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
               placeholder="123456789012"
               value={bin}
-              onChange={(e) => setBin(e.target.value.replace(/\D/g, "").slice(0, 12))}
+              onChange={(e) =>
+                setBin(e.target.value.replace(/\D/g, "").slice(0, 12))
+              }
               inputMode="numeric"
               disabled={loading || formDisabled}
             />
@@ -343,7 +364,9 @@ export default function BusinessSignupPage() {
             <div className="text-sm font-semibold">Подтвердите email</div>
             <div className="mt-1 text-sm text-muted-foreground">
               Мы отправили 6-значный код на{" "}
-              <span className="font-medium text-foreground">{pendingEmail}</span>
+              <span className="font-medium text-foreground">
+                {pendingEmail}
+              </span>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -381,10 +404,12 @@ export default function BusinessSignupPage() {
               <button
                 type="button"
                 onClick={resendCode}
-                disabled={verifyLoading || cooldownSec > 0}
+                disabled={verifyLoading || loading || cooldownSec > 0}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
-                {cooldownSec > 0 ? `Отправить снова через ${cooldownSec}с` : "Отправить код ещё раз"}
+                {cooldownSec > 0
+                  ? `Отправить снова через ${cooldownSec}с`
+                  : "Отправить код ещё раз"}
               </button>
 
               <button
@@ -431,7 +456,9 @@ function Field({
     <label className="grid gap-1">
       <div className="flex items-end justify-between gap-3">
         <span className="text-sm font-medium">{label}</span>
-        {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+        {hint ? (
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        ) : null}
       </div>
       {children}
     </label>
