@@ -1,3 +1,4 @@
+// features/places/components/PlacesExplorer.tsx
 "use client";
 
 import Link from "next/link";
@@ -81,7 +82,7 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
     [q, city, categoryId, sort],
   );
 
-  // bootstrap: categories + analytics (это можно грузить сразу)
+  // bootstrap: categories + analytics
   useEffect(() => {
     const ctrl = new AbortController();
 
@@ -155,7 +156,6 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
     }
   }, []);
 
-  // cleanup on unmount
   useEffect(() => {
     return () => {
       placesAbortRef.current?.abort();
@@ -174,64 +174,203 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
     setCategoryId("");
     setSort("rating_desc");
 
-    // считаем "поиск" явным действием пользователя (нажал Сбросить)
     const qs = buildQueryString({ q: "", city: "", categoryId: "", sort: "rating_desc" });
     setHasSearched(true);
     await loadPlaces(qs);
   }
 
   return (
-    <section id="explore" className="mx-auto max-w-5xl px-6 py-10">
+    <section
+      id="explore"
+      className="relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
+    >
+      {/* subtle background */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-72 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
+      />
+
       {/* HERO */}
-      <div className="rounded-3xl border bg-muted/20 p-7 md:p-10">
-        <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">KZ</span>
-          <span>Настоящие отзывы разных мест только от верифицированных пользователей</span>
-        </div>
+      <div className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+        />
 
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Нам важно ваше мнение!</h1>
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+          {/* Left */}
+          <div className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">KZ</span>
+              <span>Настоящие отзывы разных мест только от верифицированных пользователей</span>
+            </div>
 
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-          Оценивай заведения и сервисы Казахстана честно: еда, магазины, ремонт, услуги и многое другое.
-        </p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+              Нам важно ваше мнение!
+            </h1>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          <a
-            href="#search"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-          >
-            <Search className="h-4 w-4" />
-            Найти места
-          </a>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+              Оценивай заведения и сервисы Казахстана честно: еда, магазины, ремонт, услуги и многое
+              другое.
+            </p>
 
-          {!isAuthed ? (
-            <Link
-              href="/signup"
-              className="inline-flex h-11 items-center rounded-xl border bg-background px-5 text-sm font-medium"
-            >
-              Зарегистрироваться
-            </Link>
-          ) : null}
-        </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a
+                href="#search"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+              >
+                <Search className="h-4 w-4" />
+                Начать поиск
+              </a>
 
-        <div className="mt-7 grid gap-3 md:grid-cols-3">
-          <FeatureCard title="Рейтинг" desc="Средние оценки по филиалам" icon={<BarChart3 className="h-4 w-4" />} />
-          <FeatureCard title="Фильтры" desc="Город, категория, сортировка" icon={<SlidersHorizontal className="h-4 w-4" />} />
-          <FeatureCard title="Модерация" desc="Profanity-check на сервере" icon={<MessageCircle className="h-4 w-4" />} />
+              {!isAuthed ? (
+                <Link
+                  href="/signup"
+                  className="inline-flex h-11 items-center rounded-xl border bg-background px-5 text-sm font-medium"
+                >
+                  Зарегистрироваться
+                </Link>
+              ) : null}
+            </div>
+
+            <div className="mt-7 grid gap-3 md:grid-cols-3">
+              <FeatureCard
+                title="Рейтинг"
+                desc="Средние оценки по филиалам"
+                icon={<BarChart3 className="h-4 w-4" />}
+              />
+              <FeatureCard
+                title="Фильтры"
+                desc="Город, категория, сортировка"
+                icon={<SlidersHorizontal className="h-4 w-4" />}
+              />
+              <FeatureCard
+                title="Модерация"
+                desc="Profanity-check на сервере"
+                icon={<MessageCircle className="h-4 w-4" />}
+              />
+            </div>
+          </div>
+
+          {/* Right: Search card */}
+          <div className="lg:col-span-5">
+            <div id="search" className="scroll-mt-24 rounded-2xl border bg-background p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Поиск мест</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Название, адрес, описание + фильтры
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border bg-background px-3 text-sm hover:bg-muted/40"
+                  onClick={() => setShowFilters((v) => !v)}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Фильтры
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <input
+                  className="h-11 w-full rounded-xl border bg-background px-4 outline-none focus:ring-2 focus:ring-primary/20"
+                  placeholder="Поиск по названию/адресу/описанию…"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onSearchClick();
+                  }}
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="h-11 flex-1 rounded-xl border bg-background px-4 hover:bg-muted/40"
+                    onClick={resetFilters}
+                    disabled={loading}
+                  >
+                    Сбросить
+                  </button>
+
+                  <button
+                    type="button"
+                    className="h-11 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                    onClick={onSearchClick}
+                    disabled={loading}
+                  >
+                    {loading ? "…" : "Найти"}
+                  </button>
+                </div>
+
+                {showFilters ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <select
+                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                    >
+                      <option value="">Все города (KZ)</option>
+                      {KZ_CITIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                    >
+                      <option value="">Все категории</option>
+                      {allCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.parentId ? `— ${c.name}` : c.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20 md:col-span-2"
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value as SortKey)}
+                    >
+                      <option value="rating_desc">Сначала высокий рейтинг</option>
+                      <option value="reviews_desc">Сначала больше отзывов</option>
+                      <option value="new_desc">Сначала новые</option>
+                      <option value="name_asc">По названию A→Z</option>
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+
+              {err ? (
+                <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  {err}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* KPI + charts */}
+      {/* KPI + blocks */}
       <div className="mt-6">
         {analyticsLoading ? (
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
           </div>
         ) : analytics ? (
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi title="Карточек" value={analytics.totals.places} icon={<MapPin className="h-4 w-4" />} />
             <Kpi title="Отзывов" value={analytics.totals.reviews} icon={<MessageCircle className="h-4 w-4" />} />
             <Kpi title="Пользователей" value={analytics.totals.users} icon={<Users className="h-4 w-4" />} />
@@ -243,57 +382,62 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           </div>
         )}
 
-        {analytics?.topCities?.length ? (
-          <div className="mt-4 rounded-2xl border bg-background p-5">
-            <div>
-              <div className="text-sm font-semibold">Активность по городам</div>
-              <div className="mt-1 text-sm text-muted-foreground">Топ городов по количеству карточек</div>
-            </div>
+        {/* Two columns on wide screens */}
+        {(analytics?.topCities?.length || analytics?.topCategories?.length) ? (
+          <div className="mt-4 grid gap-4 lg:grid-cols-12">
+            {analytics?.topCities?.length ? (
+              <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
+                <div>
+                  <div className="text-sm font-semibold">Активность по городам</div>
+                  <div className="mt-1 text-sm text-muted-foreground">Топ городов по количеству карточек</div>
+                </div>
 
-            <div className="mt-4 grid gap-3">
-              <MiniBarChart
-                rows={analytics.topCities.map((c) => ({
-                  label: c.city || "—",
-                  value: c.places,
-                  hint: `Средний рейтинг: ${Number(c.avgRating).toFixed(2)} • Отзывов: ${nf.format(c.reviews)}`,
-                }))}
-              />
-            </div>
-          </div>
-        ) : null}
+                <div className="mt-4 grid gap-3">
+                  <MiniBarChart
+                    rows={analytics.topCities.map((c) => ({
+                      label: c.city || "—",
+                      value: c.places,
+                      hint: `Средний рейтинг: ${Number(c.avgRating).toFixed(2)} • Отзывов: ${nf.format(c.reviews)}`,
+                    }))}
+                  />
+                </div>
+              </div>
+            ) : null}
 
-        {analytics?.topCategories?.length ? (
-          <div className="mt-4 rounded-2xl border bg-background p-5">
-            <div>
-              <div className="text-sm font-semibold">Популярные категории</div>
-              <div className="mt-1 text-sm text-muted-foreground">Топ категорий по количеству карточек</div>
-            </div>
+            {analytics?.topCategories?.length ? (
+              <div className="rounded-2xl border bg-background p-5 lg:col-span-5">
+                <div>
+                  <div className="text-sm font-semibold">Популярные категории</div>
+                  <div className="mt-1 text-sm text-muted-foreground">Топ категорий по количеству карточек</div>
+                </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {analytics.topCategories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryId(c.id);
-                    setShowFilters(true);
-                    const el = document.getElementById("search");
-                    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
-                  title="Фильтровать по категории"
-                >
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">{nf.format(c.places)}</span>
-                </button>
-              ))}
-            </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {analytics.topCategories.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setCategoryId(c.id);
+                        setShowFilters(true);
+                        const el = document.getElementById("search");
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
+                      title="Фильтровать по категории"
+                    >
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{nf.format(c.places)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
 
-      {/* Категории-слайдер */}
+      {/* Категории */}
       {allCategories.length ? (
         <div className="mt-6">
           <div className="mb-2 text-sm font-semibold">Категории</div>
@@ -319,97 +463,8 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         </div>
       ) : null}
 
-      {/* Поиск */}
-      <div id="search" className="mt-6 scroll-mt-24 rounded-2xl border bg-background p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <input
-            className="h-11 w-full rounded-xl border bg-background px-4 outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Поиск по названию/адресу/описанию…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-xl border bg-background px-4 hover:bg-muted/40"
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Фильтры
-            </button>
-
-            <button
-              type="button"
-              className="h-11 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-              onClick={onSearchClick}
-              disabled={loading}
-            >
-              {loading ? "…" : "Найти"}
-            </button>
-          </div>
-        </div>
-
-        {/* Фильтры */}
-        {showFilters ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <select
-              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            >
-              <option value="">Все города (KZ)</option>
-              {KZ_CITIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="">Все категории</option>
-              {allCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.parentId ? `— ${c.name}` : c.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-            >
-              <option value="rating_desc">Сначала высокий рейтинг</option>
-              <option value="reviews_desc">Сначала больше отзывов</option>
-              <option value="new_desc">Сначала новые</option>
-              <option value="name_asc">По названию A→Z</option>
-            </select>
-
-            <button
-              type="button"
-              className="h-11 rounded-xl border bg-background px-4 hover:bg-muted/40"
-              onClick={resetFilters}
-              disabled={loading}
-            >
-              Сбросить
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {err ? (
-        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          {err}
-        </div>
-      ) : null}
-
       {/* Карточки */}
-      <div className="mt-6 grid gap-3">
+      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {items.map((p) => (
           <Link
             key={p.id}
@@ -435,11 +490,11 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
         {!loading && items.length === 0 ? (
           hasSearched ? (
-            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
+            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
               Ничего не найдено по этим условиям.
             </div>
           ) : (
-            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
+            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
               Выберите фильтры и нажмите <b>«Найти»</b>, чтобы увидеть места.
             </div>
           )
@@ -453,7 +508,9 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">{icon}</span>
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">
+          {icon}
+        </span>
         {title}
       </div>
       <div className="mt-2 text-sm text-muted-foreground">{desc}</div>

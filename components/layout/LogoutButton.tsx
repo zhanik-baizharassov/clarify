@@ -1,3 +1,4 @@
+// components/layout/LogoutButton.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -39,7 +40,7 @@ export default function LogoutButton() {
       type="button"
       disabled={pending}
       aria-busy={pending}
-      className="inline-flex h-10 items-center rounded-xl border bg-background px-3 text-sm text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:pointer-events-none disabled:opacity-60"
+      className="inline-flex h-9 items-center rounded-xl border bg-background px-2 text-xs text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:pointer-events-none disabled:opacity-60 sm:px-3 sm:text-sm"
       onClick={handleLogout}
     >
       {pending ? "Выходим…" : "Выйти"}

@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -18,8 +19,6 @@ export const metadata: Metadata = {
     default: "Clarify",
     template: "%s — Clarify",
   },
-  // ⚠️ поставил нормальное описание вместо битой строки
-  // если хочешь другой текст — скажи точную формулировку, заменим
   description: "Отзывы о компаниях и местах в Казахстане",
 };
 
@@ -29,8 +28,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="antialiased">
+    <html
+      lang="ru"
+      className={`${geistSans.variable} ${geistMono.variable} dark`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen antialiased">
         <Header />
         <main>{children}</main>
       </body>
