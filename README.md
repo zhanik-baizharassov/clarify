@@ -25,7 +25,7 @@
 
 ## 1) Клонирование и зависимости
 ```bash
-git clone <REPO_URL>
+git clone https://github.com/zhanik-baizharassov/clarify
 cd review
 npm install
 ````
