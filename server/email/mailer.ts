@@ -6,6 +6,18 @@ type SendResult = { ok: true; messageId?: string };
 const DEFAULT_HOST = "smtp.gmail.com";
 const DEFAULT_PORT = 465;
 
+type MailMode = "smtp" | "console" | "disabled";
+
+function getMailMode(): MailMode {
+  const raw = String(process.env.MAIL_MODE ?? "").trim().toLowerCase();
+  if (raw === "smtp" || raw === "console" || raw === "disabled") return raw;
+
+  // ✅ стабильный дефолт:
+  // - в dev: console (не требует SMTP и всегда работает)
+  // - в prod: smtp
+  return process.env.NODE_ENV === "production" ? "smtp" : "console";
+}
+
 function boolFromEnv(v: string | undefined, fallback: boolean) {
   if (v == null) return fallback;
   return v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes";
@@ -41,7 +53,6 @@ function getTransporter() {
 
   const host = (process.env.SMTP_HOST?.trim() || DEFAULT_HOST).toString();
   const port = numFromEnv(process.env.SMTP_PORT, DEFAULT_PORT);
-  // если порт 465 — почти всегда secure=true
   const secure = boolFromEnv(process.env.SMTP_SECURE, port === 465);
 
   transporter = nodemailer.createTransport({
@@ -62,15 +73,26 @@ export async function sendEmailVerificationCode(
   const appName = process.env.APP_NAME?.trim() || "Clarify";
   const ttlMinutes = opts?.ttlMinutes ?? 10;
 
-  // ✅ защита от header injection и мусора
   const safeTo = String(to).trim().replace(/[\r\n]/g, "");
-
-  // ✅ код только цифры
   const safeCode = String(code).replace(/\D/g, "").slice(0, 6);
-  if (safeCode.length !== 6) {
-    throw new Error("Mail: invalid verification code");
+  if (safeCode.length !== 6) throw new Error("Mail: invalid verification code");
+
+  const mode = getMailMode();
+
+  // ✅ режим "ничего не отправлять" (например тесты)
+  if (mode === "disabled") {
+    return { ok: true, messageId: "disabled" };
   }
 
+  // ✅ режим "в консоль" — стабилен для всех девов, не требует SMTP
+  if (mode === "console") {
+    console.log(
+      `[MAIL_MODE=console] Email verification code for ${safeTo}: ${safeCode} (ttl ${ttlMinutes}m)`,
+    );
+    return { ok: true, messageId: "console" };
+  }
+
+  // mode === "smtp"
   const subject = `Подтверждение email для ${appName}`;
 
   const text =
