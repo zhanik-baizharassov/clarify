@@ -1,4 +1,4 @@
-// lib/kz.ts
+//shared/kz/kz.ts
 
 export const KZ_CITIES = [
   "Алматы",
@@ -52,7 +52,13 @@ export const KZ_MOBILE_CODES = [
   "702",
   "705",
   "706",
+  "707",
+  "708",
+  "747",
+  "771",
   "775",
+  "776",
+  "777",
   "778",
 ] as const;
 const KZ_MOBILE_SET = new Set<string>(KZ_MOBILE_CODES);
