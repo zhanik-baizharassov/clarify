@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function AddReviewPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
   if (!slug) return notFound();
 
   // session: безопасно, чтобы сбой БД не ронял страницу
@@ -26,13 +26,11 @@ export default async function AddReviewPage({
 
   const nextUrl = `/place/${slug}/review`;
 
-  // ✅ Только залогиненный USER может оставлять отзывы
   if (!user) {
-    // ✅ логичнее: login (там же есть verify-flow для unverified)
     redirect(`/login?next=${encodeURIComponent(nextUrl)}`);
   }
   if (user.role !== "USER") {
-    redirect(`/place/${slug}`); // COMPANY/ADMIN — возвращаем на филиал
+    redirect(`/place/${slug}`);
   }
 
   const place = await prisma.place.findUnique({ where: { slug } });

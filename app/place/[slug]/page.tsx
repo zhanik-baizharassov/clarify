@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export default async function PlacePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   if (!slug) return notFound();
 
@@ -30,7 +30,6 @@ export default async function PlacePage({
               firstName: true,
               lastName: true,
               name: true,
-              // email НЕ отдаём публично
             },
           },
           tags: { include: { tag: true } },
@@ -40,7 +39,6 @@ export default async function PlacePage({
                 select: {
                   id: true,
                   name: true,
-                  // bin: true, // включай только если реально нужно отображать
                 },
               },
             },
