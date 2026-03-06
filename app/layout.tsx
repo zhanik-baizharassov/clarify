@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,12 +15,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+  : undefined;
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: {
     default: "Clarify",
     template: "%s — Clarify",
   },
   description: "Отзывы о компаниях и местах в Казахстане",
+  openGraph: {
+    type: "website",
+    locale: "ru_RU",
+    siteName: "Clarify",
+    title: "Clarify",
+    description: "Отзывы о компаниях и местах в Казахстане",
+  },
+  twitter: {
+    card: "summary",
+    title: "Clarify",
+    description: "Отзывы о компаниях и местах в Казахстане",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport = {
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -36,6 +62,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <Header />
         <main>{children}</main>
+        <Footer />
       </body>
     </html>
   );

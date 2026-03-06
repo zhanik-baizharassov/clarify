@@ -36,7 +36,12 @@ type SortKey = "rating_desc" | "reviews_desc" | "new_desc" | "name_asc";
 
 type Analytics = {
   totals: { places: number; reviews: number; users: number; companies: number };
-  topCities: { city: string; places: number; avgRating: number; reviews: number }[];
+  topCities: {
+    city: string;
+    places: number;
+    avgRating: number;
+    reviews: number;
+  }[];
   topCategories: { id: string; name: string; places: number }[];
 };
 
@@ -64,7 +69,14 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
   const placesAbortRef = useRef<AbortController | null>(null);
 
   const buildQueryString = useCallback(
-    (override?: Partial<{ q: string; city: string; categoryId: string; sort: SortKey }>) => {
+    (
+      override?: Partial<{
+        q: string;
+        city: string;
+        categoryId: string;
+        sort: SortKey;
+      }>,
+    ) => {
       const p = new URLSearchParams();
 
       const q0 = (override?.q ?? q).trim();
@@ -93,7 +105,10 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
       try {
         const [catsRes, aRes] = await Promise.all([
           fetch("/api/categories", { cache: "no-store", signal: ctrl.signal }),
-          fetch("/api/analytics/overview", { cache: "no-store", signal: ctrl.signal }),
+          fetch("/api/analytics/overview", {
+            cache: "no-store",
+            signal: ctrl.signal,
+          }),
         ]);
 
         if (ctrl.signal.aborted) return;
@@ -108,7 +123,9 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         const aData = await safeJson(aRes);
         if (!aRes.ok) {
           setAnalytics(null);
-          setAnalyticsError((aData as any)?.error ?? "Не удалось загрузить аналитику");
+          setAnalyticsError(
+            (aData as any)?.error ?? "Не удалось загрузить аналитику",
+          );
         } else {
           setAnalytics(aData as Analytics);
         }
@@ -144,9 +161,14 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
       if (ctrl.signal.aborted) return;
 
       const data = await safeJson(res);
-      if (!res.ok) throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+      if (!res.ok)
+        throw new Error((data as any)?.error ?? "Не удалось загрузить места");
 
-      setItems(Array.isArray((data as any)?.items) ? ((data as any).items as PlaceCard[]) : []);
+      setItems(
+        Array.isArray((data as any)?.items)
+          ? ((data as any).items as PlaceCard[])
+          : [],
+      );
     } catch (e: any) {
       if (ctrl.signal.aborted) return;
       setErr(e?.message ?? "Ошибка");
@@ -174,7 +196,12 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
     setCategoryId("");
     setSort("rating_desc");
 
-    const qs = buildQueryString({ q: "", city: "", categoryId: "", sort: "rating_desc" });
+    const qs = buildQueryString({
+      q: "",
+      city: "",
+      categoryId: "",
+      sort: "rating_desc",
+    });
     setHasSearched(true);
     await loadPlaces(qs);
   }
@@ -206,7 +233,10 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">KZ</span>
-              <span>Настоящие отзывы разных мест только от верифицированных пользователей</span>
+              <span>
+                Настоящие отзывы разных мест только от верифицированных
+                пользователей
+              </span>
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
@@ -214,14 +244,14 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-              Оценивай заведения и сервисы Казахстана честно: еда, магазины, ремонт, услуги и многое
-              другое.
+              Оценивай заведения и сервисы Казахстана честно: еда, магазины,
+              ремонт, услуги и многое другое.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
               <a
                 href="#search"
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
               >
                 <Search className="h-4 w-4" />
                 Начать поиск
@@ -230,14 +260,14 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
               {!isAuthed ? (
                 <Link
                   href="/signup"
-                  className="inline-flex h-11 items-center rounded-xl border bg-background px-5 text-sm font-medium"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
                 >
                   Зарегистрироваться
                 </Link>
               ) : null}
             </div>
 
-            <div className="mt-7 grid gap-3 md:grid-cols-3">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <FeatureCard
                 title="Рейтинг"
                 desc="Средние оценки по филиалам"
@@ -258,7 +288,10 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
           {/* Right: Search card */}
           <div className="lg:col-span-5">
-            <div id="search" className="scroll-mt-24 rounded-2xl border bg-background p-5">
+            <div
+              id="search"
+              className="scroll-mt-24 rounded-2xl border bg-background p-5"
+            >
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold">Поиск мест</div>
@@ -341,8 +374,12 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
                       value={sort}
                       onChange={(e) => setSort(e.target.value as SortKey)}
                     >
-                      <option value="rating_desc">Сначала высокий рейтинг</option>
-                      <option value="reviews_desc">Сначала больше отзывов</option>
+                      <option value="rating_desc">
+                        Сначала высокий рейтинг
+                      </option>
+                      <option value="reviews_desc">
+                        Сначала больше отзывов
+                      </option>
                       <option value="new_desc">Сначала новые</option>
                       <option value="name_asc">По названию A→Z</option>
                     </select>
@@ -371,25 +408,46 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           </div>
         ) : analytics ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi title="Карточек" value={analytics.totals.places} icon={<MapPin className="h-4 w-4" />} />
-            <Kpi title="Отзывов" value={analytics.totals.reviews} icon={<MessageCircle className="h-4 w-4" />} />
-            <Kpi title="Пользователей" value={analytics.totals.users} icon={<Users className="h-4 w-4" />} />
-            <Kpi title="Компаний" value={analytics.totals.companies} icon={<Building2 className="h-4 w-4" />} />
+            <Kpi
+              title="Карточек"
+              value={analytics.totals.places}
+              icon={<MapPin className="h-4 w-4" />}
+            />
+            <Kpi
+              title="Отзывов"
+              value={analytics.totals.reviews}
+              icon={<MessageCircle className="h-4 w-4" />}
+            />
+            <Kpi
+              title="Пользователей"
+              value={analytics.totals.users}
+              icon={<Users className="h-4 w-4" />}
+            />
+            <Kpi
+              title="Компаний"
+              value={analytics.totals.companies}
+              icon={<Building2 className="h-4 w-4" />}
+            />
           </div>
         ) : (
           <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground">
-            Аналитика временно недоступна{analyticsError ? `: ${analyticsError}` : "."}
+            Аналитика временно недоступна
+            {analyticsError ? `: ${analyticsError}` : "."}
           </div>
         )}
 
         {/* Two columns on wide screens */}
-        {(analytics?.topCities?.length || analytics?.topCategories?.length) ? (
+        {analytics?.topCities?.length || analytics?.topCategories?.length ? (
           <div className="mt-4 grid gap-4 lg:grid-cols-12">
             {analytics?.topCities?.length ? (
               <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
                 <div>
-                  <div className="text-sm font-semibold">Активность по городам</div>
-                  <div className="mt-1 text-sm text-muted-foreground">Топ городов по количеству карточек</div>
+                  <div className="text-sm font-semibold">
+                    Активность по городам
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Топ городов по количеству карточек
+                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-3">
@@ -407,8 +465,12 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
             {analytics?.topCategories?.length ? (
               <div className="rounded-2xl border bg-background p-5 lg:col-span-5">
                 <div>
-                  <div className="text-sm font-semibold">Популярные категории</div>
-                  <div className="mt-1 text-sm text-muted-foreground">Топ категорий по количеству карточек</div>
+                  <div className="text-sm font-semibold">
+                    Популярные категории
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Топ категорий по количеству карточек
+                  </div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -420,14 +482,19 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
                         setCategoryId(c.id);
                         setShowFilters(true);
                         const el = document.getElementById("search");
-                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        el?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
                       }}
                       className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
                       title="Фильтровать по категории"
                     >
                       <span className="font-medium">{c.name}</span>
                       <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">{nf.format(c.places)}</span>
+                      <span className="text-muted-foreground">
+                        {nf.format(c.places)}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -444,7 +511,11 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
 
           <div className="relative">
             <div className="flex gap-2 overflow-x-auto pb-2">
-              <Chip active={!categoryId} onClick={() => setCategoryId("")} text="Все" />
+              <Chip
+                active={!categoryId}
+                onClick={() => setCategoryId("")}
+                text="Все"
+              />
               {allCategories.map((c) => (
                 <Chip
                   key={c.id}
@@ -481,8 +552,12 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
               </div>
 
               <div className="text-right">
-                <div className="text-xl font-bold">{Number(p.avgRating).toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground">{nf.format(p.ratingCount)} отзывов</div>
+                <div className="text-xl font-bold">
+                  {Number(p.avgRating).toFixed(2)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {nf.format(p.ratingCount)} отзывов
+                </div>
               </div>
             </div>
           </Link>
@@ -504,7 +579,15 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
   );
 }
 
-function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon: React.ReactNode }) {
+function FeatureCard({
+  title,
+  desc,
+  icon,
+}: {
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
@@ -518,7 +601,15 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
   );
 }
 
-function Kpi({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
+function Kpi({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center justify-between gap-3">
@@ -543,14 +634,24 @@ function KpiSkeleton() {
   );
 }
 
-function Chip({ text, active, onClick }: { text: string; active?: boolean; onClick: () => void }) {
+function Chip({
+  text,
+  active,
+  onClick,
+}: {
+  text: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
         "whitespace-nowrap rounded-full border px-4 py-2 text-sm transition",
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted/40",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "bg-background hover:bg-muted/40",
       ].join(" ")}
     >
       {text}
@@ -558,7 +659,11 @@ function Chip({ text, active, onClick }: { text: string; active?: boolean; onCli
   );
 }
 
-function MiniBarChart({ rows }: { rows: { label: string; value: number; hint?: string }[] }) {
+function MiniBarChart({
+  rows,
+}: {
+  rows: { label: string; value: number; hint?: string }[];
+}) {
   const max = Math.max(...rows.map((r) => r.value), 1);
 
   return (
@@ -568,7 +673,11 @@ function MiniBarChart({ rows }: { rows: { label: string; value: number; hint?: s
           <div className="flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0">
               <div className="truncate text-muted-foreground">{r.label}</div>
-              {r.hint ? <div className="truncate text-xs text-muted-foreground">{r.hint}</div> : null}
+              {r.hint ? (
+                <div className="truncate text-xs text-muted-foreground">
+                  {r.hint}
+                </div>
+              ) : null}
             </div>
             <div className="shrink-0 font-medium">{r.value}</div>
           </div>

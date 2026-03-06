@@ -1,4 +1,3 @@
-// components/layout/Header.tsx
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
 import { getSessionUser } from "@/server/auth/session";
@@ -26,50 +25,67 @@ export default async function Header() {
           </span>
         </Link>
 
-        {!user ? (
-          <nav className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm" aria-label="Навигация">
+        <div className="flex items-center gap-2">
+          {/* Секции лендинга (скрываем на маленьких экранах) */}
+          <nav className="hidden items-center gap-1 text-sm lg:flex" aria-label="Разделы">
             <Link
-              href="/business"
-              className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
+              href="/#how"
+              className="rounded-xl px-3 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
             >
-              Для бизнеса
+              Как это работает
             </Link>
 
             <Link
-              href="/login"
-              className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
+              href="/#business"
+              className="rounded-xl px-3 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
             >
-              Войти
-            </Link>
-
-            <Link
-              href="/signup"
-              className="rounded-xl bg-primary px-2 py-2 font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:px-3"
-            >
-              Регистрация
+              Компаниям
             </Link>
           </nav>
-        ) : (
-          <nav className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm" aria-label="Навигация">
-            {user.role === "COMPANY" ? (
-              <Link
-                href="/company"
-                className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
-              >
-                Кабинет компании
-              </Link>
-            ) : (
-              <Link
-                href="/profile"
-                className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
-              >
-                Профиль
-              </Link>
-            )}
 
-            <LogoutButton />
-          </nav>
-        )}
+          <Link
+            href="/explore"
+            className="rounded-xl border bg-background px-3 py-2 text-xs font-medium hover:bg-muted/40 sm:text-sm"
+          >
+            Найти места
+          </Link>
+
+          {!user ? (
+            <nav className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm" aria-label="Навигация">
+              <Link
+                href="/login"
+                className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
+              >
+                Войти
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-xl bg-primary px-2 py-2 font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:px-3"
+              >
+                Регистрация
+              </Link>
+            </nav>
+          ) : (
+            <nav className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm" aria-label="Навигация">
+              {user.role === "COMPANY" ? (
+                <Link
+                  href="/company"
+                  className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
+                >
+                  Кабинет
+                </Link>
+              ) : (
+                <Link
+                  href="/profile"
+                  className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
+                >
+                  Профиль
+                </Link>
+              )}
+              <LogoutButton />
+            </nav>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
-  { params }: { params: { slug: string } },
+  _req: NextRequest,
+  ctx: { params: Promise<{ slug: string }> },
 ) {
-  const slug = params?.slug;
+  const { slug } = await ctx.params;
 
   if (!slug) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
