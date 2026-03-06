@@ -27,9 +27,6 @@ export default function Footer() {
               <Link className="hover:text-foreground" href="/#how">
                 Как это работает
               </Link>
-              <Link className="hover:text-foreground" href="/#features">
-                Возможности
-              </Link>
             </div>
           </div>
 

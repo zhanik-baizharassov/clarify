@@ -26,23 +26,6 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Секции лендинга (скрываем на маленьких экранах) */}
-          <nav className="hidden items-center gap-1 text-sm lg:flex" aria-label="Разделы">
-            <Link
-              href="/#how"
-              className="rounded-xl px-3 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
-            >
-              Как это работает
-            </Link>
-
-            <Link
-              href="/#business"
-              className="rounded-xl px-3 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
-            >
-              Компаниям
-            </Link>
-          </nav>
-
           <Link
             href="/explore"
             className="rounded-xl border bg-background px-3 py-2 text-xs font-medium hover:bg-muted/40 sm:text-sm"

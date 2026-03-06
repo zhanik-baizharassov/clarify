@@ -1,8 +1,8 @@
-// features/places/components/PlacesExplorer.tsx
 "use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, FormEvent } from "react";
 import {
   BarChart3,
   Building2,
@@ -45,9 +45,17 @@ type Analytics = {
   topCategories: { id: string; name: string; places: number }[];
 };
 
+type Variant = "hero" | "catalog";
+
 const nf = new Intl.NumberFormat("ru-RU");
 
-export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
+export default function PlacesExplorer({
+  isAuthed,
+  variant = "hero",
+}: {
+  isAuthed?: boolean;
+  variant?: Variant;
+}) {
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -217,185 +225,123 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
         className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-72 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
       />
 
-      {/* HERO */}
-      <div className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
-        />
+      {/* TOP: hero or catalog */}
+      {variant === "hero" ? (
+        <div className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          />
 
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
-          {/* Left */}
-          <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">KZ</span>
-              <span>
-                Настоящие отзывы разных мест только от верифицированных
-                пользователей
-              </span>
-            </div>
-
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
-              Нам важно ваше мнение!
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-              Оценивай заведения и сервисы Казахстана честно: еда, магазины,
-              ремонт, услуги и многое другое.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              <a
-                href="#search"
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
-              >
-                <Search className="h-4 w-4" />
-                Начать поиск
-              </a>
-
-              {!isAuthed ? (
-                <Link
-                  href="/signup"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
-                >
-                  Зарегистрироваться
-                </Link>
-              ) : null}
-            </div>
-
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <FeatureCard
-                title="Рейтинг"
-                desc="Средние оценки по филиалам"
-                icon={<BarChart3 className="h-4 w-4" />}
-              />
-              <FeatureCard
-                title="Фильтры"
-                desc="Город, категория, сортировка"
-                icon={<SlidersHorizontal className="h-4 w-4" />}
-              />
-              <FeatureCard
-                title="Модерация"
-                desc="Profanity-check на сервере"
-                icon={<MessageCircle className="h-4 w-4" />}
-              />
-            </div>
-          </div>
-
-          {/* Right: Search card */}
-          <div className="lg:col-span-5">
-            <div
-              id="search"
-              className="scroll-mt-24 rounded-2xl border bg-background p-5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">Поиск мест</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    Название, адрес, описание + фильтры
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border bg-background px-3 text-sm hover:bg-muted/40"
-                  onClick={() => setShowFilters((v) => !v)}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Фильтры
-                </button>
+          <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+            {/* Left */}
+            <div className="lg:col-span-7">
+              <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">KZ</span>
+                <span>
+                  Настоящие отзывы разных мест только от верифицированных
+                  пользователей
+                </span>
               </div>
 
-              <div className="mt-4 grid gap-3">
-                <input
-                  className="h-11 w-full rounded-xl border bg-background px-4 outline-none focus:ring-2 focus:ring-primary/20"
-                  placeholder="Поиск по названию/адресу/описанию…"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onSearchClick();
-                  }}
-                />
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+                Нам важно ваше мнение!
+              </h1>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="h-11 flex-1 rounded-xl border bg-background px-4 hover:bg-muted/40"
-                    onClick={resetFilters}
-                    disabled={loading}
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+                Оценивай заведения и сервисы Казахстана честно: еда, магазины,
+                ремонт, услуги и многое другое.
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                <a
+                  href="#search"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
+                >
+                  <Search className="h-4 w-4" />
+                  Начать поиск
+                </a>
+
+                {!isAuthed ? (
+                  <Link
+                    href="/signup"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
                   >
-                    Сбросить
-                  </button>
-
-                  <button
-                    type="button"
-                    className="h-11 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-                    onClick={onSearchClick}
-                    disabled={loading}
-                  >
-                    {loading ? "…" : "Найти"}
-                  </button>
-                </div>
-
-                {showFilters ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <select
-                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    >
-                      <option value="">Все города (KZ)</option>
-                      {KZ_CITIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20"
-                      value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                    >
-                      <option value="">Все категории</option>
-                      {allCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.parentId ? `— ${c.name}` : c.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-primary/20 md:col-span-2"
-                      value={sort}
-                      onChange={(e) => setSort(e.target.value as SortKey)}
-                    >
-                      <option value="rating_desc">
-                        Сначала высокий рейтинг
-                      </option>
-                      <option value="reviews_desc">
-                        Сначала больше отзывов
-                      </option>
-                      <option value="new_desc">Сначала новые</option>
-                      <option value="name_asc">По названию A→Z</option>
-                    </select>
-                  </div>
+                    Зарегистрироваться
+                  </Link>
                 ) : null}
               </div>
 
-              {err ? (
-                <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  {err}
-                </div>
-              ) : null}
+              <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <FeatureCard
+                  title="Рейтинг"
+                  desc="Средние оценки по филиалам"
+                  icon={<BarChart3 className="h-4 w-4" />}
+                />
+                <FeatureCard
+                  title="Фильтры"
+                  desc="Город, категория, сортировка"
+                  icon={<SlidersHorizontal className="h-4 w-4" />}
+                />
+                <FeatureCard
+                  title="Модерация"
+                  desc="Profanity-check на сервере"
+                  icon={<MessageCircle className="h-4 w-4" />}
+                />
+              </div>
+            </div>
+
+            {/* Right */}
+            <div id="search" className="scroll-mt-24 lg:col-span-5">
+              <SearchCard
+                q={q}
+                setQ={setQ}
+                showFilters={showFilters}
+                setShowFilters={setShowFilters}
+                city={city}
+                setCity={setCity}
+                categoryId={categoryId}
+                setCategoryId={setCategoryId}
+                sort={sort}
+                setSort={setSort}
+                allCategories={allCategories}
+                loading={loading}
+                err={err}
+                onSearch={onSearchClick}
+                onReset={resetFilters}
+              />
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          id="search"
+          className="scroll-mt-24 relative overflow-hidden rounded-3xl border bg-background/80 shadow-sm backdrop-blur"
+        >
+          <SearchCard
+            fillParent
+            q={q}
+            setQ={setQ}
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            city={city}
+            setCity={setCity}
+            categoryId={categoryId}
+            setCategoryId={setCategoryId}
+            sort={sort}
+            setSort={setSort}
+            allCategories={allCategories}
+            loading={loading}
+            err={err}
+            onSearch={onSearchClick}
+            onReset={resetFilters}
+          />
+        </div>
+      )}
 
       {/* KPI + blocks */}
       <div className="mt-6">
@@ -436,7 +382,6 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
           </div>
         )}
 
-        {/* Two columns on wide screens */}
         {analytics?.topCities?.length || analytics?.topCategories?.length ? (
           <div className="mt-4 grid gap-4 lg:grid-cols-12">
             {analytics?.topCities?.length ? (
@@ -579,6 +524,162 @@ export default function PlacesExplorer({ isAuthed }: { isAuthed?: boolean }) {
   );
 }
 
+function SearchCard({
+  fillParent,
+  q,
+  setQ,
+  showFilters,
+  setShowFilters,
+  city,
+  setCity,
+  categoryId,
+  setCategoryId,
+  sort,
+  setSort,
+  allCategories,
+  loading,
+  err,
+  onSearch,
+  onReset,
+}: {
+  fillParent?: boolean;
+  q: string;
+  setQ: (v: string) => void;
+  showFilters: boolean;
+  setShowFilters: (v: boolean | ((p: boolean) => boolean)) => void;
+  city: string;
+  setCity: (v: string) => void;
+  categoryId: string;
+  setCategoryId: (v: string) => void;
+  sort: SortKey;
+  setSort: (v: SortKey) => void;
+  allCategories: Category[];
+  loading: boolean;
+  err: string | null;
+  onSearch: () => Promise<void>;
+  onReset: () => Promise<void>;
+}) {
+  const shellClass = fillParent
+    ? "h-full w-full p-6 sm:p-8 md:p-10"
+    : "rounded-3xl border bg-background/80 p-6 shadow-sm backdrop-blur sm:p-8";
+
+  return (
+    <div className={shellClass}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-base font-semibold sm:text-lg">Поиск мест</div>
+          <div className="mt-1 text-sm text-muted-foreground sm:text-base">
+            Название, адрес или описание — плюс фильтры по городу/категории.
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 sm:text-base"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Фильтры
+        </button>
+      </div>
+
+      <form
+        className="mt-6 grid gap-4"
+        onSubmit={async (e: FormEvent) => {
+          e.preventDefault();
+          await onSearch();
+        }}
+      >
+        {/* Input + buttons row */}
+        <div className="grid gap-3 md:grid-cols-12 md:items-stretch">
+          <div className="md:col-span-8">
+            <input
+              className="h-12 w-full rounded-2xl border bg-background px-5 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14 sm:text-lg"
+              placeholder="Например: Coffee, СТО, доставка…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              disabled={loading}
+            />
+            <div className="mt-2 text-xs text-muted-foreground sm:text-sm">
+              Нажмите Enter, чтобы искать.
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:col-span-4 md:grid-cols-2">
+            <button
+              type="button"
+              className="h-12 rounded-2xl border bg-background px-5 text-base font-medium hover:bg-muted/40 disabled:opacity-50 sm:h-14"
+              onClick={onReset}
+              disabled={loading}
+            >
+              Сбросить
+            </button>
+
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-6 text-base font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50 sm:h-14"
+              disabled={loading}
+            >
+              <Search className="h-5 w-5" />
+              {loading ? "Ищем…" : "Найти"}
+            </button>
+          </div>
+        </div>
+
+        {showFilters ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            <select
+              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">Все города (KZ)</option>
+              {KZ_CITIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">Все категории</option>
+              {allCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.parentId ? `— ${c.name}` : c.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              disabled={loading}
+            >
+              <option value="rating_desc">Сначала высокий рейтинг</option>
+              <option value="reviews_desc">Сначала больше отзывов</option>
+              <option value="new_desc">Сначала новые</option>
+              <option value="name_asc">По названию A→Z</option>
+            </select>
+          </div>
+        ) : null}
+
+        {err ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive sm:text-base">
+            {err}
+          </div>
+        ) : null}
+      </form>
+    </div>
+  );
+}
+
 function FeatureCard({
   title,
   desc,
@@ -586,7 +687,7 @@ function FeatureCard({
 }: {
   title: string;
   desc: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border bg-background p-5">
@@ -608,7 +709,7 @@ function Kpi({
 }: {
   title: string;
   value: number;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border bg-background p-5">

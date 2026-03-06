@@ -1,3 +1,4 @@
+// app/explore/page.tsx
 import type { Metadata } from "next";
 import PlacesExplorer from "@/features/places/components/PlacesExplorer";
 import { getSessionUser } from "@/server/auth/session";
@@ -19,5 +20,5 @@ export default async function ExplorePage() {
     sessionUser = null;
   }
 
-  return <PlacesExplorer isAuthed={!!sessionUser} />;
+  return <PlacesExplorer isAuthed={!!sessionUser} variant="catalog" />;
 }
