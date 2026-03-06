@@ -279,7 +279,7 @@ export default function LoginClient() {
             <span className="text-sm font-medium">Пароль</span>
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="••••••••"
+              placeholder=""
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

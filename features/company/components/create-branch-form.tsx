@@ -141,7 +141,7 @@ export default function CreateBranchForm({ categories }: { categories: Category[
         <input
           disabled={loading}
           className="h-11 rounded-xl border px-3 disabled:opacity-60"
-          placeholder="Например: пр-т Абая 10"
+          placeholder=""
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           autoComplete="street-address"

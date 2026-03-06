@@ -303,7 +303,7 @@ export default function SignupPage() {
           <Field label="Имя">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="Например: Жанибек"
+              placeholder=""
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               autoComplete="given-name"
@@ -314,7 +314,7 @@ export default function SignupPage() {
           <Field label="Фамилия">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="Например: Байжарассов"
+              placeholder=""
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               autoComplete="family-name"
@@ -322,10 +322,10 @@ export default function SignupPage() {
             />
           </Field>
 
-          <Field label="Никнейм" hint="Только латиница/цифры/._- (пример: zhanik02)">
+          <Field label="Никнейм" hint="Только латиница и цифры">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="zhanik02"
+              placeholder=""
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               autoComplete="username"
@@ -336,7 +336,7 @@ export default function SignupPage() {
           <Field label="Телефон" hint="Формат: +7XXXXXXXXXX (только KZ оператор)">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="+77011234567"
+              placeholder="+7"
               value={phone}
               onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
               autoComplete="tel"
@@ -359,7 +359,7 @@ export default function SignupPage() {
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="••••••••"
+              placeholder=""
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

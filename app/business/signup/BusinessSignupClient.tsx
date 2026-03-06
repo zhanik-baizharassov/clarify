@@ -280,7 +280,7 @@ export default function BusinessSignupPage() {
           <Field label="Название компании">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="Например: iSpace"
+              placeholder=""
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               disabled={loading || formDisabled}
@@ -290,7 +290,7 @@ export default function BusinessSignupPage() {
           <Field label="БИН" hint="12 цифр">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="123456789012"
+              placeholder=""
               value={bin}
               onChange={(e) =>
                 setBin(e.target.value.replace(/\D/g, "").slice(0, 12))
@@ -303,7 +303,7 @@ export default function BusinessSignupPage() {
           <Field label="Телефон" hint="Только KZ: +7XXXXXXXXXX">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="+77011234567"
+              placeholder="+7"
               value={phone}
               onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
               autoComplete="tel"
@@ -326,7 +326,7 @@ export default function BusinessSignupPage() {
           <Field label="Адрес" hint="Казахстан">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="Алматы, Самал-2, дом 111"
+              placeholder=""
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               disabled={loading || formDisabled}
@@ -336,7 +336,7 @@ export default function BusinessSignupPage() {
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder="••••••••"
+              placeholder=""
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
