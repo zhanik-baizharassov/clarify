@@ -5,12 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, FormEvent } from "react";
 import {
   BarChart3,
-  Building2,
-  MapPin,
   MessageCircle,
   Search,
   SlidersHorizontal,
-  Users,
 } from "lucide-react";
 import { KZ_CITIES } from "@/shared/kz/kz";
 
@@ -343,47 +340,32 @@ export default function PlacesExplorer({
         </div>
       )}
 
-      {/* KPI + blocks */}
+      {/* Analytics blocks (без верхних KPI) */}
       <div className="mt-6">
         {analyticsLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiSkeleton />
-            <KpiSkeleton />
-            <KpiSkeleton />
-            <KpiSkeleton />
+          <div className="grid gap-4 lg:grid-cols-12">
+            <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
+              <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
+              <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
+              <div className="mt-5 h-2 w-full animate-pulse rounded bg-muted/50" />
+            </div>
+            <div className="rounded-2xl border bg-background p-5 lg:col-span-5">
+              <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
+              <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
+              <div className="mt-5 grid gap-2">
+                <div className="h-9 w-44 animate-pulse rounded-full bg-muted/50" />
+                <div className="h-9 w-60 animate-pulse rounded-full bg-muted/50" />
+                <div className="h-9 w-52 animate-pulse rounded-full bg-muted/50" />
+              </div>
+            </div>
           </div>
-        ) : analytics ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi
-              title="Карточек"
-              value={analytics.totals.places}
-              icon={<MapPin className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Отзывов"
-              value={analytics.totals.reviews}
-              icon={<MessageCircle className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Пользователей"
-              value={analytics.totals.users}
-              icon={<Users className="h-4 w-4" />}
-            />
-            <Kpi
-              title="Компаний"
-              value={analytics.totals.companies}
-              icon={<Building2 className="h-4 w-4" />}
-            />
-          </div>
-        ) : (
+        ) : !analytics ? (
           <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground">
             Аналитика временно недоступна
             {analyticsError ? `: ${analyticsError}` : "."}
           </div>
-        )}
-
-        {analytics?.topCities?.length || analytics?.topCategories?.length ? (
-          <div className="mt-4 grid gap-4 lg:grid-cols-12">
+        ) : analytics?.topCities?.length || analytics?.topCategories?.length ? (
+          <div className="grid gap-4 lg:grid-cols-12">
             {analytics?.topCities?.length ? (
               <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
                 <div>
@@ -590,7 +572,6 @@ function SearchCard({
           await onSearch();
         }}
       >
-        {/* Input + buttons row */}
         <div className="grid gap-3 md:grid-cols-12 md:items-stretch">
           <div className="md:col-span-8">
             <input
@@ -600,9 +581,6 @@ function SearchCard({
               onChange={(e) => setQ(e.target.value)}
               disabled={loading}
             />
-            <div className="mt-2 text-xs text-muted-foreground sm:text-sm">
-              Нажмите Enter, чтобы искать.
-            </div>
           </div>
 
           <div className="grid gap-3 md:col-span-4 md:grid-cols-2">
@@ -698,39 +676,6 @@ function FeatureCard({
         {title}
       </div>
       <div className="mt-2 text-sm text-muted-foreground">{desc}</div>
-    </div>
-  );
-}
-
-function Kpi({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border bg-background p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">{title}</div>
-          <div className="mt-2 text-2xl font-semibold">{nf.format(value)}</div>
-        </div>
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border bg-muted/30 text-muted-foreground">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function KpiSkeleton() {
-  return (
-    <div className="rounded-2xl border bg-background p-5">
-      <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
-      <div className="mt-3 h-8 w-20 animate-pulse rounded bg-muted/50" />
     </div>
   );
 }

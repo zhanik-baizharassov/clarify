@@ -2,14 +2,12 @@ import Link from "next/link";
 import {
   BadgeCheck,
   Building2,
-  ChevronRight,
-  Lock,
   MessageCircle,
   Search,
   ShieldCheck,
-  Sparkles,
   Star,
 } from "lucide-react";
+import PlatformStats from "@/features/analytics/components/PlatformStats";
 
 export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
   return (
@@ -25,104 +23,76 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
           className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
         />
 
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
-          {/* Left */}
-          <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">KZ</span>
-              <span>Отзывы только от верифицированных пользователей</span>
-            </div>
-
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
-              Нам важно ваше мнение!
-            </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Clarify помогает выбирать места по реальным отзывам и рейтингу, а компаниям — получать
-              прозрачную обратную связь и отвечать официально.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link
-                href="/explore"
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
-              >
-                <Search className="h-4 w-4" />
-                Найти места
-              </Link>
-
-              {!isAuthed ? (
-                <Link
-                  href="/signup"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
-                >
-                  Зарегистрироваться
-                </Link>
-              ) : null}
-            </div>
-
-            <div id="features" className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <MiniFeature
-                icon={<BadgeCheck className="h-4 w-4" />}
-                title="Доверие к отзывам"
-                desc="Верификация через OTP снижает спам и повышает качество"
-              />
-              <MiniFeature
-                icon={<ShieldCheck className="h-4 w-4" />}
-                title="Чистый контент"
-                desc="Модерация и проверки на сервере поддерживают порядок"
-              />
-              <MiniFeature
-                icon={<MessageCircle className="h-4 w-4" />}
-                title="Диалог с компанией"
-                desc="Компании отвечают на отзывы официально — всё прозрачно"
-              />
-            </div>
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">KZ</span>
+            <span>Отзывы только от верифицированных пользователей</span>
           </div>
 
-          {/* Right */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl border bg-background p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">Быстрый старт</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    Открой каталог и найди нужное место за минуту
-                  </div>
-                </div>
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+            Нам важно ваше мнение!
+          </h1>
 
-              <div className="mt-4 grid gap-3">
-                <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  • Поиск по названию/адресу/описанию<br />
-                  • Фильтры по городу и категории<br />
-                  • Сортировка по рейтингу и отзывам
-                </div>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            Clarify помогает выбирать места по реальным отзывам и рейтингу, а компаниям — получать
+            прозрачную обратную связь и отвечать официально.
+          </p>
 
-                <Link
-                  href="/explore"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
-                >
-                  Открыть каталог <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link
+              href="/explore"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
+            >
+              <Search className="h-4 w-4" />
+              Найти места
+            </Link>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Lock className="h-4 w-4" />
-                  Авторизация и профиль защищены сессией
-                </div>
-              </div>
-            </div>
+            {!isAuthed ? (
+              <Link
+                href="/signup"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
+              >
+                Зарегистрироваться
+              </Link>
+            ) : null}
+          </div>
+
+          <div
+            id="features"
+            className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            <MiniFeature
+              icon={<BadgeCheck className="h-4 w-4" />}
+              title="Доверие к отзывам"
+              desc="Верификация через OTP снижает спам и повышает качество"
+            />
+            <MiniFeature
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Чистый контент"
+              desc="Модерация и проверки на сервере поддерживают порядок"
+            />
+            <MiniFeature
+              icon={<MessageCircle className="h-4 w-4" />}
+              title="Диалог с компанией"
+              desc="Компании отвечают на отзывы официально — всё прозрачно"
+            />
           </div>
         </div>
       </section>
 
+      {/* STATS — между hero и how */}
+      <div className="mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
+        <PlatformStats />
+      </div>
+
       {/* HOW IT WORKS — переписано + крупнее */}
-      <section id="how" className="mt-8 rounded-3xl border bg-background p-7 md:p-10">
+      <section
+        id="how"
+        className="mt-8 rounded-3xl border bg-background p-7 md:p-10"
+      >
         <h2 className="text-xl font-semibold md:text-2xl">Как это работает</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-base">
-          Мы делаем отзывы полезными: меньше шума, больше смысла. Пользователь быстро выбирает, а компания
-          получает честную обратную связь и может ответить.
+        <p className="mt-2 max-w-6xl text-sm leading-relaxed text-muted-foreground md:text-base">
+          Мы делаем отзывы полезными: меньше шума, больше смысла. Пользователь быстро выбирает, а компания получает честную обратную связь и может ответить.
         </p>
 
         <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -145,7 +115,10 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
       </section>
 
       {/* BUSINESS CTA — тоже крупнее/сильнее */}
-      <section id="business" className="mt-8 rounded-3xl border bg-muted/20 p-7 md:p-10">
+      <section
+        id="business"
+        className="mt-8 rounded-3xl border bg-muted/20 p-7 md:p-10"
+      >
         <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
             <h2 className="text-xl font-semibold md:text-2xl">Для компаний</h2>
@@ -199,7 +172,15 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
   );
 }
 
-function MiniFeature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+function MiniFeature({
+  icon,
+  title,
+  desc,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
   return (
     <div className="rounded-2xl border bg-background p-5">
       <div className="flex items-center gap-2 text-sm font-semibold">
@@ -213,7 +194,15 @@ function MiniFeature({ icon, title, desc }: { icon: React.ReactNode; title: stri
   );
 }
 
-function StepCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+function StepCard({
+  icon,
+  title,
+  desc,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
   return (
     <div className="rounded-2xl border bg-muted/20 p-6">
       <div className="flex items-start gap-3">
@@ -222,7 +211,9 @@ function StepCard({ icon, title, desc }: { icon: React.ReactNode; title: string;
         </span>
         <div>
           <div className="text-base font-semibold md:text-lg">{title}</div>
-          <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">{desc}</div>
+          <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+            {desc}
+          </div>
         </div>
       </div>
     </div>
