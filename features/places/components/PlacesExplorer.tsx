@@ -629,7 +629,7 @@ function SearchCard({
               <option value="">Все категории</option>
               {allCategories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parentId ? `— ${c.name}` : c.name}
+                  {c.parentId ? `${c.name}` : c.name}
                 </option>
               ))}
             </select>
