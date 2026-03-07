@@ -27,9 +27,28 @@ export default function CreateBranchForm({ categories }: { categories: Category[
   const router = useRouter();
 
   const timeOptions = useMemo(() => buildTimeOptions(30), []);
-  const [openTime, setOpenTime] = useState("09:00");
-  const [closeTime, setCloseTime] = useState("21:00");
-  const workHours = useMemo(() => `${openTime}–${closeTime}`, [openTime, closeTime]);
+
+  const [weekdayOpenTime, setWeekdayOpenTime] = useState("09:00");
+  const [weekdayCloseTime, setWeekdayCloseTime] = useState("21:00");
+
+  const [weekendClosed, setWeekendClosed] = useState(false);
+  const [weekendOpenTime, setWeekendOpenTime] = useState("10:00");
+  const [weekendCloseTime, setWeekendCloseTime] = useState("18:00");
+
+  const workHoursSummary = useMemo(() => {
+    const weekdays = `Пн–Пт ${weekdayOpenTime}–${weekdayCloseTime}`;
+    const weekends = weekendClosed
+      ? "Сб–Вс выходной"
+      : `Сб–Вс ${weekendOpenTime}–${weekendCloseTime}`;
+
+    return `${weekdays} • ${weekends}`;
+  }, [
+    weekdayOpenTime,
+    weekdayCloseTime,
+    weekendClosed,
+    weekendOpenTime,
+    weekendCloseTime,
+  ]);
 
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
   const [city, setCity] = useState<string>(KZ_CITIES[0] ?? "Алматы");
@@ -60,8 +79,12 @@ export default function CreateBranchForm({ categories }: { categories: Category[
       return setErr(e?.message ?? "Телефон: некорректный формат");
     }
 
-    if (toMinutes(openTime) >= toMinutes(closeTime)) {
-      return setErr("Время работы: значение «С» должно быть раньше, чем «До»");
+    if (toMinutes(weekdayOpenTime) >= toMinutes(weekdayCloseTime)) {
+      return setErr("Будние дни: значение «С» должно быть раньше, чем «До»");
+    }
+
+    if (!weekendClosed && toMinutes(weekendOpenTime) >= toMinutes(weekendCloseTime)) {
+      return setErr("Выходные дни: значение «С» должно быть раньше, чем «До»");
     }
 
     setLoading(true);
@@ -74,7 +97,11 @@ export default function CreateBranchForm({ categories }: { categories: Category[
           city,
           address: addr,
           phone: phoneNorm,
-          workHours,
+          weekdayOpen: weekdayOpenTime,
+          weekdayClose: weekdayCloseTime,
+          weekendClosed,
+          weekendOpen: weekendClosed ? null : weekendOpenTime,
+          weekendClose: weekendClosed ? null : weekendCloseTime,
         }),
       });
 
@@ -83,8 +110,11 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
       setAddress("");
       setPhone("+7");
-      setOpenTime("09:00");
-      setCloseTime("21:00");
+      setWeekdayOpenTime("09:00");
+      setWeekdayCloseTime("21:00");
+      setWeekendClosed(false);
+      setWeekendOpenTime("10:00");
+      setWeekendCloseTime("18:00");
       router.refresh();
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
@@ -160,45 +190,110 @@ export default function CreateBranchForm({ categories }: { categories: Category[
         />
       </label>
 
-      <div className="grid gap-2 rounded-xl border p-4">
+      <div className="grid gap-4 rounded-xl border p-4">
         <div className="text-xs text-muted-foreground">Время работы</div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1">
-            <span className="text-xs text-muted-foreground">С</span>
-            <select
-              disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-              value={openTime}
-              onChange={(e) => setOpenTime(e.target.value)}
-            >
-              {timeOptions.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid gap-3 rounded-xl border p-4">
+          <div className="text-sm font-medium">Будние дни</div>
 
-          <label className="grid gap-1">
-            <span className="text-xs text-muted-foreground">До</span>
-            <select
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">С</span>
+              <select
+                disabled={loading}
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                value={weekdayOpenTime}
+                onChange={(e) => setWeekdayOpenTime(e.target.value)}
+              >
+                {timeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">До</span>
+              <select
+                disabled={loading}
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                value={weekdayCloseTime}
+                onChange={(e) => setWeekdayCloseTime(e.target.value)}
+              >
+                {timeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="grid gap-3 rounded-xl border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm font-medium">Выходные дни</div>
+
+            <button
+              type="button"
               disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-              value={closeTime}
-              onChange={(e) => setCloseTime(e.target.value)}
+              onClick={() => setWeekendClosed((prev) => !prev)}
+              className={[
+                "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
+                weekendClosed
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "hover:bg-muted/30",
+                loading ? "opacity-60" : "",
+              ].join(" ")}
             >
-              {timeOptions.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              {weekendClosed ? "По выходным не работаем" : "Указать время выходных"}
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">С</span>
+              <select
+                disabled={loading || weekendClosed}
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                value={weekendOpenTime}
+                onChange={(e) => setWeekendOpenTime(e.target.value)}
+              >
+                {timeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">До</span>
+              <select
+                disabled={loading || weekendClosed}
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                value={weekendCloseTime}
+                onChange={(e) => setWeekendCloseTime(e.target.value)}
+              >
+                {timeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {weekendClosed ? (
+            <div className="text-xs text-muted-foreground">
+              Для выходных установлен режим: <span className="font-medium text-foreground">выходной</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Итог: <span className="font-medium text-foreground">{workHours}</span>
+          Итог: <span className="font-medium text-foreground">{workHoursSummary}</span>
         </div>
       </div>
 

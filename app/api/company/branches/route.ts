@@ -1,4 +1,3 @@
-// app/api/company/branches/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
@@ -12,27 +11,30 @@ import { validateKzAddress } from "@/server/address/validate";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00");
+
 const Schema = z
   .object({
     categoryId: z.string().min(1, "Категория обязательна"),
     city: z.string().trim().min(2, "Город обязателен").max(60, "Город слишком длинный"),
     address: z.string().trim().min(5, "Адрес: минимум 5 символов").max(200, "Адрес слишком длинный"),
     phone: z.string().trim().min(5, "Телефон обязателен").max(30, "Телефон слишком длинный"),
-    workHours: z
-      .string()
-      .trim()
-      .min(2, "Время работы обязательно")
-      .max(120, "Время работы слишком длинное")
-      .regex(/^\d{2}:\d{2}[–-]\d{2}:\d{2}$/, "Время работы: формат 09:00–21:00"),
+
+    weekdayOpen: timeSchema,
+    weekdayClose: timeSchema,
+
+    weekendClosed: z.boolean(),
+    weekendOpen: z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00").nullable(),
+    weekendClose: z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00").nullable(),
   })
   .strict();
 
 function translitRuKz(s: string) {
   const map: Record<string, string> = {
-    а:"a", б:"b", в:"v", г:"g", д:"d", е:"e", ё:"e", ж:"zh", з:"z", и:"i", й:"y",
-    к:"k", л:"l", м:"m", н:"n", о:"o", п:"p", р:"r", с:"s", т:"t", у:"u", ф:"f",
-    х:"h", ц:"ts", ч:"ch", ш:"sh", щ:"sch", ъ:"", ы:"y", ь:"", э:"e", ю:"yu", я:"ya",
-    ә:"a", ө:"o", ү:"u", ұ:"u", қ:"k", ғ:"g", ң:"n", і:"i", һ:"h",
+    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y",
+    к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
+    х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+    ә: "a", ө: "o", ү: "u", ұ: "u", қ: "k", ғ: "g", ң: "n", і: "i", һ: "h",
   };
   return s
     .split("")
@@ -56,6 +58,33 @@ function slugifyAscii(s: string) {
   return base || "company";
 }
 
+function toMinutes(t: string) {
+  const [hh, mm] = t.split(":").map(Number);
+  return hh * 60 + mm;
+}
+
+function assertValidRange(from: string, to: string, label: string) {
+  if (toMinutes(from) >= toMinutes(to)) {
+    throw new Error(`${label}: значение «С» должно быть раньше, чем «До»`);
+  }
+}
+
+function buildWorkHours(input: z.infer<typeof Schema>) {
+  assertValidRange(input.weekdayOpen, input.weekdayClose, "Будние дни");
+
+  if (input.weekendClosed) {
+    return `Пн–Пт ${input.weekdayOpen}–${input.weekdayClose} • Сб–Вс выходной`;
+  }
+
+  if (!input.weekendOpen || !input.weekendClose) {
+    throw new Error("Выходные дни: укажите время работы или включите режим выходного");
+  }
+
+  assertValidRange(input.weekendOpen, input.weekendClose, "Выходные дни");
+
+  return `Пн–Пт ${input.weekdayOpen}–${input.weekdayClose} • Сб–Вс ${input.weekendOpen}–${input.weekendClose}`;
+}
+
 export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
@@ -76,14 +105,13 @@ export async function POST(req: Request) {
     });
     if (!category) return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
 
-    // ✅ дешёвые проверки до геокодинга
     assertNoProfanity(company.name, "Название компании");
     assertNoProfanity(input.address, "Адрес филиала");
 
     const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон филиала");
+    const workHours = buildWorkHours(input);
 
-    // ✅ дорогая операция — только после базовых проверок
     const { lat, lng } = await validateKzAddress({ city, address: input.address });
 
     const slug = `${slugifyAscii(company.name)}-${
@@ -98,7 +126,7 @@ export async function POST(req: Request) {
         city,
         address: input.address,
         phone,
-        workHours: input.workHours,
+        workHours,
         companyId: company.id,
         lat,
         lng,
@@ -108,7 +136,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(place, { status: 201 });
   } catch (err: any) {
-    // Prisma unique / etc
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
         return NextResponse.json({ error: "Филиал уже создан (повторите запрос позже)" }, { status: 409 });
@@ -126,6 +153,8 @@ export async function POST(req: Request) {
         err.message.includes("Телефон") ||
         err.message.includes("Город") ||
         err.message.includes("Адрес") ||
+        err.message.includes("Будние дни") ||
+        err.message.includes("Выходные дни") ||
         err.message.includes("недопустимые слова")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });

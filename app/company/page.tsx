@@ -382,6 +382,7 @@ export default async function CompanyPage({
                           "hover:border-primary/40 hover:bg-muted/20",
                           isActive ? "border-primary bg-primary/5 text-primary" : "",
                         ].join(" ")}
+                        scroll={false}
                       >
                         <span>{city}</span>
                         <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -432,6 +433,7 @@ export default async function CompanyPage({
                                 branch.city,
                               )}&branch=${branch.id}`}
                               className="block"
+                              scroll={false}
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="min-w-0 flex-1">
@@ -507,6 +509,7 @@ export default async function CompanyPage({
                           ? "border-primary bg-primary/5 text-primary"
                           : "",
                       ].join(" ")}
+                      scroll={false}
                     >
                       <span>Неотвеченные</span>
                       <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -525,6 +528,7 @@ export default async function CompanyPage({
                           ? "border-primary bg-primary/5 text-primary"
                           : "",
                       ].join(" ")}
+                      scroll={false}
                     >
                       <span>Отвеченные</span>
                       <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -566,6 +570,7 @@ export default async function CompanyPage({
                                   <Link
                                     href={`/place/${review.place.slug}`}
                                     className="text-sm font-semibold hover:underline"
+                                    scroll={false}
                                   >
                                     {review.place.name}
                                   </Link>
@@ -712,6 +717,7 @@ function DashboardCard({
         "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/20",
         active ? "border-primary bg-primary/5" : "",
       ].join(" ")}
+      scroll={false}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-muted/20">
