@@ -27,7 +27,7 @@ export default async function Header() {
             width={120}
             height={120}
             priority
-            className="h-[120px] w-[120px] shrink-0 -mr-5 rounded-xl object-contain transition group-hover:scale-[1.02]"
+            className="h-[150px] w-[150px] shrink-0 -mr-5 rounded-xl object-contain transition group-hover:scale-[1.02]"
           />
 
           <span className="flex flex-col leading-tight">

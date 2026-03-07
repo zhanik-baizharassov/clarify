@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   BadgeCheck,
@@ -23,60 +24,79 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
           className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
         />
 
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">KZ</span>
-            <span>Отзывы только от верифицированных пользователей</span>
-          </div>
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
+          <div className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">KZ</span>
+              <span>Отзывы только от верифицированных пользователей</span>
+            </div>
 
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
-            Нам важно ваше мнение!
-          </h1>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+              Нам важно ваше мнение!
+            </h1>
 
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-            Clarify помогает выбирать места по реальным отзывам и рейтингу, а компаниям — получать
-            прозрачную обратную связь и отвечать официально.
-          </p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+              Clarify помогает выбирать места по реальным отзывам и рейтингу, а
+              компаниям — получать прозрачную обратную связь и отвечать
+              официально.
+            </p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link
-              href="/explore"
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
-            >
-              <Search className="h-4 w-4" />
-              Найти места
-            </Link>
-
-            {!isAuthed ? (
+            <div className="mt-6 flex flex-wrap gap-2">
               <Link
-                href="/signup"
-                className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
+                href="/explore"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
               >
-                Зарегистрироваться
+                <Search className="h-4 w-4" />
+                Найти места
               </Link>
-            ) : null}
+
+              {!isAuthed ? (
+                <Link
+                  href="/signup"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
+                >
+                  Зарегистрироваться
+                </Link>
+              ) : null}
+            </div>
           </div>
 
-          <div
-            id="features"
-            className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <MiniFeature
-              icon={<BadgeCheck className="h-4 w-4" />}
-              title="Доверие к отзывам"
-              desc="Верификация через OTP снижает спам и повышает качество"
-            />
-            <MiniFeature
-              icon={<ShieldCheck className="h-4 w-4" />}
-              title="Чистый контент"
-              desc="Модерация и проверки на сервере поддерживают порядок"
-            />
-            <MiniFeature
-              icon={<MessageCircle className="h-4 w-4" />}
-              title="Диалог с компанией"
-              desc="Компании отвечают на отзывы официально — всё прозрачно"
-            />
+          <div className="lg:col-span-5">
+            <div className="mx-auto flex max-w-[360px] justify-center lg:justify-end">
+              <div className="relative">
+                <div className="absolute inset-0 scale-90 rounded-full bg-primary/15 blur-3xl" />
+                <Image
+                  src="/logo.png"
+                  alt="Clarify logo"
+                  width={420}
+                  height={420}
+                  priority
+                  className="relative h-auto w-full max-w-[300px] object-contain drop-shadow-[0_22px_50px_rgba(59,130,246,0.24)]"
+                />
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div
+          id="features"
+          className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          <MiniFeature
+            icon={<BadgeCheck className="h-4 w-4" />}
+            title="Доверие к отзывам"
+            desc="Верификация через OTP снижает спам и повышает качество"
+          />
+          <MiniFeature
+            icon={<ShieldCheck className="h-4 w-4" />}
+            title="Чистый контент"
+            desc="Модерация и проверки на сервере поддерживают порядок"
+          />
+          <MiniFeature
+            icon={<MessageCircle className="h-4 w-4" />}
+            title="Диалог с компанией"
+            desc="Компании отвечают на отзывы официально — всё прозрачно"
+          />
         </div>
       </section>
 
@@ -85,14 +105,16 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
         <PlatformStats />
       </div>
 
-      {/* HOW IT WORKS — переписано + крупнее */}
+      {/* HOW IT WORKS */}
       <section
         id="how"
         className="mt-8 rounded-3xl border bg-background p-7 md:p-10"
       >
         <h2 className="text-xl font-semibold md:text-2xl">Как это работает</h2>
         <p className="mt-2 max-w-6xl text-sm leading-relaxed text-muted-foreground md:text-base">
-          Мы делаем отзывы полезными: меньше шума, больше смысла. Пользователь быстро выбирает, а компания получает честную обратную связь и может ответить.
+          Мы делаем отзывы полезными: меньше шума, больше смысла. Пользователь
+          быстро выбирает, а компания получает честную обратную связь и может
+          ответить.
         </p>
 
         <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -114,7 +136,7 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
         </div>
       </section>
 
-      {/* BUSINESS CTA — тоже крупнее/сильнее */}
+      {/* BUSINESS CTA */}
       <section
         id="business"
         className="mt-8 rounded-3xl border bg-muted/20 p-7 md:p-10"
@@ -123,8 +145,9 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
           <div className="lg:col-span-7">
             <h2 className="text-xl font-semibold md:text-2xl">Для компаний</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Создавайте карточки филиалов и управляйте репутацией в одном месте. Отвечайте на отзывы
-              публично — это повышает доверие и конверсию.
+              Создавайте карточки филиалов и управляйте репутацией в одном
+              месте. Отвечайте на отзывы публично — это повышает доверие и
+              конверсию.
             </p>
 
             <ul className="mt-5 grid gap-3 text-sm text-muted-foreground md:text-base">
@@ -138,22 +161,29 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <MessageCircle className="h-5 w-5" />
                 </span>
-                <span>Официальные ответы на отзывы — без конфликтов и “лички”</span>
+                <span>
+                  Официальные ответы на отзывы — без конфликтов и “лички”
+                </span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <ShieldCheck className="h-5 w-5" />
                 </span>
-                <span>Модерация и проверки помогают держать площадку чистой</span>
+                <span>
+                  Модерация и проверки помогают держать площадку чистой
+                </span>
               </li>
             </ul>
           </div>
 
           <div className="lg:col-span-5">
             <div className="rounded-2xl border bg-background p-6">
-              <div className="text-base font-semibold md:text-lg">Начать как компания</div>
+              <div className="text-base font-semibold md:text-lg">
+                Начать как компания
+              </div>
               <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
-                Зарегистрируйтесь и создайте первые филиалы. Дальше — отвечайте на отзывы и собирайте доверие.
+                Зарегистрируйтесь и создайте первые филиалы. Дальше — отвечайте
+                на отзывы и собирайте доверие.
               </div>
 
               <div className="mt-5 grid gap-2">

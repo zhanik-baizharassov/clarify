@@ -203,27 +203,27 @@ export default function PlacesExplorer({
               <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">KZ</span>
                 <span>
-                  Настоящие отзывы разных мест только от верифицированных
-                  пользователей
+                  Отзывы только от верифицированных пользователей
                 </span>
               </div>
 
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
                 Нам важно ваше мнение!
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-                Оценивай заведения и сервисы Казахстана честно: еда, магазины,
-                ремонт, услуги и многое другое.
+              <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">
+                Clarify помогает выбирать места по реальным отзывам и рейтингу,
+                а компаниям — получать прозрачную обратную связь и отвечать
+                официально.
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href="#search"
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
                 >
                   <Search className="h-4 w-4" />
-                  Начать поиск
+                  Найти места
                 </a>
 
                 {!isAuthed ? (
@@ -235,45 +235,45 @@ export default function PlacesExplorer({
                   </Link>
                 ) : null}
               </div>
-
-              <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <FeatureCard
-                  title="Рейтинг"
-                  desc="Средние оценки по филиалам"
-                  icon={<BarChart3 className="h-4 w-4" />}
-                />
-                <FeatureCard
-                  title="Фильтры"
-                  desc="Город, категория, сортировка"
-                  icon={<SlidersHorizontal className="h-4 w-4" />}
-                />
-                <FeatureCard
-                  title="Модерация"
-                  desc="Profanity-check на сервере"
-                  icon={<MessageCircle className="h-4 w-4" />}
-                />
-              </div>
             </div>
+          </div>
 
-            <div id="search" className="scroll-mt-24 lg:col-span-5">
-              <SearchCard
-                q={q}
-                setQ={setQ}
-                showFilters={showFilters}
-                setShowFilters={setShowFilters}
-                city={city}
-                setCity={setCity}
-                categoryId={categoryId}
-                setCategoryId={setCategoryId}
-                sort={sort}
-                setSort={setSort}
-                allCategories={allCategories}
-                loading={loading}
-                err={err}
-                onSearch={onSearchClick}
-                onReset={resetFilters}
-              />
-            </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard
+              title="Доверие к отзывам"
+              desc="Верификация через OTP снижает спам и повышает качество"
+              icon={<BarChart3 className="h-4 w-4" />}
+            />
+            <FeatureCard
+              title="Чистый контент"
+              desc="Модерация и проверки на сервере поддерживают порядок"
+              icon={<SlidersHorizontal className="h-4 w-4" />}
+            />
+            <FeatureCard
+              title="Диалог с компанией"
+              desc="Компании отвечают на отзывы официально — всё прозрачно"
+              icon={<MessageCircle className="h-4 w-4" />}
+            />
+          </div>
+
+          <div id="search" className="mt-8 scroll-mt-24">
+            <SearchCard
+              q={q}
+              setQ={setQ}
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+              city={city}
+              setCity={setCity}
+              categoryId={categoryId}
+              setCategoryId={setCategoryId}
+              sort={sort}
+              setSort={setSort}
+              allCategories={allCategories}
+              loading={loading}
+              err={err}
+              onSearch={onSearchClick}
+              onReset={resetFilters}
+            />
           </div>
         </div>
       ) : (
