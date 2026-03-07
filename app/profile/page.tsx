@@ -24,6 +24,28 @@ function normalizeTab(v: string | null | undefined): TabKey {
   return "main";
 }
 
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "medium",
+  }).format(date);
+}
+
+function getReviewStatusLabel(status: string) {
+  if (status === "PENDING") return "На модерации";
+  if (status === "REJECTED") return "Отклонён";
+  return "Опубликован";
+}
+
+function getReviewStatusClass(status: string) {
+  if (status === "PENDING") {
+    return "border-amber-500/25 bg-amber-500/10 text-amber-700";
+  }
+  if (status === "REJECTED") {
+    return "border-destructive/25 bg-destructive/10 text-destructive";
+  }
+  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700";
+}
+
 export default async function ProfilePage({
   searchParams,
 }: {
@@ -33,20 +55,60 @@ export default async function ProfilePage({
   if (!sessionUser) redirect("/login");
   if (sessionUser.role !== "USER") redirect("/");
 
-  const user = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
-    select: {
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      phone: true,
-      email: true,
-      avatarUrl: true,
-      createdAt: true,
-      profileEditCount: true,
-      emailVerifiedAt: true,
-    },
-  });
+  const [user, myReviews] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: {
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        phone: true,
+        email: true,
+        avatarUrl: true,
+        createdAt: true,
+        profileEditCount: true,
+        emailVerifiedAt: true,
+      },
+    }),
+
+    prisma.review.findMany({
+      where: { authorId: sessionUser.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        place: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            city: true,
+            address: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        replies: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   if (!user) redirect("/login");
 
@@ -60,10 +122,7 @@ export default async function ProfilePage({
     user.nickname ||
     "Пользователь";
 
-  const createdAt = new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "medium",
-  }).format(user.createdAt);
-
+  const createdAt = formatDate(user.createdAt);
   const emailVerified = Boolean(user.emailVerifiedAt);
 
   const initial = {
@@ -88,8 +147,8 @@ export default async function ProfilePage({
           className={[
             "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
             locked
-              ? "bg-muted/40 text-muted-foreground"
-              : "bg-primary text-primary-foreground border-primary",
+              ? "border-muted bg-muted/40 text-muted-foreground"
+              : "border-primary bg-primary text-primary-foreground",
           ].join(" ")}
           title="Основные данные профиля можно изменить только один раз"
         >
@@ -190,8 +249,109 @@ export default async function ProfilePage({
             ) : tab === "security" ? (
               <ProfileEditForm tab="security" locked={false} initial={initial} />
             ) : tab === "reviews" ? (
-              <div className="rounded-2xl border bg-muted/20 p-5 text-sm text-muted-foreground">
-                Здесь будут ваши отзывы (скоро).
+              <div className="grid gap-4">
+                <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Всего отзывов:{" "}
+                  <span className="font-medium text-foreground">
+                    {myReviews.length}
+                  </span>
+                </div>
+
+                {myReviews.length === 0 ? (
+                  <div className="rounded-2xl border bg-muted/20 p-5 text-sm text-muted-foreground">
+                    Вы пока не оставляли отзывов.
+                  </div>
+                ) : (
+                  myReviews.map((review) => (
+                    <article
+                      key={review.id}
+                      className="rounded-2xl border bg-background p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/place/${review.place.slug}`}
+                            className="text-base font-semibold hover:underline"
+                          >
+                            {review.place.name}
+                          </Link>
+
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {review.place.city}
+                            {review.place.address
+                              ? ` • ${review.place.address}`
+                              : ""}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-lg font-semibold">
+                            {review.rating}/5
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatDate(review.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <span
+                          className={[
+                            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium",
+                            getReviewStatusClass(review.status),
+                          ].join(" ")}
+                        >
+                          {getReviewStatusLabel(review.status)}
+                        </span>
+                      </div>
+
+                      <p className="mt-3 whitespace-pre-wrap text-sm">
+                        {review.text}
+                      </p>
+
+                      {review.tags.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {review.tags.map((t) => (
+                            <span
+                              key={t.tag.id}
+                              className="rounded-full border px-2 py-1 text-xs"
+                            >
+                              {t.tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {review.replies.length > 0 ? (
+                        <div className="mt-4 rounded-xl bg-muted/40 p-4 text-sm">
+                          <div className="font-medium">Ответ компании:</div>
+
+                          <div className="mt-2 grid gap-3">
+                            {review.replies.map((reply) => (
+                              <div key={reply.id}>
+                                <div className="text-xs text-muted-foreground">
+                                  {reply.company.name}
+                                </div>
+                                <div className="mt-1 whitespace-pre-wrap">
+                                  {reply.text}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-4">
+                        <Link
+                          href={`/place/${review.place.slug}`}
+                          className="text-sm font-medium underline underline-offset-4"
+                        >
+                          Открыть место
+                        </Link>
+                      </div>
+                    </article>
+                  ))
+                )}
               </div>
             ) : (
               <div className="rounded-2xl border bg-muted/20 p-5 text-sm text-muted-foreground">
