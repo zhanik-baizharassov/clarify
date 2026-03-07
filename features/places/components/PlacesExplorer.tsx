@@ -99,7 +99,6 @@ export default function PlacesExplorer({
     [q, city, categoryId, sort],
   );
 
-  // bootstrap: categories + analytics
   useEffect(() => {
     const ctrl = new AbortController();
 
@@ -166,8 +165,9 @@ export default function PlacesExplorer({
       if (ctrl.signal.aborted) return;
 
       const data = await safeJson(res);
-      if (!res.ok)
+      if (!res.ok) {
         throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+      }
 
       setItems(
         Array.isArray((data as any)?.items)
@@ -216,13 +216,11 @@ export default function PlacesExplorer({
       id="explore"
       className="relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
     >
-      {/* subtle background */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-72 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
       />
 
-      {/* TOP: hero or catalog */}
       {variant === "hero" ? (
         <div className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
           <div
@@ -235,7 +233,6 @@ export default function PlacesExplorer({
           />
 
           <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
-            {/* Left */}
             <div className="lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">KZ</span>
@@ -292,7 +289,6 @@ export default function PlacesExplorer({
               </div>
             </div>
 
-            {/* Right */}
             <div id="search" className="scroll-mt-24 lg:col-span-5">
               <SearchCard
                 q={q}
@@ -340,23 +336,15 @@ export default function PlacesExplorer({
         </div>
       )}
 
-      {/* Analytics blocks (без верхних KPI) */}
       <div className="mt-6">
         {analyticsLoading ? (
-          <div className="grid gap-4 lg:grid-cols-12">
-            <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
-              <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
-              <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
-              <div className="mt-5 h-2 w-full animate-pulse rounded bg-muted/50" />
-            </div>
-            <div className="rounded-2xl border bg-background p-5 lg:col-span-5">
-              <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
-              <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
-              <div className="mt-5 grid gap-2">
-                <div className="h-9 w-44 animate-pulse rounded-full bg-muted/50" />
-                <div className="h-9 w-60 animate-pulse rounded-full bg-muted/50" />
-                <div className="h-9 w-52 animate-pulse rounded-full bg-muted/50" />
-              </div>
+          <div className="rounded-2xl border bg-background p-5">
+            <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
+            <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
+            <div className="mt-5 flex flex-wrap gap-2">
+              <div className="h-9 w-44 animate-pulse rounded-full bg-muted/50" />
+              <div className="h-9 w-60 animate-pulse rounded-full bg-muted/50" />
+              <div className="h-9 w-52 animate-pulse rounded-full bg-muted/50" />
             </div>
           </div>
         ) : !analytics ? (
@@ -364,74 +352,44 @@ export default function PlacesExplorer({
             Аналитика временно недоступна
             {analyticsError ? `: ${analyticsError}` : "."}
           </div>
-        ) : analytics?.topCities?.length || analytics?.topCategories?.length ? (
-          <div className="grid gap-4 lg:grid-cols-12">
-            {analytics?.topCities?.length ? (
-              <div className="rounded-2xl border bg-background p-5 lg:col-span-7">
-                <div>
-                  <div className="text-sm font-semibold">
-                    Активность по городам
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    Топ городов по количеству карточек
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  <MiniBarChart
-                    rows={analytics.topCities.map((c) => ({
-                      label: c.city || "—",
-                      value: c.places,
-                      hint: `Средний рейтинг: ${Number(c.avgRating).toFixed(2)} • Отзывов: ${nf.format(c.reviews)}`,
-                    }))}
-                  />
-                </div>
+        ) : analytics?.topCategories?.length ? (
+          <div className="rounded-2xl border bg-background p-5">
+            <div>
+              <div className="text-sm font-semibold">Популярные категории</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Топ категорий по количеству карточек
               </div>
-            ) : null}
+            </div>
 
-            {analytics?.topCategories?.length ? (
-              <div className="rounded-2xl border bg-background p-5 lg:col-span-5">
-                <div>
-                  <div className="text-sm font-semibold">
-                    Популярные категории
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    Топ категорий по количеству карточек
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {analytics.topCategories.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setCategoryId(c.id);
-                        setShowFilters(true);
-                        const el = document.getElementById("search");
-                        el?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
-                      }}
-                      className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
-                      title="Фильтровать по категории"
-                    >
-                      <span className="font-medium">{c.name}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">
-                        {nf.format(c.places)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {analytics.topCategories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryId(c.id);
+                    setShowFilters(true);
+                    const el = document.getElementById("search");
+                    el?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
+                  title="Фильтровать по категории"
+                >
+                  <span className="font-medium">{c.name}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">
+                    {nf.format(c.places)}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
       </div>
 
-      {/* Категории */}
       {allCategories.length ? (
         <div className="mt-6">
           <div className="mb-2 text-sm font-semibold">Категории</div>
@@ -461,7 +419,6 @@ export default function PlacesExplorer({
         </div>
       ) : null}
 
-      {/* Карточки */}
       <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {items.map((p) => (
           <Link
@@ -607,7 +564,7 @@ function SearchCard({
         {showFilters ? (
           <div className="grid gap-3 md:grid-cols-3">
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               disabled={loading}
@@ -621,7 +578,7 @@ function SearchCard({
             </select>
 
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               disabled={loading}
@@ -629,13 +586,13 @@ function SearchCard({
               <option value="">Все категории</option>
               {allCategories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parentId ? `${c.name}` : c.name}
+                  {c.name}
                 </option>
               ))}
             </select>
 
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14"
+              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
               disabled={loading}
@@ -702,42 +659,6 @@ function Chip({
     >
       {text}
     </button>
-  );
-}
-
-function MiniBarChart({
-  rows,
-}: {
-  rows: { label: string; value: number; hint?: string }[];
-}) {
-  const max = Math.max(...rows.map((r) => r.value), 1);
-
-  return (
-    <div className="grid gap-3">
-      {rows.map((r, i) => (
-        <div key={`${r.label}-${i}`} className="grid gap-1">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <div className="min-w-0">
-              <div className="truncate text-muted-foreground">{r.label}</div>
-              {r.hint ? (
-                <div className="truncate text-xs text-muted-foreground">
-                  {r.hint}
-                </div>
-              ) : null}
-            </div>
-            <div className="shrink-0 font-medium">{r.value}</div>
-          </div>
-
-          <div className="h-2 rounded-full bg-muted/40">
-            <div
-              className="h-2 rounded-full bg-primary"
-              style={{ width: `${Math.round((r.value / max) * 100)}%` }}
-              aria-label={`${r.label}: ${r.value}`}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
