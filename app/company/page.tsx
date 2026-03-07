@@ -23,6 +23,8 @@ type CompanyTab =
   | "branches"
   | "analytics";
 
+type ReviewFilter = "answered" | "unanswered";
+
 function authorLabel(a: {
   nickname: string | null;
   firstName: string | null;
@@ -46,6 +48,7 @@ export default async function CompanyPage({
     tab?: string | string[];
     branch?: string | string[];
     city?: string | string[];
+    reviewFilter?: string | string[];
   }>;
 }) {
   let user: Awaited<ReturnType<typeof getSessionUser>> = null;
@@ -75,6 +78,9 @@ export default async function CompanyPage({
   const requestedTab = getSingleSearchParam(resolvedSearchParams.tab);
   const requestedBranchId = getSingleSearchParam(resolvedSearchParams.branch);
   const requestedCity = getSingleSearchParam(resolvedSearchParams.city);
+  const requestedReviewFilter = getSingleSearchParam(
+    resolvedSearchParams.reviewFilter,
+  );
 
   const activeTab: CompanyTab =
     requestedTab === "info" ||
@@ -84,6 +90,12 @@ export default async function CompanyPage({
     requestedTab === "dashboard"
       ? requestedTab
       : "dashboard";
+
+  const activeReviewFilter: ReviewFilter | null =
+    requestedReviewFilter === "answered" ||
+    requestedReviewFilter === "unanswered"
+      ? requestedReviewFilter
+      : null;
 
   const [categories, branches, reviewCount] = await Promise.all([
     prisma.category.findMany({
@@ -124,33 +136,66 @@ export default async function CompanyPage({
     a.localeCompare(b, "ru-RU"),
   );
 
-  const requestedBranch =
-    branches.find((branch) => branch.id === requestedBranchId) ?? null;
-
   const activeCity =
-    requestedBranch?.city ??
-    (requestedCity && cities.includes(requestedCity) ? requestedCity : null) ??
-    cities[0] ??
-    null;
+    requestedCity && cities.includes(requestedCity)
+      ? requestedCity
+      : cities[0] ?? null;
 
   const branchesInActiveCity = activeCity
     ? branches.filter((branch) => branch.city === activeCity)
     : [];
 
   const activeBranch =
-    (requestedBranch && requestedBranch.city === activeCity
-      ? requestedBranch
-      : null) ??
-    branchesInActiveCity[0] ??
-    null;
+    requestedBranchId &&
+    branchesInActiveCity.some((branch) => branch.id === requestedBranchId)
+      ? branchesInActiveCity.find((branch) => branch.id === requestedBranchId) ??
+        null
+      : null;
+
+  const [answeredCount, unansweredCount] = activeBranch
+    ? await Promise.all([
+        prisma.review.count({
+          where: {
+            status: "PUBLISHED",
+            placeId: activeBranch.id,
+            place: { companyId: company.id },
+            replies: {
+              some: { companyId: company.id },
+            },
+          },
+        }),
+
+        prisma.review.count({
+          where: {
+            status: "PUBLISHED",
+            placeId: activeBranch.id,
+            place: { companyId: company.id },
+            replies: {
+              none: { companyId: company.id },
+            },
+          },
+        }),
+      ])
+    : [0, 0];
 
   const reviews =
-    activeTab === "branches" && activeBranch
+    activeTab === "branches" && activeBranch && activeReviewFilter
       ? await prisma.review.findMany({
           where: {
             status: "PUBLISHED",
             placeId: activeBranch.id,
             place: { companyId: company.id },
+            ...(activeReviewFilter === "answered"
+              ? {
+                  replies: {
+                    some: { companyId: company.id },
+                  },
+                }
+              : {
+                  replies: {
+                    none: { companyId: company.id },
+                  },
+                }),
           },
           orderBy: { createdAt: "desc" },
           take: 50,
@@ -174,9 +219,7 @@ export default async function CompanyPage({
       : [];
 
   const defaultBranchesHref = activeCity
-    ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}${
-        activeBranch ? `&branch=${activeBranch.id}` : ""
-      }`
+    ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}`
     : "/company?tab=branches";
 
   return (
@@ -219,7 +262,7 @@ export default async function CompanyPage({
         <DashboardCard
           href={defaultBranchesHref}
           title="Мои филиалы"
-          description="Выберите город, затем филиал и просматривайте отзывы прямо внутри раздела."
+          description="Сначала выберите город, затем филиал и только потом тип отзывов."
           icon={<Store className="h-5 w-5" />}
           badge={`${branches.length}`}
           active={activeTab === "branches"}
@@ -310,8 +353,8 @@ export default async function CompanyPage({
             <div>
               <h2 className="text-xl font-semibold">Мои филиалы</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Сначала выберите город, затем филиал в этом городе, и ниже вы
-                увидите все отзывы именно по нему.
+                Сначала выберите город, затем филиал. После этого выберите тип
+                отзывов: отвеченные или неотвеченные.
               </p>
             </div>
 
@@ -358,7 +401,7 @@ export default async function CompanyPage({
                         Филиалы в городе {activeCity}
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Выберите филиал, чтобы открыть отзывы по нему.
+                        Выберите филиал, чтобы перейти к отзывам по нему.
                       </p>
                     </div>
 
@@ -415,8 +458,8 @@ export default async function CompanyPage({
 
                                   <div className="mt-4 text-sm text-primary">
                                     {isActive
-                                      ? "Отзывы по этому филиалу уже показаны ниже"
-                                      : "Нажмите на карточку, чтобы открыть отзывы по филиалу"}
+                                      ? "Теперь выберите тип отзывов ниже"
+                                      : "Нажмите на карточку, чтобы выбрать этот филиал"}
                                   </div>
                                 </div>
 
@@ -430,15 +473,6 @@ export default async function CompanyPage({
                                 </div>
                               </div>
                             </Link>
-
-                            <div className="mt-5 flex flex-wrap gap-3">
-                              <Link
-                                href={`/place/${branch.slug}`}
-                                className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
-                              >
-                                Открыть страницу места
-                              </Link>
-                            </div>
                           </div>
                         );
                       })}
@@ -452,90 +486,156 @@ export default async function CompanyPage({
               {activeBranch ? (
                 <div className="mt-8 border-t pt-8">
                   <div>
-                    <h3 className="text-lg font-semibold">Отзывы по филиалу</h3>
+                    <h3 className="text-lg font-semibold">
+                      Выберите тип отзывов
+                    </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Здесь отображаются все опубликованные отзывы по выбранному
-                      филиалу. Вы можете отвечать на них от имени компании.
+                      Сначала определите, какие отзывы хотите просмотреть по
+                      выбранному филиалу.
                     </p>
                   </div>
 
-                  <div className="mt-6 grid gap-4">
-                    {reviews.map((review) => {
-                      const alreadyReplied = review.replies.some(
-                        (rep) => rep.companyId === company.id,
-                      );
-                      const dt = dtf.format(review.createdAt);
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link
+                      href={`/company?tab=branches&city=${encodeURIComponent(
+                        activeBranch.city,
+                      )}&branch=${activeBranch.id}&reviewFilter=unanswered`}
+                      className={[
+                        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                        "hover:border-primary/40 hover:bg-muted/20",
+                        activeReviewFilter === "unanswered"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <span>Неотвеченные</span>
+                      <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {unansweredCount}
+                      </span>
+                    </Link>
 
-                      return (
-                        <div key={review.id} className="rounded-2xl border p-5">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <Link
-                                href={`/place/${review.place.slug}`}
-                                className="text-sm font-semibold hover:underline"
-                              >
-                                {review.place.name}
-                              </Link>
+                    <Link
+                      href={`/company?tab=branches&city=${encodeURIComponent(
+                        activeBranch.city,
+                      )}&branch=${activeBranch.id}&reviewFilter=answered`}
+                      className={[
+                        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                        "hover:border-primary/40 hover:bg-muted/20",
+                        activeReviewFilter === "answered"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <span>Отвеченные</span>
+                      <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {answeredCount}
+                      </span>
+                    </Link>
+                  </div>
 
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {authorLabel(review.author)} • {dt}
-                              </div>
-                            </div>
+                  {!activeReviewFilter ? (
+                    <div className="mt-6">
+                      <EmptyState text="Выберите тип отзывов: отвеченные или неотвеченные." />
+                    </div>
+                  ) : (
+                    <div className="mt-8">
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          {activeReviewFilter === "unanswered"
+                            ? "Неотвеченные отзывы"
+                            : "Отвеченные отзывы"}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {activeReviewFilter === "unanswered"
+                            ? "Здесь показаны отзывы, на которые компания ещё не ответила."
+                            : "Здесь показаны отзывы, на которые компания уже дала официальный ответ."}
+                        </p>
+                      </div>
 
-                            <div className="shrink-0 text-sm font-semibold">
-                              {review.rating}/5
-                            </div>
-                          </div>
+                      <div className="mt-6 grid gap-4">
+                        {reviews.map((review) => {
+                          const alreadyReplied = review.replies.some(
+                            (rep) => rep.companyId === company.id,
+                          );
+                          const dt = dtf.format(review.createdAt);
 
-                          <p className="mt-3 whitespace-pre-wrap text-sm">
-                            {review.text}
-                          </p>
+                          return (
+                            <div key={review.id} className="rounded-2xl border p-5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <Link
+                                    href={`/place/${review.place.slug}`}
+                                    className="text-sm font-semibold hover:underline"
+                                  >
+                                    {review.place.name}
+                                  </Link>
 
-                          {review.tags.length ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {review.tags.map((tag) => (
-                                <span
-                                  key={tag.tagId}
-                                  className="rounded-full border px-2 py-1 text-xs"
-                                >
-                                  {tag.tag.name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-
-                          {review.replies.length ? (
-                            <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm">
-                              <div className="font-medium">Ответы компаний:</div>
-                              {review.replies.map((reply) => (
-                                <div key={reply.id} className="mt-3">
-                                  <div className="text-xs text-muted-foreground">
-                                    {reply.company.name}
-                                  </div>
-                                  <div className="whitespace-pre-wrap">
-                                    {reply.text}
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {authorLabel(review.author)} • {dt}
                                   </div>
                                 </div>
-                              ))}
+
+                                <div className="shrink-0 text-sm font-semibold">
+                                  {review.rating}/5
+                                </div>
+                              </div>
+
+                              <p className="mt-3 whitespace-pre-wrap text-sm">
+                                {review.text}
+                              </p>
+
+                              {review.tags.length ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {review.tags.map((tag) => (
+                                    <span
+                                      key={tag.tagId}
+                                      className="rounded-full border px-2 py-1 text-xs"
+                                    >
+                                      {tag.tag.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              {review.replies.length ? (
+                                <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm">
+                                  <div className="font-medium">Ответы компаний:</div>
+                                  {review.replies.map((reply) => (
+                                    <div key={reply.id} className="mt-3">
+                                      <div className="text-xs text-muted-foreground">
+                                        {reply.company.name}
+                                      </div>
+                                      <div className="whitespace-pre-wrap">
+                                        {reply.text}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              {!alreadyReplied ? (
+                                <ReplyForm reviewId={review.id} />
+                              ) : null}
                             </div>
-                          ) : null}
+                          );
+                        })}
 
-                          <ReplyForm
-                            reviewId={review.id}
-                            disabled={alreadyReplied}
+                        {reviews.length === 0 ? (
+                          <EmptyState
+                            text={
+                              activeReviewFilter === "unanswered"
+                                ? "У выбранного филиала пока нет неотвеченных отзывов."
+                                : "У выбранного филиала пока нет отвеченных отзывов."
+                            }
                           />
-                        </div>
-                      );
-                    })}
-
-                    {reviews.length === 0 ? (
-                      <EmptyState text="По выбранному филиалу пока нет отзывов." />
-                    ) : null}
-                  </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mt-8">
-                  <EmptyState text="Выберите филиал, чтобы увидеть отзывы по нему." />
+                  <EmptyState text="Сначала выберите филиал, чтобы перейти к отзывам." />
                 </div>
               )}
             </>
