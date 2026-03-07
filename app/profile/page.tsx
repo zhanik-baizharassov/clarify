@@ -27,7 +27,6 @@ function normalizeTab(v: string | null | undefined): TabKey {
 export default async function ProfilePage({
   searchParams,
 }: {
-  // поддержим оба варианта: object и Promise<object>
   searchParams?: { tab?: string } | Promise<{ tab?: string }>;
 }) {
   const sessionUser = await getSessionUser();
@@ -92,7 +91,7 @@ export default async function ProfilePage({
               ? "bg-muted/40 text-muted-foreground"
               : "bg-primary text-primary-foreground border-primary",
           ].join(" ")}
-          title="Профиль можно изменить только один раз"
+          title="Основные данные профиля можно изменить только один раз"
         >
           <span
             className={[
@@ -100,12 +99,11 @@ export default async function ProfilePage({
               locked ? "bg-muted-foreground/50" : "bg-emerald-500",
             ].join(" ")}
           />
-          {locked ? "Недоступно" : "Можно изменить 1 раз"}
+          {locked ? "Основное: недоступно" : "Основное: доступно 1 раз"}
         </span>
       </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-[360px_1fr]">
-        {/* LEFT CARD */}
         <section className="rounded-2xl border bg-background p-5">
           <div className="flex items-start gap-4">
             <div className="relative">
@@ -158,14 +156,13 @@ export default async function ProfilePage({
             <div className="rounded-2xl bg-muted/20 p-4">
               <div className="text-sm font-medium">Ограничение</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Данные профиля можно изменить только один раз. После сохранения
-                форма блокируется.
+                Основные данные профиля можно изменить только один раз.
+                Безопасность и остальные вкладки доступны всегда.
               </div>
             </div>
           </div>
         </section>
 
-        {/* RIGHT PANEL */}
         <section className="rounded-2xl border bg-background p-5">
           <div className="flex flex-wrap gap-2">
             {TABS.map((t) => {
@@ -191,11 +188,7 @@ export default async function ProfilePage({
             {tab === "main" ? (
               <ProfileEditForm tab="main" locked={locked} initial={initial} />
             ) : tab === "security" ? (
-              <ProfileEditForm
-                tab="security"
-                locked={locked}
-                initial={initial}
-              />
+              <ProfileEditForm tab="security" locked={false} initial={initial} />
             ) : tab === "reviews" ? (
               <div className="rounded-2xl border bg-muted/20 p-5 text-sm text-muted-foreground">
                 Здесь будут ваши отзывы (скоро).

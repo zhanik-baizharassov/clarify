@@ -1,4 +1,3 @@
-// app/api/profile/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
@@ -20,6 +19,7 @@ const maxAvatarBytes = 1_000_000; // 1MB
 
 const Schema = z.object({
   firstName: z.string().trim().min(2).max(50),
+
   lastName: z.string().trim().min(2).max(50),
 
   nickname: z
@@ -104,8 +104,12 @@ export async function PATCH(req: Request) {
     });
 
     const user = await getSessionUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "USER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (user.role !== "USER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // profanity-check
     assertNoProfanity(input.firstName, "Имя");
@@ -115,12 +119,24 @@ export async function PATCH(req: Request) {
     // ✅ пароль — готовим ДО обращения к БД
     let passwordHash: string | undefined = undefined;
     if (input.password) {
-      if (!/[A-Z]/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 заглавная буква" }, { status: 400 });
-      if (!/[a-z]/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 строчная буква" }, { status: 400 });
-      if (!/\d/.test(input.password))
-        return NextResponse.json({ error: "Пароль: нужна хотя бы 1 цифра" }, { status: 400 });
+      if (!/[A-Z]/.test(input.password)) {
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 заглавная буква" },
+          { status: 400 },
+        );
+      }
+      if (!/[a-z]/.test(input.password)) {
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 строчная буква" },
+          { status: 400 },
+        );
+      }
+      if (!/\d/.test(input.password)) {
+        return NextResponse.json(
+          { error: "Пароль: нужна хотя бы 1 цифра" },
+          { status: 400 },
+        );
+      }
 
       passwordHash = await bcrypt.hash(input.password, 10);
     }
@@ -152,37 +168,79 @@ export async function PATCH(req: Request) {
       newAvatarUrl = null;
     }
 
-    // текущие значения (нужны, чтобы понять менялся ли email)
     const current = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { email: true, profileEditCount: true },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        avatarUrl: true,
+        profileEditCount: true,
+      },
     });
-    if (!current) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    if (current.profileEditCount >= 1) {
-      return NextResponse.json(
-        { error: "Профиль уже изменён. Можно изменить данные только 1 раз." },
-        { status: 409 },
-      );
+    if (!current) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const prevEmail = (current.email ?? "").trim();
     const nextEmail = input.email.trim();
     const isEmailChanged = nextEmail.toLowerCase() !== prevEmail.toLowerCase();
 
-    // ✅ если меняем email — заранее проверим, что он не занят ДРУГИМ пользователем
-    // (но всё равно держим P2002 как финальную защиту от гонок)
+    const isAvatarChanged =
+      Boolean(body.avatar && typeof body.avatar !== "string") ||
+      (input.avatarClear && current.avatarUrl !== null);
+
+    const isMainChanged =
+      input.firstName !== (current.firstName ?? "") ||
+      input.lastName !== (current.lastName ?? "") ||
+      input.nickname !== (current.nickname ?? "") ||
+      isEmailChanged ||
+      isAvatarChanged;
+
+    const isPasswordChanged = Boolean(passwordHash);
+
+    if (!isMainChanged && !isPasswordChanged) {
+      return NextResponse.json(
+        { error: "Нет изменений для сохранения" },
+        { status: 400 },
+      );
+    }
+
+    // ✅ если меняется только пароль — разрешаем всегда
+    if (!isMainChanged && isPasswordChanged) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    // ✅ основные данные можно менять только 1 раз
+    if (current.profileEditCount >= 1) {
+      return NextResponse.json(
+        {
+          error:
+            "Основные данные профиля уже изменены. Их можно изменить только 1 раз.",
+        },
+        { status: 409 },
+      );
+    }
+
+    // ✅ если меняем email — заранее проверим, что он не занят другим пользователем
     if (isEmailChanged) {
       const exists = await prisma.user.findUnique({
         where: { email: nextEmail },
         select: { id: true },
       });
+
       if (exists && exists.id !== user.id) {
         return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
       }
     }
 
-    // ✅ один атомарный апдейт: защита "1 раз" через where profileEditCount=0
     try {
       const updateRes = await prisma.user.updateMany({
         where: { id: user.id, profileEditCount: 0 },
@@ -190,14 +248,10 @@ export async function PATCH(req: Request) {
           firstName: input.firstName,
           lastName: input.lastName,
           nickname: input.nickname,
-
-          // email меняем только тут
           email: nextEmail,
 
-          // если email сменился — сбросим верификацию
           ...(isEmailChanged ? { emailVerifiedAt: null } : {}),
-
-          ...(newAvatarUrl !== undefined ? { avatarUrl: newAvatarUrl } : {}),
+          ...(isAvatarChanged ? { avatarUrl: newAvatarUrl ?? null } : {}),
           ...(passwordHash ? { passwordHash } : {}),
 
           profileEditCount: 1,
@@ -207,37 +261,47 @@ export async function PATCH(req: Request) {
 
       if (updateRes.count !== 1) {
         return NextResponse.json(
-          { error: "Профиль уже изменён. Можно изменить данные только 1 раз." },
+          {
+            error:
+              "Основные данные профиля уже изменены. Их можно изменить только 1 раз.",
+          },
           { status: 409 },
         );
       }
     } catch (e: any) {
-      // уникальные ограничения (email/nickname/phone)
       if (isLikelyPrismaUniqueErr(e)) {
         const target = Array.isArray(e?.meta?.target)
           ? e.meta.target.join(",")
           : String(e?.meta?.target ?? "");
 
-        if (target.includes("email"))
-          return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+        if (target.includes("email")) {
+          return NextResponse.json(
+            { error: "Email уже занят" },
+            { status: 409 },
+          );
+        }
 
-        if (target.includes("nickname"))
-          return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
+        if (target.includes("nickname")) {
+          return NextResponse.json(
+            { error: "Никнейм уже занят" },
+            { status: 409 },
+          );
+        }
 
-        return NextResponse.json({ error: "Уникальное значение уже занято" }, { status: 409 });
+        return NextResponse.json(
+          { error: "Уникальное значение уже занято" },
+          { status: 409 },
+        );
       }
       throw e;
     }
 
     // ✅ если email поменялся — создаём/обновляем код и отправляем письмо
-    // Важно: твой getSessionUser удаляет сессию, если emailVerifiedAt = null,
-    // значит после смены email пользователь будет считаться разлогиненным (это ок и безопасно).
     if (isEmailChanged) {
       const code = generate6DigitCode();
       const codeHash = hashCode(code);
       const expiresAt = new Date(Date.now() + codeTtlMs());
 
-      // upsert по (userId,email)
       await prisma.emailVerification.upsert({
         where: { userId_email: { userId: user.id, email: nextEmail } },
         update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
@@ -266,11 +330,16 @@ export async function PATCH(req: Request) {
       const msg = issue?.message ?? "Неверные данные";
       return NextResponse.json({ error: `${path}: ${msg}` }, { status: 400 });
     }
+
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
+
     if (err instanceof Error && err.message?.startsWith("Mail: env")) {
-      return NextResponse.json({ error: "Почта не настроена (SMTP env)" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Почта не настроена (SMTP env)" },
+        { status: 500 },
+      );
     }
 
     console.error("PROFILE PATCH ERROR:", err);

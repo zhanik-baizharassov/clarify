@@ -1,4 +1,3 @@
-//features/profile/components/profile-edit-form.tsx
 "use client";
 
 import Image from "next/image";
@@ -82,7 +81,7 @@ export default function ProfileEditForm({
   initial: InitialVM;
 }) {
   const router = useRouter();
-  const canEdit = !locked;
+  const canEdit = tab === "security" ? true : !locked;
 
   // main fields (нужны и для security-tab, потому что API требует их в PATCH)
   const [firstName, setFirstName] = useState(initial.firstName ?? "");
@@ -327,13 +326,10 @@ export default function ProfileEditForm({
           {loading ? "Сохранение..." : saveLabel}
         </button>
 
-        {!canEdit ? (
-          <div className="text-xs text-muted-foreground">
-            Сейчас смена пароля завязана на лимит “1 раз”, потому что это одна и
-            та же PATCH-логика профиля. Если хочешь — отделим пароль, чтобы его
-            можно было менять всегда.
-          </div>
-        ) : null}
+        <div className="text-xs text-muted-foreground">
+          Пароль можно менять в любое время. Ограничение “1 раз” относится
+          только к основным данным профиля.
+        </div>
       </form>
     );
   }

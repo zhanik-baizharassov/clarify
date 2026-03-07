@@ -1,3 +1,4 @@
+//features/profile/components/profile-tabs.tsx
 "use client";
 
 import type { ReactNode } from "react";
