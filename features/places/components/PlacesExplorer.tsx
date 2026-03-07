@@ -31,17 +31,6 @@ type PlaceCard = {
 
 type SortKey = "rating_desc" | "reviews_desc" | "new_desc" | "name_asc";
 
-type Analytics = {
-  totals: { places: number; reviews: number; users: number; companies: number };
-  topCities: {
-    city: string;
-    places: number;
-    avgRating: number;
-    reviews: number;
-  }[];
-  topCategories: { id: string; name: string; places: number }[];
-};
-
 type Variant = "hero" | "catalog";
 
 const nf = new Intl.NumberFormat("ru-RU");
@@ -64,10 +53,6 @@ export default function PlacesExplorer({
   const [items, setItems] = useState<PlaceCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -103,17 +88,11 @@ export default function PlacesExplorer({
     const ctrl = new AbortController();
 
     (async () => {
-      setAnalyticsLoading(true);
-      setAnalyticsError(null);
-
       try {
-        const [catsRes, aRes] = await Promise.all([
-          fetch("/api/categories", { cache: "no-store", signal: ctrl.signal }),
-          fetch("/api/analytics/overview", {
-            cache: "no-store",
-            signal: ctrl.signal,
-          }),
-        ]);
+        const catsRes = await fetch("/api/categories", {
+          cache: "no-store",
+          signal: ctrl.signal,
+        });
 
         if (ctrl.signal.aborted) return;
 
@@ -122,24 +101,11 @@ export default function PlacesExplorer({
           catsRes.ok && Array.isArray((catsData as any)?.items)
             ? ((catsData as any).items as Category[])
             : [];
-        setCategories(list);
 
-        const aData = await safeJson(aRes);
-        if (!aRes.ok) {
-          setAnalytics(null);
-          setAnalyticsError(
-            (aData as any)?.error ?? "Не удалось загрузить аналитику",
-          );
-        } else {
-          setAnalytics(aData as Analytics);
-        }
+        setCategories(list);
       } catch {
         if (ctrl.signal.aborted) return;
         setCategories([]);
-        setAnalytics(null);
-        setAnalyticsError("Не удалось загрузить аналитику");
-      } finally {
-        if (!ctrl.signal.aborted) setAnalyticsLoading(false);
       }
     })();
 
@@ -335,60 +301,6 @@ export default function PlacesExplorer({
           />
         </div>
       )}
-
-      <div className="mt-6">
-        {analyticsLoading ? (
-          <div className="rounded-2xl border bg-background p-5">
-            <div className="h-4 w-56 animate-pulse rounded bg-muted/50" />
-            <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted/50" />
-            <div className="mt-5 flex flex-wrap gap-2">
-              <div className="h-9 w-44 animate-pulse rounded-full bg-muted/50" />
-              <div className="h-9 w-60 animate-pulse rounded-full bg-muted/50" />
-              <div className="h-9 w-52 animate-pulse rounded-full bg-muted/50" />
-            </div>
-          </div>
-        ) : !analytics ? (
-          <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground">
-            Аналитика временно недоступна
-            {analyticsError ? `: ${analyticsError}` : "."}
-          </div>
-        ) : analytics?.topCategories?.length ? (
-          <div className="rounded-2xl border bg-background p-5">
-            <div>
-              <div className="text-sm font-semibold">Популярные категории</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Топ категорий по количеству карточек
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {analytics.topCategories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryId(c.id);
-                    setShowFilters(true);
-                    const el = document.getElementById("search");
-                    el?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm transition hover:bg-muted/40"
-                  title="Фильтровать по категории"
-                >
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">
-                    {nf.format(c.places)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
 
       {allCategories.length ? (
         <div className="mt-6">
