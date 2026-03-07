@@ -50,7 +50,6 @@ export default async function PlacePage({
 
   if (!place) return notFound();
 
-  // session: безопасно, чтобы сбой БД не ронял страницу place
   let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
   try {
     sessionUser = await getSessionUser();
@@ -59,12 +58,10 @@ export default async function PlacePage({
     sessionUser = null;
   }
 
-  // ✅ определяем: это филиал компании текущего пользователя?
   let isOwnerBranch = false;
 
   if (sessionUser?.role === "COMPANY" && place.companyId) {
     try {
-      // ownerId у Company уникальный в schema.prisma → можно findUnique
       const myCompany = await prisma.company.findUnique({
         where: { ownerId: sessionUser.id },
         select: { id: true },
@@ -74,6 +71,25 @@ export default async function PlacePage({
     } catch (err) {
       console.error("PlacePage: company lookup failed:", err);
       isOwnerBranch = false;
+    }
+  }
+
+  let hasUserReview = false;
+
+  if (sessionUser?.role === "USER") {
+    try {
+      const existingReview = await prisma.review.findFirst({
+        where: {
+          placeId: place.id,
+          authorId: sessionUser.id,
+        },
+        select: { id: true },
+      });
+
+      hasUserReview = Boolean(existingReview);
+    } catch (err) {
+      console.error("PlacePage: review lookup failed:", err);
+      hasUserReview = false;
     }
   }
 
@@ -110,15 +126,20 @@ export default async function PlacePage({
           </div>
         </div>
 
-        {/* ✅ CTA блок */}
         <div className="mt-4">
           {sessionUser?.role === "USER" ? (
-            <Link
-              href={`/place/${place.slug}/review`}
-              className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90"
-            >
-              Оставить отзыв
-            </Link>
+            hasUserReview ? (
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Вы уже оставляли отзыв этой компании.
+              </div>
+            ) : (
+              <Link
+                href={`/place/${place.slug}/review`}
+                className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90"
+              >
+                Оставить отзыв
+              </Link>
+            )
           ) : sessionUser?.role === "COMPANY" && isOwnerBranch ? (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
               <div className="font-medium">Это филиал вашей компании</div>
@@ -144,7 +165,6 @@ export default async function PlacePage({
               Администратор не оставляет отзывы.
             </div>
           ) : (
-            // ✅ логичнее: login (поддерживает verify-flow), а регистрацию можно открыть с login страницы
             <Link
               href={`/login?next=${encodeURIComponent(nextUrl)}`}
               className="inline-flex h-10 items-center rounded-md border px-4"
@@ -165,7 +185,6 @@ export default async function PlacePage({
             .join(" ");
           const name = r.author?.name ?? "";
 
-          // email убран — если нет имени/ника, показываем нейтрально
           const authorLabel = nick || fullName || name || "Пользователь";
 
           return (

@@ -18,19 +18,19 @@ export default async function Header() {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="group flex items-center gap-1"
+          className="group flex items-center gap-3"
           aria-label="На главную"
         >
           <Image
             src="/icon.png"
             alt="Clarify"
-            width={120}
-            height={120}
+            width={50}
+            height={50}
             priority
-            className="h-[150px] w-[150px] shrink-0 -mr-5 rounded-xl object-contain transition group-hover:scale-[1.02]"
+            className="h-[50px] w-[50px] shrink-0 rounded-xl object-contain transition group-hover:scale-[1.02]"
           />
 
-          <span className="flex flex-col leading-tight">
+          <span className="flex flex-col justify-center leading-tight">
             <span className="text-base font-semibold tracking-tight">
               Clarify
             </span>

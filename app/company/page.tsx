@@ -1,5 +1,13 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  BarChart3,
+  Building2,
+  ChevronRight,
+  Plus,
+  Store,
+} from "lucide-react";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import CreateBranchForm from "@/features/company/components/create-branch-form";
@@ -7,6 +15,13 @@ import ReplyForm from "@/features/reviews/components/reply-form";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type CompanyTab =
+  | "dashboard"
+  | "info"
+  | "create-branch"
+  | "branches"
+  | "analytics";
 
 function authorLabel(a: {
   nickname: string | null;
@@ -20,7 +35,19 @@ function authorLabel(a: {
   return nick || fullName || nm || "Пользователь";
 }
 
-export default async function CompanyPage() {
+function getSingleSearchParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function CompanyPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    tab?: string | string[];
+    branch?: string | string[];
+    city?: string | string[];
+  }>;
+}) {
   let user: Awaited<ReturnType<typeof getSessionUser>> = null;
   try {
     user = await getSessionUser();
@@ -44,7 +71,21 @@ export default async function CompanyPage() {
     timeStyle: "short",
   });
 
-  const [categories, branches, reviews] = await Promise.all([
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedTab = getSingleSearchParam(resolvedSearchParams.tab);
+  const requestedBranchId = getSingleSearchParam(resolvedSearchParams.branch);
+  const requestedCity = getSingleSearchParam(resolvedSearchParams.city);
+
+  const activeTab: CompanyTab =
+    requestedTab === "info" ||
+    requestedTab === "create-branch" ||
+    requestedTab === "branches" ||
+    requestedTab === "analytics" ||
+    requestedTab === "dashboard"
+      ? requestedTab
+      : "dashboard";
+
+  const [categories, branches, reviewCount] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -52,7 +93,7 @@ export default async function CompanyPage() {
 
     prisma.place.findMany({
       where: { companyId: company.id },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ city: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,
         name: true,
@@ -66,229 +107,574 @@ export default async function CompanyPage() {
       },
     }),
 
-    prisma.review.findMany({
-      where: { status: "PUBLISHED", place: { companyId: company.id } },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: {
-        place: { select: { name: true, slug: true } },
-        author: {
-          select: {
-            nickname: true,
-            firstName: true,
-            lastName: true,
-            name: true,
-          },
-        },
-        tags: { include: { tag: true } },
-        replies: {
-          orderBy: { createdAt: "asc" },
-          include: { company: { select: { id: true, name: true } } },
-        },
+    prisma.review.count({
+      where: {
+        status: "PUBLISHED",
+        place: { companyId: company.id },
       },
     }),
   ]);
+
+  const cityCounts = new Map<string, number>();
+  for (const branch of branches) {
+    cityCounts.set(branch.city, (cityCounts.get(branch.city) ?? 0) + 1);
+  }
+
+  const cities = Array.from(cityCounts.keys()).sort((a, b) =>
+    a.localeCompare(b, "ru-RU"),
+  );
+
+  const requestedBranch =
+    branches.find((branch) => branch.id === requestedBranchId) ?? null;
+
+  const activeCity =
+    requestedBranch?.city ??
+    (requestedCity && cities.includes(requestedCity) ? requestedCity : null) ??
+    cities[0] ??
+    null;
+
+  const branchesInActiveCity = activeCity
+    ? branches.filter((branch) => branch.city === activeCity)
+    : [];
+
+  const activeBranch =
+    (requestedBranch && requestedBranch.city === activeCity
+      ? requestedBranch
+      : null) ??
+    branchesInActiveCity[0] ??
+    null;
+
+  const reviews =
+    activeTab === "branches" && activeBranch
+      ? await prisma.review.findMany({
+          where: {
+            status: "PUBLISHED",
+            placeId: activeBranch.id,
+            place: { companyId: company.id },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          include: {
+            place: { select: { name: true, slug: true } },
+            author: {
+              select: {
+                nickname: true,
+                firstName: true,
+                lastName: true,
+                name: true,
+              },
+            },
+            tags: { include: { tag: true } },
+            replies: {
+              orderBy: { createdAt: "asc" },
+              include: { company: { select: { id: true, name: true } } },
+            },
+          },
+        })
+      : [];
+
+  const defaultBranchesHref = activeCity
+    ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}${
+        activeBranch ? `&branch=${activeBranch.id}` : ""
+      }`
+    : "/company?tab=branches";
 
   return (
     <main className="mx-auto max-w-7xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Кабинет компании</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Управляйте филиалами и отвечайте на отзывы пользователей.
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Кабинет компании
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+            Выберите нужный раздел и управляйте компанией в более удобном формате.
           </p>
         </div>
 
-        <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-          Филиалов: <span className="font-medium text-foreground">{branches.length}</span>
+        <div className="flex flex-wrap gap-2">
+          <TopStat label="Филиалов" value={String(branches.length)} />
+          <TopStat label="Отзывы" value={String(reviewCount)} />
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.25fr]">
-        <section className="grid gap-6">
-          <div className="rounded-2xl border bg-background p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-lg font-semibold">{company.name}</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Основная информация о компании
-                </div>
-              </div>
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardCard
+          href="/company?tab=info"
+          title="Информация о компании"
+          description="Основные данные компании: БИН, телефон, email и адрес."
+          icon={<Building2 className="h-5 w-5" />}
+          badge="Данные"
+          active={activeTab === "info"}
+        />
 
-              <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-                Компания
-              </div>
-            </div>
+        <DashboardCard
+          href="/company?tab=create-branch"
+          title="Создать филиал"
+          description="Добавьте новую карточку места, чтобы начать собирать отзывы."
+          icon={<Plus className="h-5 w-5" />}
+          badge="Новое"
+          active={activeTab === "create-branch"}
+        />
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoCard label="БИН" value={company.bin ?? "—"} />
-              <InfoCard label="Телефон" value={user.phone ?? "—"} />
-              <InfoCard label="Email" value={user.email} />
-              <InfoCard label="Адрес компании" value={company.address ?? "—"} />
-            </div>
+        <DashboardCard
+          href={defaultBranchesHref}
+          title="Мои филиалы"
+          description="Выберите город, затем филиал и просматривайте отзывы прямо внутри раздела."
+          icon={<Store className="h-5 w-5" />}
+          badge={`${branches.length}`}
+          active={activeTab === "branches"}
+        />
+
+        <DashboardCard
+          href="/company?tab=analytics"
+          title="Бизнес-аналитика"
+          description="Будущие платные инструменты: аналитика отзывов, тренды, отчёты и инсайты."
+          icon={<BarChart3 className="h-5 w-5" />}
+          badge="Pro"
+          active={activeTab === "analytics"}
+        />
+      </section>
+
+      {activeTab === "dashboard" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-semibold">Добро пожаловать в кабинет</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Теперь кабинет работает как панель управления: сначала вы выбираете
+              раздел через карточки сверху, а затем работаете только с нужным
+              блоком.
+            </p>
           </div>
 
-          <div className="rounded-2xl border bg-background p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Ваши филиалы</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Карточки мест, по которым пользователи оставляют отзывы.
-                </p>
-              </div>
-
-              <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-                Всего: <span className="font-medium text-foreground">{branches.length}</span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              {branches.map((b) => (
-                <div key={b.id} className="rounded-xl border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/place/${b.slug}`}
-                        className="text-sm font-semibold hover:underline"
-                      >
-                        {b.name}
-                      </Link>
-
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {b.city}
-                        {b.address ? ` • ${b.address}` : ""}
-                      </div>
-
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {b.phone ? `☎ ${b.phone}` : "☎ —"}
-                        {b.workHours ? ` • ⏰ ${b.workHours}` : ""}
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      <div className="text-sm font-semibold">
-                        {Number(b.avgRating).toFixed(2)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {b.ratingCount} отзывов
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {branches.length === 0 ? (
-                <div className="rounded-xl border p-6 text-sm text-muted-foreground">
-                  У вас пока нет филиалов. Создайте первый филиал справа.
-                </div>
-              ) : null}
-            </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <MiniInfoCard
+              label="Компания"
+              value={company.name}
+              subvalue={company.bin ? `БИН: ${company.bin}` : "БИН не указан"}
+            />
+            <MiniInfoCard
+              label="Филиалы"
+              value={String(branches.length)}
+              subvalue="Карточки мест компании"
+            />
+            <MiniInfoCard
+              label="Отзывы"
+              value={String(reviewCount)}
+              subvalue="Опубликованные отзывы по филиалам"
+            />
           </div>
         </section>
+      ) : null}
 
-        <aside className="h-fit rounded-2xl border bg-background p-5">
+      {activeTab === "info" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Информация о компании</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Основные регистрационные и контактные данные компании.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Компания
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <InfoCard label="Название компании" value={company.name} />
+            <InfoCard label="БИН" value={company.bin ?? "—"} />
+            <InfoCard label="Телефон" value={user.phone ?? "—"} />
+            <InfoCard label="Email" value={user.email} />
+            <InfoCard label="Адрес компании" value={company.address ?? "—"} />
+          </div>
+        </section>
+      ) : null}
+
+      {activeTab === "create-branch" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
           <div>
-            <h2 className="text-lg font-semibold">Создать филиал</h2>
+            <h2 className="text-xl font-semibold">Создать филиал</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Добавьте новую карточку места для сбора отзывов.
+              Заполните форму, чтобы добавить новую карточку места для отзывов.
             </p>
           </div>
 
           <CreateBranchForm categories={categories} />
-        </aside>
-      </div>
+        </section>
+      ) : null}
 
-      <section className="mt-8 rounded-2xl border bg-background p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">
-              Отзывы пользователей по вашим филиалам
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Здесь вы можете просматривать отзывы и оставлять официальный ответ.
-            </p>
+      {activeTab === "branches" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Мои филиалы</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Сначала выберите город, затем филиал в этом городе, и ниже вы
+                увидите все отзывы именно по нему.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего филиалов:{" "}
+              <span className="font-medium text-foreground">{branches.length}</span>
+            </div>
           </div>
 
-          <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-            Всего отзывов: <span className="font-medium text-foreground">{reviews.length}</span>
-          </div>
-        </div>
+          {branches.length > 0 ? (
+            <>
+              <div className="mt-6">
+                <div className="text-sm font-medium">Выберите город</div>
 
-        <div className="mt-4 grid gap-3">
-          {reviews.map((r) => {
-            const alreadyReplied = r.replies.some(
-              (rep) => rep.companyId === company.id,
-            );
-            const dt = dtf.format(r.createdAt);
+                <div className="mt-3 flex flex-wrap gap-3">
+                  {cities.map((city) => {
+                    const isActive = activeCity === city;
 
-            return (
-              <div key={r.id} className="rounded-xl border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/place/${r.place.slug}`}
-                      className="text-sm font-semibold hover:underline"
-                    >
-                      {r.place.name}
-                    </Link>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {authorLabel(r.author)} • {dt}
+                    return (
+                      <Link
+                        key={city}
+                        href={`/company?tab=branches&city=${encodeURIComponent(city)}`}
+                        className={[
+                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                          "hover:border-primary/40 hover:bg-muted/20",
+                          isActive ? "border-primary bg-primary/5 text-primary" : "",
+                        ].join(" ")}
+                      >
+                        <span>{city}</span>
+                        <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                          {cityCounts.get(city) ?? 0}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {activeCity ? (
+                <div className="mt-8">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        Филиалы в городе {activeCity}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Выберите филиал, чтобы открыть отзывы по нему.
+                      </p>
+                    </div>
+
+                    <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+                      В городе:{" "}
+                      <span className="font-medium text-foreground">
+                        {branchesInActiveCity.length}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="shrink-0 text-sm font-semibold">{r.rating}/5</div>
+                  {branchesInActiveCity.length > 0 ? (
+                    <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                      {branchesInActiveCity.map((branch) => {
+                        const isActive = activeBranch?.id === branch.id;
+
+                        return (
+                          <div
+                            key={branch.id}
+                            className={[
+                              "rounded-2xl border bg-background p-5 transition",
+                              "hover:border-primary/40 hover:bg-muted/20",
+                              isActive ? "border-primary bg-primary/5" : "",
+                            ].join(" ")}
+                          >
+                            <Link
+                              href={`/company?tab=branches&city=${encodeURIComponent(
+                                branch.city,
+                              )}&branch=${branch.id}`}
+                              className="block"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="text-lg font-semibold">
+                                      {branch.name}
+                                    </div>
+                                    {isActive ? (
+                                      <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                                        Выбран
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="mt-2 text-sm text-muted-foreground">
+                                    {branch.city}
+                                    {branch.address ? ` • ${branch.address}` : ""}
+                                  </div>
+
+                                  <div className="mt-1 text-sm text-muted-foreground">
+                                    {branch.phone ? `☎ ${branch.phone}` : "☎ —"}
+                                    {branch.workHours ? ` • ⏰ ${branch.workHours}` : ""}
+                                  </div>
+
+                                  <div className="mt-4 text-sm text-primary">
+                                    {isActive
+                                      ? "Отзывы по этому филиалу уже показаны ниже"
+                                      : "Нажмите на карточку, чтобы открыть отзывы по филиалу"}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 text-right">
+                                  <div className="text-lg font-semibold">
+                                    {Number(branch.avgRating).toFixed(2)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {branch.ratingCount} отзывов
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+
+                            <div className="mt-5 flex flex-wrap gap-3">
+                              <Link
+                                href={`/place/${branch.slug}`}
+                                className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
+                              >
+                                Открыть страницу места
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <EmptyState text="В выбранном городе пока нет филиалов." />
+                  )}
                 </div>
+              ) : null}
 
-                <p className="mt-3 whitespace-pre-wrap text-sm">{r.text}</p>
-
-                {r.tags.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {r.tags.map((t) => (
-                      <span
-                        key={t.tagId}
-                        className="rounded-full border px-2 py-1 text-xs"
-                      >
-                        {t.tag.name}
-                      </span>
-                    ))}
+              {activeBranch ? (
+                <div className="mt-8 border-t pt-8">
+                  <div>
+                    <h3 className="text-lg font-semibold">Отзывы по филиалу</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Здесь отображаются все опубликованные отзывы по выбранному
+                      филиалу. Вы можете отвечать на них от имени компании.
+                    </p>
                   </div>
-                ) : null}
 
-                {r.replies.length ? (
-                  <div className="mt-4 rounded-lg bg-muted/40 p-3 text-sm">
-                    <div className="font-medium">Ответы компаний:</div>
-                    {r.replies.map((rep) => (
-                      <div key={rep.id} className="mt-2">
-                        <div className="text-xs text-muted-foreground">
-                          {rep.company.name}
+                  <div className="mt-6 grid gap-4">
+                    {reviews.map((review) => {
+                      const alreadyReplied = review.replies.some(
+                        (rep) => rep.companyId === company.id,
+                      );
+                      const dt = dtf.format(review.createdAt);
+
+                      return (
+                        <div key={review.id} className="rounded-2xl border p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/place/${review.place.slug}`}
+                                className="text-sm font-semibold hover:underline"
+                              >
+                                {review.place.name}
+                              </Link>
+
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {authorLabel(review.author)} • {dt}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-sm font-semibold">
+                              {review.rating}/5
+                            </div>
+                          </div>
+
+                          <p className="mt-3 whitespace-pre-wrap text-sm">
+                            {review.text}
+                          </p>
+
+                          {review.tags.length ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {review.tags.map((tag) => (
+                                <span
+                                  key={tag.tagId}
+                                  className="rounded-full border px-2 py-1 text-xs"
+                                >
+                                  {tag.tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {review.replies.length ? (
+                            <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm">
+                              <div className="font-medium">Ответы компаний:</div>
+                              {review.replies.map((reply) => (
+                                <div key={reply.id} className="mt-3">
+                                  <div className="text-xs text-muted-foreground">
+                                    {reply.company.name}
+                                  </div>
+                                  <div className="whitespace-pre-wrap">
+                                    {reply.text}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          <ReplyForm
+                            reviewId={review.id}
+                            disabled={alreadyReplied}
+                          />
                         </div>
-                        <div className="whitespace-pre-wrap">{rep.text}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    {reviews.length === 0 ? (
+                      <EmptyState text="По выбранному филиалу пока нет отзывов." />
+                    ) : null}
                   </div>
-                ) : null}
+                </div>
+              ) : (
+                <div className="mt-8">
+                  <EmptyState text="Выберите филиал, чтобы увидеть отзывы по нему." />
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState text="У вас пока нет филиалов. Сначала создайте первый филиал через соответствующую карточку сверху." />
+          )}
+        </section>
+      ) : null}
 
-                <ReplyForm reviewId={r.id} disabled={alreadyReplied} />
-              </div>
-            );
-          })}
-
-          {reviews.length === 0 ? (
-            <div className="rounded-xl border p-6 text-sm text-muted-foreground">
-              Пока нет отзывов по вашим филиалам.
+      {activeTab === "analytics" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Бизнес-аналитика</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь появятся будущие платные инструменты для компаний:
+                аналитика отзывов, динамика рейтинга, отчёты по филиалам и другие
+                полезные инсайты.
+              </p>
             </div>
-          ) : null}
-        </div>
-      </section>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Скоро
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <MiniInfoCard
+              label="Тренды по отзывам"
+              value="—"
+              subvalue="Будет доступно в платном тарифе"
+            />
+            <MiniInfoCard
+              label="Сравнение филиалов"
+              value="—"
+              subvalue="Скоро появятся сравнительные отчёты"
+            />
+            <MiniInfoCard
+              label="Рекомендации"
+              value="—"
+              subvalue="AI-подсказки для роста рейтинга"
+            />
+          </div>
+
+          <div className="mt-6">
+            <EmptyState text="Раздел в разработке. Пока здесь нет активных инструментов, но именно сюда в будущем будет вынесена платная бизнес-аналитика для компаний." />
+          </div>
+        </section>
+      ) : null}
     </main>
+  );
+}
+
+function DashboardCard({
+  href,
+  title,
+  description,
+  icon,
+  badge,
+  active,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  badge: string;
+  active?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={[
+        "group rounded-3xl border bg-background p-5 transition",
+        "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/20",
+        active ? "border-primary bg-primary/5" : "",
+      ].join(" ")}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-muted/20">
+          {icon}
+        </div>
+
+        <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+          {badge}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="text-base font-semibold">{title}</div>
+        <div className="mt-2 text-sm text-muted-foreground">{description}</div>
+      </div>
+
+      <div className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary">
+        Открыть раздел
+        <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+      </div>
+    </Link>
+  );
+}
+
+function TopStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+      {label}: <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function MiniInfoCard({
+  label,
+  value,
+  subvalue,
+}: {
+  label: string;
+  value: string;
+  subvalue: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-background p-4">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-sm text-muted-foreground">{subvalue}</div>
+    </div>
   );
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-background p-4">
+    <div className="rounded-2xl border bg-background p-5">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 break-words text-sm font-medium">{value}</div>
+      <div className="mt-2 break-words text-base font-medium">{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border p-6 text-sm text-muted-foreground">
+      {text}
     </div>
   );
 }
