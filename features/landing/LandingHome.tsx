@@ -3,14 +3,26 @@ import Link from "next/link";
 import {
   BadgeCheck,
   Building2,
+  LayoutDashboard,
   MessageCircle,
+  Plus,
   Search,
   ShieldCheck,
   Star,
 } from "lucide-react";
 import PlatformStats from "@/features/analytics/components/PlatformStats";
 
-export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
+type LandingHomeProps = {
+  isAuthed?: boolean;
+  role?: "USER" | "COMPANY" | "ADMIN" | null;
+};
+
+export default function LandingHome({
+  isAuthed,
+  role,
+}: LandingHomeProps) {
+  const isCompany = role === "COMPANY";
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* HERO */}
@@ -155,7 +167,7 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <Building2 className="h-5 w-5" />
                 </span>
-                <span>Кабинет компании + управление филиалами (Place)</span>
+                <span>Кабинет компании + управление филиалами</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
@@ -177,24 +189,60 @@ export default function LandingHome({ isAuthed }: { isAuthed?: boolean }) {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="rounded-2xl border bg-background p-6">
-              <div className="text-base font-semibold md:text-lg">
-                Начать как компания
-              </div>
-              <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
-                Зарегистрируйтесь и создайте первые филиалы. Дальше — отвечайте
-                на отзывы и собирайте доверие.
-              </div>
+            {!isCompany ? (
+              <div className="rounded-2xl border bg-background p-6">
+                <div className="text-base font-semibold md:text-lg">
+                  Начать как компания
+                </div>
+                <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+                  Зарегистрируйтесь и создайте первые филиалы. Дальше —
+                  отвечайте на отзывы и собирайте доверие.
+                </div>
 
-              <div className="mt-5 grid gap-2">
-                <Link
-                  href="/business/signup"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
-                >
-                  Регистрация компании
-                </Link>
+                <div className="mt-5 grid gap-2">
+                  <Link
+                    href="/business/signup"
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
+                  >
+                    Регистрация компании
+                  </Link>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-2xl border bg-background p-6">
+                <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Вы вошли как компания
+                </div>
+
+                <div className="mt-4 text-base font-semibold md:text-lg">
+                  Управляйте компанией из кабинета
+                </div>
+
+                <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+                  Откройте кабинет компании, создайте новые филиалы и
+                  отслеживайте отзывы по вашим точкам.
+                </div>
+
+                <div className="mt-5 grid gap-2">
+                  <Link
+                    href="/company"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Перейти в кабинет
+                  </Link>
+
+                  <Link
+                    href="/company?tab=create-branch"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border bg-background px-6 text-sm font-medium transition hover:bg-muted/30"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Создать филиал
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

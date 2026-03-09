@@ -20,5 +20,10 @@ export default async function HomePage() {
     sessionUser = null;
   }
 
-  return <LandingHome isAuthed={!!sessionUser} />;
+  return (
+    <LandingHome
+      isAuthed={!!sessionUser}
+      role={sessionUser?.role ?? null}
+    />
+  );
 }
