@@ -54,18 +54,15 @@ export default async function Header() {
 
           {!user ? (
             <nav
-              className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm"
+              className="flex items-center gap-2 text-xs sm:text-sm"
               aria-label="Навигация"
             >
-              <Link
-                href="/login"
-                className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
-              >
+              <Link href="/login" className={secondaryNavClass}>
                 Войти
               </Link>
               <Link
                 href="/signup"
-                className="rounded-xl bg-primary px-2 py-2 font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:px-3"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:text-sm"
               >
                 Регистрация
               </Link>
