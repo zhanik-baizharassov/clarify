@@ -1,9 +1,9 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getSessionUser } from "@/server/auth/session";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,11 +48,20 @@ export const viewport = {
   colorScheme: "dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    console.error("RootLayout: getSessionUser failed:", err);
+    sessionUser = null;
+  }
+
   return (
     <html
       lang="ru"
@@ -62,7 +71,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <Header />
         <main>{children}</main>
-        <Footer />
+        <Footer role={sessionUser?.role ?? null} />
       </body>
     </html>
   );

@@ -1,30 +1,21 @@
-// app/business/page.tsx
-import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/server/auth/session";
 
-export default function BusinessPage() {
-  return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-semibold">Для бизнеса</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Получайте обратную связь, отвечайте на отзывы и подключайте платные
-        инструменты продвижения.
-      </p>
+export const dynamic = "force-dynamic";
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link
-          href="/business/signup"
-          className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-        >
-          Зарегистрировать компанию
-        </Link>
+export default async function BusinessPage() {
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
 
-        <Link
-          href={`/login?next=${encodeURIComponent("/company")}`}
-          className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40"
-        >
-          Войти
-        </Link>
-      </div>
-    </main>
-  );
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    console.error("BusinessPage: getSessionUser failed:", err);
+    sessionUser = null;
+  }
+
+  if (sessionUser?.role === "COMPANY") {
+    redirect("/company");
+  }
+
+  redirect("/business/signup");
 }

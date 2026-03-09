@@ -1,4 +1,3 @@
-// components/layout/Footer.tsx
 import Link from "next/link";
 
 const CONTACT = {
@@ -6,14 +5,24 @@ const CONTACT = {
   email: "clarify.helper@gmail.com",
 };
 
-export default function Footer() {
+type FooterProps = {
+  role?: "USER" | "COMPANY" | "ADMIN" | null;
+};
+
+export default function Footer({ role }: FooterProps) {
+  const companyCabinetHref =
+    role === "COMPANY"
+      ? "/company"
+      : `/login?next=${encodeURIComponent("/company")}`;
+
   return (
     <footer className="mt-12 border-t bg-background">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-8">
         <div className="lg:col-span-4">
           <div className="text-sm font-semibold">Clarify</div>
           <div className="mt-2 text-sm text-muted-foreground">
-            Отзывы по Казахстану. Верификация пользователей, модерация, ответы компаний.
+            Отзывы по Казахстану. Верификация пользователей, модерация, ответы
+            компаний.
           </div>
         </div>
 
@@ -33,8 +42,11 @@ export default function Footer() {
           <div>
             <div className="text-sm font-semibold">Компаниям</div>
             <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-              <Link className="hover:text-foreground" href="/business">
-                Для бизнеса
+              <Link className="hover:text-foreground" href={companyCabinetHref}>
+                Вход в кабинет компании
+              </Link>
+              <Link className="hover:text-foreground" href="/business/signup">
+                Регистрация компании
               </Link>
             </div>
           </div>
