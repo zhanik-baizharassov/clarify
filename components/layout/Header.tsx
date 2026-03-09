@@ -13,6 +13,9 @@ export default async function Header() {
     user = null;
   }
 
+  const secondaryNavClass =
+    "inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm";
+
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -41,17 +44,11 @@ export default async function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/charts"
-            className="rounded-xl border bg-background px-3 py-2 text-xs font-medium hover:bg-muted/40 sm:text-sm"
-          >
+          <Link href="/charts" className={secondaryNavClass}>
             Чарты Clarify
           </Link>
 
-          <Link
-            href="/explore"
-            className="rounded-xl border bg-background px-3 py-2 text-xs font-medium hover:bg-muted/40 sm:text-sm"
-          >
+          <Link href="/explore" className={secondaryNavClass}>
             Найти места
           </Link>
 
@@ -75,21 +72,15 @@ export default async function Header() {
             </nav>
           ) : (
             <nav
-              className="flex items-center gap-1 text-xs sm:gap-2 sm:text-sm"
+              className="flex items-center gap-2 text-xs sm:text-sm"
               aria-label="Навигация"
             >
               {user.role === "COMPANY" ? (
-                <Link
-                  href="/company"
-                  className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
-                >
+                <Link href="/company" className={secondaryNavClass}>
                   Кабинет
                 </Link>
               ) : (
-                <Link
-                  href="/profile"
-                  className="rounded-xl px-2 py-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground sm:px-3"
-                >
+                <Link href="/profile" className={secondaryNavClass}>
                   Профиль
                 </Link>
               )}
