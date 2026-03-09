@@ -97,7 +97,7 @@ export default async function PlacePage({
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <Link href="/" className="text-sm text-muted-foreground hover:underline">
+      <Link href="/explore" className="text-sm text-muted-foreground hover:underline">
         ← Назад к поиску
       </Link>
 
