@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, MapPin, MessageCircle, Users } from "lucide-react";
 
 type Analytics = {
@@ -13,6 +14,8 @@ export default function PlatformStats() {
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -48,20 +51,73 @@ export default function PlatformStats() {
     return () => ctrl.abort();
   }, []);
 
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { threshold: 0.2 },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const stats = data
+    ? [
+        {
+          title: "Карточек",
+          value: data.totals.places,
+          icon: <MapPin className="h-5 w-5" />,
+          desc: "Уже доступны для поиска",
+        },
+        {
+          title: "Отзывов",
+          value: data.totals.reviews,
+          icon: <MessageCircle className="h-5 w-5" />,
+          desc: "Помогают выбирать увереннее",
+        },
+        {
+          title: "Пользователей",
+          value: data.totals.users,
+          icon: <Users className="h-5 w-5" />,
+          desc: "Уже делятся опытом на Clarify",
+        },
+        {
+          title: "Компаний",
+          value: data.totals.companies,
+          icon: <Building2 className="h-5 w-5" />,
+          desc: "Уже работают с репутацией в Clarify",
+        },
+      ]
+    : [];
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="rounded-3xl border bg-muted/20 p-7 md:p-10">
-        <div className="grid gap-2 md:grid-cols-3 md:items-end">
-          {/* левый “пустой” слот (если не нужен — оставляем пустым) */}
-          <div />
+      <div
+        ref={sectionRef}
+        className="rounded-3xl border bg-muted/20 p-7 md:p-10"
+      >
+        <div className="flex flex-col items-center text-center">
+          <div className="inline-flex items-center rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+            Платформа в цифрах
+          </div>
 
-          {/* центр */}
-          <h2 className="text-center text-xl font-semibold tracking-tight md:text-2xl">
+          <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
             Статистика Clarify
           </h2>
 
-          {/* правый слот под действия (пока пустой) */}
-          <div className="flex justify-end" />
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            Платформа растёт вместе с пользователями и компаниями — каждое новое
+            место и каждый отзыв делают выбор более понятным.
+          </p>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,32 +129,17 @@ export default function PlatformStats() {
               <StatSkeleton />
             </>
           ) : data ? (
-            <>
+            stats.map((item, index) => (
               <StatCard
-                title="Карточек"
-                value={data.totals.places}
-                icon={<MapPin className="h-5 w-5" />}
-                desc="Мест в каталоге"
+                key={item.title}
+                title={item.title}
+                value={item.value}
+                icon={item.icon}
+                desc={item.desc}
+                visible={visible}
+                delay={index * 90}
               />
-              <StatCard
-                title="Отзывов"
-                value={data.totals.reviews}
-                icon={<MessageCircle className="h-5 w-5" />}
-                desc="Опубликованные отзывы"
-              />
-              <StatCard
-                title="Пользователей"
-                value={data.totals.users}
-                icon={<Users className="h-5 w-5" />}
-                desc="Cтолько пользователей уже с Clarify"
-              />
-              <StatCard
-                title="Компаний"
-                value={data.totals.companies}
-                icon={<Building2 className="h-5 w-5" />}
-                desc="Столько компаний уже пользуются Clarify"
-              />
-            </>
+            ))
           ) : (
             <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground sm:col-span-2 lg:col-span-4">
               Статистика временно недоступна{err ? `: ${err}` : "."}
@@ -115,25 +156,36 @@ function StatCard({
   value,
   desc,
   icon,
+  visible,
+  delay,
 }: {
   title: string;
   value: number;
   desc: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
+  visible: boolean;
+  delay: number;
 }) {
   return (
-    <div className="rounded-2xl border bg-background p-5 md:p-6">
+    <div
+      className={[
+        "rounded-2xl border bg-background p-5 transition-all duration-700 md:p-6",
+        "hover:-translate-y-1 hover:border-primary/35 hover:bg-background/95",
+        visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+      ].join(" ")}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm text-muted-foreground md:text-base">
             {title}
           </div>
           <div className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-            {nf.format(value)}
+            <AnimatedNumber value={value} start={visible} />
           </div>
         </div>
 
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border bg-muted/30 text-muted-foreground">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border bg-muted/30 text-muted-foreground transition duration-300 hover:scale-105 hover:text-primary">
           {icon}
         </div>
       </div>
@@ -143,6 +195,41 @@ function StatCard({
       </div>
     </div>
   );
+}
+
+function AnimatedNumber({
+  value,
+  start,
+}: {
+  value: number;
+  start: boolean;
+}) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (!start) return;
+
+    let frame = 0;
+    let startTs: number | null = null;
+    const duration = 1200;
+
+    const tick = (ts: number) => {
+      if (startTs === null) startTs = ts;
+      const progress = Math.min(1, (ts - startTs) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(value * eased));
+
+      if (progress < 1) {
+        frame = window.requestAnimationFrame(tick);
+      }
+    };
+
+    frame = window.requestAnimationFrame(tick);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [start, value]);
+
+  return <>{nf.format(displayValue)}</>;
 }
 
 function StatSkeleton() {

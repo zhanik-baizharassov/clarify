@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -40,17 +41,17 @@ export default function LandingHome({
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">KZ</span>
-              <span>Отзывы только от верифицированных пользователей</span>
+              <span>Платформа отзывов для людей и бизнеса</span>
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
-              Нам важно ваше мнение!
+              Выбирайте места увереннее
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Clarify помогает выбирать места по реальным отзывам и рейтингу, а
-              компаниям — получать прозрачную обратную связь и отвечать
-              официально.
+              Clarify помогает находить места по реальному опыту людей, а
+              компаниям — собирать обратную связь, отвечать на отзывы и
+              укреплять доверие клиентов.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -65,7 +66,7 @@ export default function LandingHome({
               {!isAuthed ? (
                 <Link
                   href="/signup"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30 sm:w-auto"
                 >
                   Зарегистрироваться
                 </Link>
@@ -96,23 +97,23 @@ export default function LandingHome({
         >
           <MiniFeature
             icon={<BadgeCheck className="h-4 w-4" />}
-            title="Доверие к отзывам"
-            desc="Верификация через OTP снижает спам и повышает качество"
+            title="Честные впечатления"
+            desc="Отзывы помогают заранее понять, чего ожидать от места и сервиса."
           />
           <MiniFeature
             icon={<ShieldCheck className="h-4 w-4" />}
-            title="Чистый контент"
-            desc="Модерация и проверки на сервере поддерживают порядок"
+            title="Удобный выбор"
+            desc="Сравнивайте места по рейтингу, отзывам и общей репутации в одном каталоге."
           />
           <MiniFeature
             icon={<MessageCircle className="h-4 w-4" />}
-            title="Диалог с компанией"
-            desc="Компании отвечают на отзывы официально — всё прозрачно"
+            title="Открытый диалог"
+            desc="Компании отвечают на отзывы публично и показывают, что им важна обратная связь."
           />
         </div>
       </section>
 
-      {/* STATS — между hero и how */}
+      {/* STATS */}
       <div className="mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
         <PlatformStats />
       </div>
@@ -124,26 +125,25 @@ export default function LandingHome({
       >
         <h2 className="text-xl font-semibold md:text-2xl">Как это работает</h2>
         <p className="mt-2 max-w-6xl text-sm leading-relaxed text-muted-foreground md:text-base">
-          Мы делаем отзывы полезными: меньше шума, больше смысла. Пользователь
-          быстро выбирает, а компания получает честную обратную связь и может
-          ответить.
+          Clarify помогает пользователям выбирать осознаннее, а компаниям —
+          лучше понимать клиентов и работать с репутацией открыто.
         </p>
 
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           <StepCard
             icon={<Search className="h-5 w-5" />}
-            title="Выбирайте быстрее"
-            desc="Откройте каталог, используйте фильтры и сортировку — находите нужный филиал по рейтингу и отзывам."
+            title="Находите нужное"
+            desc="Откройте каталог, сравните места и быстро поймите, куда действительно стоит идти."
           />
           <StepCard
             icon={<Star className="h-5 w-5" />}
-            title="Оставляйте честно"
-            desc="Отзыв оставляет только верифицированный пользователь — это помогает держать качество и доверие."
+            title="Делитесь опытом"
+            desc="Оставляйте отзыв после посещения и помогайте другим принимать решение увереннее."
           />
           <StepCard
             icon={<MessageCircle className="h-5 w-5" />}
-            title="Получайте ответ"
-            desc="Компания может ответить официально — пользователи видят реакцию, а бизнес улучшает сервис."
+            title="Следите за реакцией бизнеса"
+            desc="Компании видят обратную связь, отвечают на отзывы и улучшают качество сервиса."
           />
         </div>
       </section>
@@ -155,11 +155,19 @@ export default function LandingHome({
       >
         <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <h2 className="text-xl font-semibold md:text-2xl">Для компаний</h2>
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
+              Для бизнеса
+            </div>
+
+            <h2 className="mt-4 text-xl font-semibold md:text-2xl">
+              Управляйте репутацией в одном месте
+            </h2>
+
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Создавайте карточки филиалов и управляйте репутацией в одном
-              месте. Отвечайте на отзывы публично — это повышает доверие и
-              конверсию.
+              Clarify помогает компаниям работать с обратной связью открыто и
+              удобно: добавляйте филиалы, отвечайте на отзывы и укрепляйте
+              доверие к вашему бренду.
             </p>
 
             <ul className="mt-5 grid gap-3 text-sm text-muted-foreground md:text-base">
@@ -167,36 +175,52 @@ export default function LandingHome({
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <Building2 className="h-5 w-5" />
                 </span>
-                <span>Кабинет компании + управление филиалами</span>
+                <span>Все филиалы компании в одном кабинете</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <MessageCircle className="h-5 w-5" />
                 </span>
-                <span>
-                  Официальные ответы на отзывы — без конфликтов и “лички”
-                </span>
+                <span>Публичные ответы помогают укреплять доверие клиентов</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <ShieldCheck className="h-5 w-5" />
                 </span>
-                <span>
-                  Модерация и проверки помогают держать площадку чистой
-                </span>
+                <span>Обратная связь помогает быстрее находить точки роста сервиса</span>
               </li>
             </ul>
           </div>
 
           <div className="lg:col-span-5">
             {!isCompany ? (
-              <div className="rounded-2xl border bg-background p-6">
-                <div className="text-base font-semibold md:text-lg">
-                  Начать как компания
+              <div className="relative overflow-hidden rounded-2xl border bg-background p-6">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
+                />
+
+                <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Новый кабинет компании
                 </div>
+
+                <div className="mt-4 text-base font-semibold md:text-lg">
+                  {isAuthed
+                    ? "Подключите компанию к Clarify"
+                    : "Начните как компания"}
+                </div>
+
                 <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
-                  Зарегистрируйтесь и создайте первые филиалы. Дальше —
-                  отвечайте на отзывы и собирайте доверие.
+                  {isAuthed
+                    ? "Откройте бизнес-кабинет, добавьте филиалы и начните работать с отзывами клиентов."
+                    : "Зарегистрируйте компанию, создайте первые филиалы и начните выстраивать доверие через отзывы."}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <SmallPill>Филиалы</SmallPill>
+                  <SmallPill>Отзывы</SmallPill>
+                  <SmallPill>Репутация</SmallPill>
                 </div>
 
                 <div className="mt-5 grid gap-2">
@@ -204,12 +228,17 @@ export default function LandingHome({
                     href="/business/signup"
                     className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
                   >
-                    Регистрация компании
+                    {isAuthed ? "Подключить компанию" : "Регистрация компании"}
                   </Link>
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border bg-background p-6">
+              <div className="relative overflow-hidden rounded-2xl border bg-background p-6">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
+                />
+
                 <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
                   <Building2 className="h-3.5 w-3.5" />
                   Вы вошли как компания
@@ -220,8 +249,14 @@ export default function LandingHome({
                 </div>
 
                 <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
-                  Откройте кабинет компании, создайте новые филиалы и
-                  отслеживайте отзывы по вашим точкам.
+                  Перейдите в кабинет, создайте новый филиал и просматривайте
+                  отзывы по вашим точкам в одном месте.
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <SmallPill>Кабинет</SmallPill>
+                  <SmallPill>Филиалы</SmallPill>
+                  <SmallPill>Отзывы</SmallPill>
                 </div>
 
                 <div className="mt-5 grid gap-2">
@@ -255,14 +290,14 @@ function MiniFeature({
   title,
   desc,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   desc: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-background p-5">
+    <div className="rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-background/90">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30 text-primary">
           {icon}
         </span>
         {title}
@@ -277,12 +312,12 @@ function StepCard({
   title,
   desc,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   desc: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-muted/20 p-6">
+    <div className="rounded-2xl border bg-muted/20 p-6 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-muted/30">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl border bg-background/60 text-primary">
           {icon}
@@ -295,5 +330,13 @@ function StepCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function SmallPill({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+      {children}
+    </span>
   );
 }
