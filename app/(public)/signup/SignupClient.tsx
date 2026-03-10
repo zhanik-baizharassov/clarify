@@ -1,9 +1,9 @@
-// app/signup/SignupClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { keepKzPhoneInput } from "@/shared/kz/kz";
 
@@ -23,28 +23,25 @@ export default function SignupPage() {
   const search = useSearchParams();
 
   const next = search.get("next") || "/";
-  const mode = search.get("mode"); // "verify" | null
-  const emailFromQuery = search.get("email"); // string | null
+  const mode = search.get("mode");
+  const emailFromQuery = search.get("email");
 
-  // form
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("+7");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // flow
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [lastPayload, setLastPayload] = useState<SignupPayload | null>(null);
 
-  // ui states
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
 
-  // otp
   const [otp, setOtp] = useState<string[]>(Array(OTP_LEN).fill(""));
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [cooldownSec, setCooldownSec] = useState(0);
@@ -61,7 +58,6 @@ export default function SignupPage() {
     setTimeout(() => focusOtp(0), 0);
   }
 
-  // ⬇️ поддержка режима /signup?mode=verify&email=... (например после смены email в профиле)
   useEffect(() => {
     if (mode === "verify" && emailFromQuery) {
       setPendingEmail(emailFromQuery);
@@ -69,7 +65,6 @@ export default function SignupPage() {
       setCooldownSec(60);
       resetOtp();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, emailFromQuery]);
 
   useEffect(() => {
@@ -103,7 +98,6 @@ export default function SignupPage() {
         return;
       }
 
-      // fallback (если вдруг автологин)
       router.push(next);
       router.refresh();
     } catch (e: any) {
@@ -181,13 +175,11 @@ export default function SignupPage() {
 
     if (cooldownSec > 0) return;
 
-    // ✅ если lastPayload есть — повторяем signup (твой текущий подход)
     if (lastPayload) {
       await submitSignup(lastPayload);
       return;
     }
 
-    // ✅ если lastPayload нет — значит мы в режиме verify (например после смены email)
     if (!pendingEmail) return setErr("Email для отправки кода не найден");
 
     setVerifyLoading(true);
@@ -220,7 +212,6 @@ export default function SignupPage() {
 
     if (v && i < OTP_LEN - 1) focusOtp(i + 1);
 
-    // если последний символ введён — можно авто-проверку
     if (v && i === OTP_LEN - 1) {
       setTimeout(() => {
         const full = [...otp.slice(0, i), v].join("");
@@ -298,7 +289,6 @@ export default function SignupPage() {
       }
     >
       <div className="grid gap-4">
-        {/* FORM */}
         <form onSubmit={onSubmit} className="grid gap-3">
           <Field label="Имя">
             <input
@@ -357,15 +347,30 @@ export default function SignupPage() {
           </Field>
 
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">
-            <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder=""
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              disabled={loading || formDisabled}
-            />
+            <div className="relative">
+              <input
+                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                placeholder=""
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={loading || formDisabled}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={loading || formDisabled}
+                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </Field>
 
           <button
@@ -382,7 +387,6 @@ export default function SignupPage() {
           ) : null}
         </form>
 
-        {/* VERIFY */}
         {step === "verify" ? (
           <div className="rounded-2xl border bg-background p-5">
             <div className="text-sm font-semibold">Подтвердите email</div>
@@ -455,7 +459,6 @@ export default function SignupPage() {
           </div>
         ) : null}
 
-        {/* ERROR */}
         {err ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
             {err}

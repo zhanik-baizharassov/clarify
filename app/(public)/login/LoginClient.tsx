@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 
 const OTP_LEN = 6;
@@ -17,6 +18,7 @@ export default function LoginClient() {
   // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // verify
   const [pendingEmail, setPendingEmail] = useState("");
@@ -68,7 +70,8 @@ export default function LoginClient() {
       throw new Error(data?.error ?? "Не удалось отправить код");
     }
 
-    const cooldown = typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
+    const cooldown =
+      typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
     setCooldownSec(cooldown);
     resetOtp();
   }
@@ -91,7 +94,6 @@ export default function LoginClient() {
 
       const data = await res.json().catch(() => ({}));
 
-      // ✅ unverified
       if (res.status === 403) {
         if (sendToVerifyUI) {
           setPendingEmail(em);
@@ -99,13 +101,14 @@ export default function LoginClient() {
           resetOtp();
         }
 
-        // пробуем реально отправить код через resend-code
         try {
           setResendLoading(true);
           await requestResendCode(em);
           setErr("Код отправлен. Проверьте почту и введите 6 цифр.");
         } catch (e: any) {
-          setErr(e?.message ?? data?.error ?? "Подтвердите email: введите код из письма");
+          setErr(
+            e?.message ?? data?.error ?? "Подтвердите email: введите код из письма",
+          );
         } finally {
           setResendLoading(false);
         }
@@ -277,15 +280,30 @@ export default function LoginClient() {
 
           <label className="grid gap-1">
             <span className="text-sm font-medium">Пароль</span>
-            <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder=""
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              disabled={loading}
-            />
+            <div className="relative">
+              <input
+                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder=""
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={loading}
+                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </label>
 
           {err ? (

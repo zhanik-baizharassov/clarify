@@ -1,9 +1,9 @@
-//app/(public)/business/signup/BusinessSignupClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
@@ -25,27 +25,24 @@ export default function BusinessSignupPage() {
   const nextRaw = search.get("next");
   const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/company";
 
-  // form
   const [companyName, setCompanyName] = useState("");
   const [bin, setBin] = useState("");
   const [phone, setPhone] = useState("+7");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // flow
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [lastPayload, setLastPayload] = useState<CompanySignupPayload | null>(
     null,
   );
 
-  // ui states
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
 
-  // otp
   const [otp, setOtp] = useState<string[]>(Array(OTP_LEN).fill(""));
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [cooldownSec, setCooldownSec] = useState(0);
@@ -93,7 +90,6 @@ export default function BusinessSignupPage() {
         return;
       }
 
-      // fallback
       router.push(next);
       router.refresh();
     } catch (e: any) {
@@ -118,7 +114,6 @@ export default function BusinessSignupPage() {
     if (!em) return setErr("Введите email");
     if (addr.length < 5) return setErr("Адрес: минимум 5 символов");
 
-    // ✅ простая проверка, чтобы не принимали “Самал-2” без номера дома
     if (!/\d/.test(addr)) {
       return setErr("Адрес: укажите номер дома (например «Самал-2, дом 111»)");
     }
@@ -334,15 +329,30 @@ export default function BusinessSignupPage() {
           </Field>
 
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">
-            <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder=""
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              disabled={loading || formDisabled}
-            />
+            <div className="relative">
+              <input
+                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                placeholder=""
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={loading || formDisabled}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={loading || formDisabled}
+                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </Field>
 
           <button
@@ -364,9 +374,7 @@ export default function BusinessSignupPage() {
             <div className="text-sm font-semibold">Подтвердите email</div>
             <div className="mt-1 text-sm text-muted-foreground">
               Мы отправили 6-значный код на{" "}
-              <span className="font-medium text-foreground">
-                {pendingEmail}
-              </span>
+              <span className="font-medium text-foreground">{pendingEmail}</span>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">

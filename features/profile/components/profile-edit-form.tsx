@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -83,13 +84,11 @@ export default function ProfileEditForm({
   const router = useRouter();
   const canEdit = tab === "security" ? true : !locked;
 
-  // main fields (нужны и для security-tab, потому что API требует их в PATCH)
   const [firstName, setFirstName] = useState(initial.firstName ?? "");
   const [lastName, setLastName] = useState(initial.lastName ?? "");
   const [nickname, setNickname] = useState(initial.nickname ?? "");
   const [email, setEmail] = useState(initial.email ?? "");
 
-  // avatar (только main tab)
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     initial.avatarUrl ?? null,
@@ -97,25 +96,25 @@ export default function ProfileEditForm({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarClear, setAvatarClear] = useState(false);
 
-  // password (только security tab)
   const [changePassword, setChangePassword] = useState(false);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
 
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // auto-open password fields when tab=security
   useEffect(() => {
     if (tab === "security") setChangePassword(true);
   }, [tab]);
 
-  // avoid blob leak
   useEffect(() => {
     return () => {
-      if (avatarPreview?.startsWith("blob:"))
+      if (avatarPreview?.startsWith("blob:")) {
         URL.revokeObjectURL(avatarPreview);
+      }
     };
   }, [avatarPreview]);
 
@@ -141,8 +140,9 @@ export default function ProfileEditForm({
       const resized = await resizeToFile(f, 512, 0.86);
 
       const url = URL.createObjectURL(resized);
-      if (avatarPreview?.startsWith("blob:"))
+      if (avatarPreview?.startsWith("blob:")) {
         URL.revokeObjectURL(avatarPreview);
+      }
 
       setAvatarFile(resized);
       setAvatarPreview(url);
@@ -170,7 +170,6 @@ export default function ProfileEditForm({
 
     if (!canEdit) return setErr("Редактирование профиля больше недоступно.");
 
-    // ✅ main tab — валидируем основные поля
     const fn = firstName.trim();
     const ln = lastName.trim();
     const nn = nickname.trim();
@@ -179,11 +178,11 @@ export default function ProfileEditForm({
       if (fn.length < 2) return setErr("Имя: минимум 2 символа");
       if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
       if (nn.length < 3) return setErr("Никнейм: минимум 3 символа");
-      if (!NICK_RE.test(nn))
+      if (!NICK_RE.test(nn)) {
         return setErr("Никнейм: только латиница, цифры и _ (без пробелов)");
+      }
     }
 
-    // ✅ security tab — требуем пароль
     if (tab === "security") {
       if (!changePassword) return setErr("Включите смену пароля.");
       if (password.length < 8) return setErr("Пароль: минимум 8 символов");
@@ -194,7 +193,6 @@ export default function ProfileEditForm({
       if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
       if (password !== password2) return setErr("Пароли не совпадают");
     } else {
-      // main tab — пароль опционален (если включили)
       if (changePassword) {
         if (password.length < 8) return setErr("Пароль: минимум 8 символов");
         if (!/[A-Z]/.test(password))
@@ -211,16 +209,13 @@ export default function ProfileEditForm({
     try {
       const fd = new FormData();
 
-      // ✅ API требует эти поля всегда
       fd.set("firstName", fn || initial.firstName || "");
       fd.set("lastName", ln || initial.lastName || "");
       fd.set("nickname", nn || initial.nickname || "");
       fd.set("email", email);
 
-      // password
       if (changePassword && password.trim()) fd.set("password", password);
 
-      // ✅ avatar только в main tab
       if (tab === "main") {
         if (avatarClear) fd.set("avatarClear", "1");
         if (avatarFile) fd.set("avatar", avatarFile);
@@ -237,19 +232,16 @@ export default function ProfileEditForm({
       setOk(tab === "security" ? "Пароль обновлён" : "Профиль сохранён");
       router.refresh();
 
-      // чуть подчистим парольные поля
       setPassword("");
       setPassword2("");
+      setShowPassword(false);
+      setShowPassword2(false);
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
     } finally {
       setLoading(false);
     }
   }
-
-  // ===========================
-  // UI
-  // ===========================
 
   if (tab === "security") {
     return (
@@ -283,25 +275,55 @@ export default function ProfileEditForm({
           {changePassword ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
-                <input
-                  className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading || !canEdit}
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <input
+                    className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading || !canEdit}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    disabled={loading || !canEdit}
+                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </Field>
 
               <Field label="Повторите пароль">
-                <input
-                  className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                  type="password"
-                  value={password2}
-                  onChange={(e) => setPassword2(e.target.value)}
-                  disabled={loading || !canEdit}
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <input
+                    className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                    type={showPassword2 ? "text" : "password"}
+                    value={password2}
+                    onChange={(e) => setPassword2(e.target.value)}
+                    disabled={loading || !canEdit}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword2((v) => !v)}
+                    disabled={loading || !canEdit}
+                    aria-label={showPassword2 ? "Скрыть пароль" : "Показать пароль"}
+                    className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                  >
+                    {showPassword2 ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </Field>
             </div>
           ) : null}
@@ -334,7 +356,6 @@ export default function ProfileEditForm({
     );
   }
 
-  // tab === "main"
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -362,7 +383,6 @@ export default function ProfileEditForm({
         После успешного сохранения форма станет недоступной.
       </div>
 
-      {/* Avatar */}
       <div className="rounded-2xl border bg-background p-5">
         <div className="text-sm font-semibold">Аватар</div>
 
@@ -417,7 +437,6 @@ export default function ProfileEditForm({
         </div>
       </div>
 
-      {/* Основные данные */}
       <div className="rounded-2xl border bg-background p-5">
         <div className="text-sm font-semibold">Основные данные</div>
 
