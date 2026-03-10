@@ -11,6 +11,8 @@ import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00");
+
 const Schema = z
   .object({
     name: z
@@ -32,27 +34,21 @@ const Schema = z
     phone: z
       .string()
       .trim()
-      .max(30, "Телефон слишком длинный")
-      .optional()
-      .default(""),
-    website: z
+      .min(5, "Телефон обязателен")
+      .max(30, "Телефон слишком длинный"),
+
+    weekdayOpen: timeSchema,
+    weekdayClose: timeSchema,
+
+    weekendClosed: z.boolean(),
+    weekendOpen: z
       .string()
-      .trim()
-      .max(200, "Сайт слишком длинный")
-      .optional()
-      .default(""),
-    workHours: z
+      .regex(/^\d{2}:\d{2}$/, "Время: формат 09:00")
+      .nullable(),
+    weekendClose: z
       .string()
-      .trim()
-      .max(120, "Время работы слишком длинное")
-      .optional()
-      .default(""),
-    description: z
-      .string()
-      .trim()
-      .max(500, "Описание слишком длинное")
-      .optional()
-      .default(""),
+      .regex(/^\d{2}:\d{2}$/, "Время: формат 09:00")
+      .nullable(),
   })
   .strict();
 
@@ -125,19 +121,31 @@ function slugifyAscii(s: string) {
   return base || "place";
 }
 
-function normalizeOptionalUrl(raw: string) {
-  const value = raw.trim();
-  if (!value) return undefined;
+function toMinutes(t: string) {
+  const [hh, mm] = t.split(":").map(Number);
+  return hh * 60 + mm;
+}
 
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error();
-    }
-    return url.toString();
-  } catch {
-    throw new Error("Сайт: укажите корректный URL, например https://example.kz");
+function assertValidRange(from: string, to: string, label: string) {
+  if (toMinutes(from) >= toMinutes(to)) {
+    throw new Error(`${label}: значение «С» должно быть раньше, чем «До»`);
   }
+}
+
+function buildWorkHours(input: z.infer<typeof Schema>) {
+  assertValidRange(input.weekdayOpen, input.weekdayClose, "Будние дни");
+
+  if (input.weekendClosed) {
+    return `Пн–Пт ${input.weekdayOpen}–${input.weekdayClose} • Сб–Вс выходной`;
+  }
+
+  if (!input.weekendOpen || !input.weekendClose) {
+    throw new Error("Выходные дни: укажите время работы или включите режим выходного");
+  }
+
+  assertValidRange(input.weekendOpen, input.weekendClose, "Выходные дни");
+
+  return `Пн–Пт ${input.weekdayOpen}–${input.weekdayClose} • Сб–Вс ${input.weekendOpen}–${input.weekendClose}`;
 }
 
 export async function POST(req: Request) {
@@ -158,20 +166,18 @@ export async function POST(req: Request) {
     });
 
     if (!category) {
-      return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Категория не найдена" },
+        { status: 400 },
+      );
     }
 
     assertNoProfanity(input.name, "Название места");
     assertNoProfanity(input.address, "Адрес");
-    if (input.description.trim()) {
-      assertNoProfanity(input.description, "Описание");
-    }
 
     const city = assertKzCity(input.city, "Город");
-    const phone = input.phone.trim()
-      ? normalizeKzPhone(input.phone, "Телефон")
-      : undefined;
-    const website = normalizeOptionalUrl(input.website ?? "");
+    const phone = normalizeKzPhone(input.phone, "Телефон");
+    const workHours = buildWorkHours(input);
 
     const { lat, lng, normalizedAddress } = await validateKzAddress({
       city,
@@ -190,9 +196,7 @@ export async function POST(req: Request) {
         city,
         address: normalizedAddress,
         phone,
-        website,
-        workHours: input.workHours.trim() || undefined,
-        description: input.description.trim() || undefined,
+        workHours,
         lat,
         lng,
       },
@@ -225,8 +229,8 @@ export async function POST(req: Request) {
         err.message.includes("Город") ||
         err.message.includes("Адрес") ||
         err.message.includes("Название") ||
-        err.message.includes("Описание") ||
-        err.message.includes("Сайт") ||
+        err.message.includes("Будние дни") ||
+        err.message.includes("Выходные дни") ||
         err.message.includes("недопустимые слова") ||
         err.message.includes("2GIS")
       ) {

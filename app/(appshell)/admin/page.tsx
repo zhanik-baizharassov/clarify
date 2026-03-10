@@ -17,11 +17,33 @@ import ClaimReviewActions from "@/features/admin/components/claim-review-actions
 
 export const runtime = "nodejs";
 
-export default async function AdminPage() {
+type AdminSection = "create-place" | "claims" | "unclaimed-places" | null;
+
+function getSingleSearchParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    section?: string | string[];
+  }>;
+}) {
   const user = await getSessionUser();
 
   if (!user) redirect("/login?next=/admin");
   if (user.role !== "ADMIN") redirect("/");
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedSection = getSingleSearchParam(resolvedSearchParams.section);
+
+  const activeSection: AdminSection =
+    requestedSection === "create-place" ||
+    requestedSection === "claims" ||
+    requestedSection === "unclaimed-places"
+      ? requestedSection
+      : null;
 
   const [
     usersCount,
@@ -118,7 +140,7 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="mt-8 flex flex-wrap gap-4">
         <AdminStatCard
           icon={<UserRound className="h-5 w-5" />}
           label="Пользователи"
@@ -160,18 +182,21 @@ export default async function AdminPage() {
       <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AdminActionCard
           title="Создать карточку места"
-          desc="Добавьте карточку вручную без привязки к компании, чтобы наполнять каталог."
-          href="#create-place"
+          desc="Откройте форму создания каталожной карточки без привязки к компании."
+          href="/admin?section=create-place"
+          active={activeSection === "create-place"}
         />
         <AdminActionCard
           title="Карточки без владельца"
-          desc="Отслеживайте места, которые ещё не привязаны к company account."
-          href="#unclaimed-places"
+          desc="Откройте список мест, которые ещё не привязаны к company account."
+          href="/admin?section=unclaimed-places"
+          active={activeSection === "unclaimed-places"}
         />
         <AdminActionCard
           title="Claim-заявки"
-          desc="Проверяйте заявки компаний и вручную привязывайте карточки к владельцам."
-          href="#claims"
+          desc="Откройте заявки компаний и вручную передавайте карточки владельцам."
+          href="/admin?section=claims"
+          active={activeSection === "claims"}
         />
         <AdminActionCard
           title="Модерация отзывов"
@@ -180,180 +205,202 @@ export default async function AdminPage() {
         />
       </section>
 
-      <section
-        id="create-place"
-        className="mt-8 rounded-3xl border bg-background p-6"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">
-              Создать каталожную карточку места
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Это карточка без привязки к компании. Позже владелец бизнеса сможет
-              заявить права на неё через claim-flow.
+      {!activeSection ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-semibold">Выберите раздел</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Секции админки больше не открыты все сразу. Нажмите на нужную
+              карточку выше, чтобы открыть только конкретный рабочий блок.
             </p>
           </div>
+        </section>
+      ) : null}
 
-          <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-            Категорий:{" "}
-            <span className="font-medium text-foreground">{categories.length}</span>
+      {activeSection === "create-place" ? (
+        <section
+          id="create-place"
+          className="mt-8 rounded-3xl border bg-background p-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">
+                Создать каталожную карточку места
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Это карточка без привязки к компании. Позже владелец бизнеса сможет
+                заявить права на неё через claim-flow.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Категорий:{" "}
+              <span className="font-medium text-foreground">
+                {categories.length}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <CreateCatalogPlaceForm categories={categories} />
-      </section>
+          <CreateCatalogPlaceForm categories={categories} />
+        </section>
+      ) : null}
 
-      <section
-        id="claims"
-        className="mt-8 rounded-3xl border bg-background p-6"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Claim-заявки</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Здесь администратор принимает решение, какой компании передать
-              управление карточкой места.
-            </p>
+      {activeSection === "claims" ? (
+        <section
+          id="claims"
+          className="mt-8 rounded-3xl border bg-background p-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Claim-заявки</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь администратор принимает решение, какой компании передать
+                управление карточкой места.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Ожидают проверки:{" "}
+              <span className="font-medium text-foreground">
+                {pendingClaimsCount}
+              </span>
+            </div>
           </div>
 
-          <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-            Ожидают проверки:{" "}
-            <span className="font-medium text-foreground">
-              {pendingClaimsCount}
-            </span>
-          </div>
-        </div>
+          {pendingClaims.length ? (
+            <div className="mt-6 grid gap-4">
+              {pendingClaims.map((claim) => (
+                <div
+                  key={claim.id}
+                  className="rounded-2xl border bg-muted/10 p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground">
+                        Заявка от {dtf.format(claim.createdAt)}
+                      </div>
 
-        {pendingClaims.length ? (
-          <div className="mt-6 grid gap-4">
-            {pendingClaims.map((claim) => (
-              <div
-                key={claim.id}
-                className="rounded-2xl border bg-muted/10 p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs text-muted-foreground">
-                      Заявка от {dtf.format(claim.createdAt)}
+                      <div className="mt-3">
+                        <div className="text-sm text-muted-foreground">
+                          Карточка места
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/place/${claim.place.slug}`}
+                            className="text-lg font-semibold hover:underline"
+                          >
+                            {claim.place.name}
+                          </Link>
+                          <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                            {claim.place.city}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          {claim.place.address ?? "Адрес не указан"}
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-sm text-muted-foreground">
+                          Компания-заявитель
+                        </div>
+                        <div className="mt-1 text-base font-medium">
+                          {claim.company.name}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          {claim.company.bin
+                            ? `БИН: ${claim.company.bin}`
+                            : "БИН не указан"}
+                          {claim.company.owner.email
+                            ? ` • ${claim.company.owner.email}`
+                            : ""}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="mt-3">
-                      <div className="text-sm text-muted-foreground">
-                        Карточка места
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <div className="w-full max-w-[320px]">
+                      <ClaimReviewActions claimId={claim.id} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
+              Сейчас нет заявок, ожидающих проверки.
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {activeSection === "unclaimed-places" ? (
+        <section
+          id="unclaimed-places"
+          className="mt-8 rounded-3xl border bg-background p-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">
+                Последние карточки без владельца
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Это места, у которых пока нет привязанной компании и официального кабинета.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего без владельца:{" "}
+              <span className="font-medium text-foreground">
+                {unclaimedPlacesCount}
+              </span>
+            </div>
+          </div>
+
+          {recentUnclaimedPlaces.length ? (
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              {recentUnclaimedPlaces.map((place) => (
+                <div
+                  key={place.id}
+                  className="rounded-2xl border bg-muted/10 p-5 transition hover:border-primary/35 hover:bg-muted/20"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/place/${claim.place.slug}`}
+                          href={`/place/${place.slug}`}
                           className="text-lg font-semibold hover:underline"
                         >
-                          {claim.place.name}
+                          {place.name}
                         </Link>
                         <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                          {claim.place.city}
+                          {place.category.name}
                         </span>
                       </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        {claim.place.address ?? "Адрес не указан"}
+
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        {place.city}
+                        {place.address ? ` • ${place.address}` : ""}
+                      </div>
+
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Создано: {dtf.format(place.createdAt)}
                       </div>
                     </div>
 
-                    <div className="mt-4">
-                      <div className="text-sm text-muted-foreground">
-                        Компания-заявитель
-                      </div>
-                      <div className="mt-1 text-base font-medium">
-                        {claim.company.name}
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        {claim.company.bin ? `БИН: ${claim.company.bin}` : "БИН не указан"}
-                        {claim.company.owner.email
-                          ? ` • ${claim.company.owner.email}`
-                          : ""}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="w-full max-w-[320px]">
-                    <ClaimReviewActions claimId={claim.id} />
+                    <span className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                      Без компании
+                    </span>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-            Сейчас нет заявок, ожидающих проверки.
-          </div>
-        )}
-      </section>
-
-      <section
-        id="unclaimed-places"
-        className="mt-8 rounded-3xl border bg-background p-6"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">
-              Последние карточки без владельца
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Это места, у которых пока нет привязанной компании и официального кабинета.
-            </p>
-          </div>
-
-          <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-            Всего без владельца:{" "}
-            <span className="font-medium text-foreground">
-              {unclaimedPlacesCount}
-            </span>
-          </div>
-        </div>
-
-        {recentUnclaimedPlaces.length ? (
-          <div className="mt-6 grid gap-4 xl:grid-cols-2">
-            {recentUnclaimedPlaces.map((place) => (
-              <div
-                key={place.id}
-                className="rounded-2xl border bg-muted/10 p-5 transition hover:border-primary/35 hover:bg-muted/20"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/place/${place.slug}`}
-                        className="text-lg font-semibold hover:underline"
-                      >
-                        {place.name}
-                      </Link>
-                      <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                        {place.category.name}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      {place.city}
-                      {place.address ? ` • ${place.address}` : ""}
-                    </div>
-
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Создано: {dtf.format(place.createdAt)}
-                    </div>
-                  </div>
-
-                  <span className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-                    Без компании
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-            Пока нет карточек без владельца.
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
+              Пока нет карточек без владельца.
+            </div>
+          )}
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -370,7 +417,7 @@ function AdminStatCard({
   note: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-background p-5">
+    <div className="min-w-[220px] flex-1 rounded-2xl border bg-background p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm text-muted-foreground">{label}</div>
@@ -392,11 +439,13 @@ function AdminActionCard({
   desc,
   href,
   badge,
+  active,
 }: {
   title: string;
   desc: string;
   href?: string;
   badge?: string;
+  active?: boolean;
 }) {
   const content = (
     <>
@@ -416,7 +465,10 @@ function AdminActionCard({
     return (
       <Link
         href={href}
-        className="rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20"
+        className={[
+          "rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
+          active ? "border-primary bg-primary/5" : "",
+        ].join(" ")}
       >
         {content}
       </Link>
