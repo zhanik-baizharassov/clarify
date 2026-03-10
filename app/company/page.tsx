@@ -27,13 +27,21 @@ type CompanyTab =
 
 type ReviewFilter = "answered" | "unanswered";
 type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED";
+type ClaimFilter = "all" | ClaimStatus;
 
-function authorLabel(a: {
-  nickname: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  name: string | null;
-}) {
+function authorLabel(
+  a:
+    | {
+        nickname: string | null;
+        firstName: string | null;
+        lastName: string | null;
+        name: string | null;
+      }
+    | null
+    | undefined,
+) {
+  if (!a) return "Пользователь";
+
   const nick = a.nickname ?? "";
   const fullName = [a.firstName, a.lastName].filter(Boolean).join(" ");
   const nm = a.name ?? "";
@@ -60,9 +68,9 @@ function claimStatusLabel(status: ClaimStatus) {
 function claimStatusClass(status: ClaimStatus) {
   switch (status) {
     case "PENDING":
-      return "border-primary/40 bg-primary/10 text-primary";
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
     case "APPROVED":
-      return "border-primary/40 bg-primary/10 text-primary";
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
     case "REJECTED":
       return "border-muted-foreground/30 bg-muted/20 text-muted-foreground";
     default:
@@ -78,6 +86,7 @@ export default async function CompanyPage({
     branch?: string | string[];
     city?: string | string[];
     reviewFilter?: string | string[];
+    claimStatus?: string | string[];
   }>;
 }) {
   let user: Awaited<ReturnType<typeof getSessionUser>> = null;
@@ -110,6 +119,9 @@ export default async function CompanyPage({
   const requestedReviewFilter = getSingleSearchParam(
     resolvedSearchParams.reviewFilter,
   );
+  const requestedClaimStatus = getSingleSearchParam(
+    resolvedSearchParams.claimStatus,
+  );
 
   const activeTab: CompanyTab =
     requestedTab === "info" ||
@@ -126,6 +138,13 @@ export default async function CompanyPage({
     requestedReviewFilter === "unanswered"
       ? requestedReviewFilter
       : null;
+
+  const activeClaimFilter: ClaimFilter =
+    requestedClaimStatus === "PENDING" ||
+    requestedClaimStatus === "APPROVED" ||
+    requestedClaimStatus === "REJECTED"
+      ? requestedClaimStatus
+      : "all";
 
   const [
     categories,
@@ -282,7 +301,12 @@ export default async function CompanyPage({
   const companyClaims =
     activeTab === "claims"
       ? await prisma.claim.findMany({
-          where: { companyId: company.id },
+          where: {
+            companyId: company.id,
+            ...(activeClaimFilter !== "all"
+              ? { status: activeClaimFilter }
+              : {}),
+          },
           orderBy: { createdAt: "desc" },
           take: 50,
           select: {
@@ -306,6 +330,15 @@ export default async function CompanyPage({
   const defaultBranchesHref = activeCity
     ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}`
     : "/company?tab=branches";
+
+  const emptyClaimsText =
+    activeClaimFilter === "all"
+      ? "У вашей компании пока нет claim-заявок."
+      : activeClaimFilter === "PENDING"
+        ? "У вашей компании пока нет заявок со статусом «На проверке»."
+        : activeClaimFilter === "APPROVED"
+          ? "У вашей компании пока нет одобренных заявок."
+          : "У вашей компании пока нет отклонённых заявок.";
 
   return (
     <main className="mx-auto max-w-7xl p-6">
@@ -786,12 +819,90 @@ export default async function CompanyPage({
             />
           </div>
 
+          <div className="mt-6">
+            <div className="text-sm font-medium">Фильтр по статусу</div>
+
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Link
+                href="/company?tab=claims"
+                className={[
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                  "hover:border-primary/40 hover:bg-muted/20",
+                  activeClaimFilter === "all"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "",
+                ].join(" ")}
+                scroll={false}
+              >
+                <span>Все</span>
+                <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {totalClaimsCount}
+                </span>
+              </Link>
+
+              <Link
+                href="/company?tab=claims&claimStatus=PENDING"
+                className={[
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                  "hover:border-primary/40 hover:bg-muted/20",
+                  activeClaimFilter === "PENDING"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "",
+                ].join(" ")}
+                scroll={false}
+              >
+                <span>На проверке</span>
+                <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {pendingClaimsCount}
+                </span>
+              </Link>
+
+              <Link
+                href="/company?tab=claims&claimStatus=APPROVED"
+                className={[
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                  "hover:border-primary/40 hover:bg-muted/20",
+                  activeClaimFilter === "APPROVED"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "",
+                ].join(" ")}
+                scroll={false}
+              >
+                <span>Одобрено</span>
+                <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {approvedClaimsCount}
+                </span>
+              </Link>
+
+              <Link
+                href="/company?tab=claims&claimStatus=REJECTED"
+                className={[
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                  "hover:border-primary/40 hover:bg-muted/20",
+                  activeClaimFilter === "REJECTED"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "",
+                ].join(" ")}
+                scroll={false}
+              >
+                <span>Отклонено</span>
+                <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {rejectedClaimsCount}
+                </span>
+              </Link>
+            </div>
+          </div>
+
           {companyClaims.length > 0 ? (
             <div className="mt-8 grid gap-4">
               {companyClaims.map((claim) => {
                 const isApprovedAndAttached =
                   claim.status === "APPROVED" &&
                   claim.place.companyId === company.id;
+
+                const approvedBranchHref = `/company?tab=branches&city=${encodeURIComponent(
+                  claim.place.city,
+                )}&branch=${claim.place.id}`;
 
                 return (
                   <div
@@ -865,6 +976,26 @@ export default async function CompanyPage({
                             </div>
                           ) : null}
                         </div>
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Link
+                            href={`/place/${claim.place.slug}`}
+                            className="inline-flex items-center rounded-full border px-4 py-2 text-sm transition hover:border-primary/40 hover:bg-muted/20"
+                            scroll={false}
+                          >
+                            Открыть карточку места
+                          </Link>
+
+                          {isApprovedAndAttached ? (
+                            <Link
+                              href={approvedBranchHref}
+                              className="inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm text-primary transition hover:bg-primary/10"
+                              scroll={false}
+                            >
+                              Перейти в филиал
+                            </Link>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -873,7 +1004,7 @@ export default async function CompanyPage({
             </div>
           ) : (
             <div className="mt-8">
-              <EmptyState text="У вашей компании пока нет claim-заявок." />
+              <EmptyState text={emptyClaimsText} />
             </div>
           )}
         </section>
