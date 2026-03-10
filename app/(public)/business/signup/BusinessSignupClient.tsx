@@ -3,13 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
-import { keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
+import KzAddressSuggestInput from "@/components/forms/KzAddressSuggestInput";
+import {
+  KZ_CITIES,
+  keepKzPhoneInput,
+  normalizeKzPhone,
+} from "@/shared/kz/kz";
 
 type CompanySignupPayload = {
   companyName: string;
   bin: string;
+  city: string;
   phone: string;
   email: string;
   address: string;
@@ -27,6 +33,7 @@ export default function BusinessSignupPage() {
 
   const [companyName, setCompanyName] = useState("");
   const [bin, setBin] = useState("");
+  const [city, setCity] = useState<string>(KZ_CITIES[0] ?? "Алматы");
   const [phone, setPhone] = useState("+7");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
@@ -48,6 +55,7 @@ export default function BusinessSignupPage() {
   const [cooldownSec, setCooldownSec] = useState(0);
 
   const otpValue = otp.join("");
+  const formDisabled = step === "verify";
 
   useEffect(() => {
     if (cooldownSec <= 0) return;
@@ -111,6 +119,7 @@ export default function BusinessSignupPage() {
 
     if (cn.length < 2) return setErr("Название компании: минимум 2 символа");
     if (!/^\d{12}$/.test(b)) return setErr("БИН должен состоять из 12 цифр");
+    if (!city) return setErr("Город: выберите город из списка");
     if (!em) return setErr("Введите email");
     if (addr.length < 5) return setErr("Адрес: минимум 5 символов");
 
@@ -135,6 +144,7 @@ export default function BusinessSignupPage() {
     const payload: CompanySignupPayload = {
       companyName: cn,
       bin: b,
+      city,
       phone: phoneNorm,
       email: em,
       address: addr,
@@ -247,8 +257,6 @@ export default function BusinessSignupPage() {
     }
   }
 
-  const formDisabled = step === "verify";
-
   return (
     <AuthShell
       title="Регистрация компании"
@@ -295,6 +303,27 @@ export default function BusinessSignupPage() {
             />
           </Field>
 
+          <Field label="Город">
+            <div className="relative">
+              <select
+                disabled={loading || formDisabled}
+                className="h-11 w-full appearance-none rounded-xl border bg-background px-4 pr-12 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              >
+                {KZ_CITIES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+
+              <span className="pointer-events-none absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground">
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </div>
+          </Field>
+
           <Field label="Телефон" hint="Только KZ: +7XXXXXXXXXX">
             <input
               className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
@@ -319,13 +348,16 @@ export default function BusinessSignupPage() {
           </Field>
 
           <Field label="Адрес" hint="Казахстан">
-            <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              placeholder=""
+            <KzAddressSuggestInput
+              city={city}
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={setAddress}
               disabled={loading || formDisabled}
+              placeholder="Начните вводить адрес и выберите подсказку 2GIS"
             />
+            <span className="text-xs text-muted-foreground">
+              Лучше выбрать адрес из подсказок, чтобы регистрация прошла точнее.
+            </span>
           </Field>
 
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">

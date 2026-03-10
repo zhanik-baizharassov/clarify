@@ -1,16 +1,16 @@
-// app/api/auth/company-signup/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
 import { assertNoProfanity } from "@/server/security/profanity";
-import { normalizeKzPhone } from "@/shared/kz/kz";
+import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import {
   generate6DigitCode,
   hashCode,
   codeTtlMs,
 } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
+import { validateKzAddress } from "@/server/address/validate";
 
 export const runtime = "nodejs";
 
@@ -19,6 +19,7 @@ const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const Schema = z.object({
   companyName: z.string().trim().min(2).max(120),
   bin: z.string().trim().regex(/^\d{12}$/, "БИН должен состоять из 12 цифр"),
+  city: z.string().trim().min(2).max(60),
   phone: z.string().trim().min(5).max(30),
   email: z
     .string()
@@ -43,13 +44,17 @@ export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
 
-    // ✅ profanity-check (email не трогаем)
     assertNoProfanity(input.companyName, "Название компании");
     assertNoProfanity(input.address, "Адрес компании");
 
+    const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон");
 
-    // 1) если email уже есть
+    const { normalizedAddress } = await validateKzAddress({
+      city,
+      address: input.address,
+    });
+
     const existsEmail = await prisma.user.findUnique({
       where: { email: input.email },
       select: { id: true, emailVerifiedAt: true, role: true },
@@ -59,7 +64,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
     }
 
-    // если email есть, но НЕ подтверждён
     if (existsEmail && !existsEmail.emailVerifiedAt) {
       if (existsEmail.role !== "COMPANY") {
         return NextResponse.json(
@@ -99,7 +103,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2) проверки уникальности для нового бизнес-аккаунта
     const existsPhone = await prisma.user.findUnique({ where: { phone } });
     if (existsPhone) {
       return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
@@ -115,7 +118,6 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
-    // ✅ создаём user+company+emailVerification атомарно
     const code = generate6DigitCode();
     const codeHash = hashCode(code);
     const expiresAt = new Date(Date.now() + codeTtlMs());
@@ -136,7 +138,7 @@ export async function POST(req: Request) {
         data: {
           name: input.companyName,
           bin: input.bin,
-          address: input.address,
+          address: normalizedAddress,
           ownerId: user.id,
         },
       });
@@ -148,7 +150,6 @@ export async function POST(req: Request) {
       return user;
     });
 
-    // ✅ письмо отправляем после успешной транзакции
     await sendEmailVerificationCode(created.email, code);
 
     return NextResponse.json({
@@ -158,12 +159,16 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     if (err instanceof Error && err.message) {
-      // ошибки телефона/валидации (normalizeKzPhone)
-      if (err.message.includes("номер") || err.message.includes("Телефон")) {
+      if (
+        err.message.includes("номер") ||
+        err.message.includes("Телефон") ||
+        err.message.includes("Город") ||
+        err.message.includes("Адрес") ||
+        err.message.includes("2GIS")
+      ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
 
-      // ошибки env/SMTP
       if (
         err.message.includes("SMTP_") ||
         err.message.includes("MAIL_") ||
