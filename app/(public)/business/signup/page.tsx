@@ -1,8 +1,6 @@
-// app/business/signup/page.tsx
+//app/(public)/business/signup/page.tsx
 import { Suspense } from "react";
 import BusinessSignupClient from "./BusinessSignupClient";
-
-export const dynamic = "force-dynamic";
 
 function Loading() {
   return (

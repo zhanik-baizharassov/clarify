@@ -1,4 +1,4 @@
-// app/business/signup/BusinessSignupClient.tsx
+//app/(public)/business/signup/BusinessSignupClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
