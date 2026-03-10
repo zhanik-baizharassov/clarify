@@ -353,7 +353,7 @@ export default function BusinessSignupPage() {
               value={address}
               onChange={setAddress}
               disabled={loading || formDisabled}
-              placeholder="Начните вводить адрес и выберите подсказку 2GIS"
+              placeholder="Начните вводить адрес и выберите из подсказки"
             />
             <span className="text-xs text-muted-foreground">
               Лучше выбрать адрес из подсказок, чтобы регистрация прошла точнее.
