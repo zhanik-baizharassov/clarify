@@ -18,14 +18,7 @@ import ClaimReviewActions from "@/features/admin/components/claim-review-actions
 export const runtime = "nodejs";
 
 export default async function AdminPage() {
-  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
-
-  try {
-    user = await getSessionUser();
-  } catch (err) {
-    console.error("AdminPage: getSessionUser failed:", err);
-    user = null;
-  }
+  const user = await getSessionUser();
 
   if (!user) redirect("/login?next=/admin");
   if (user.role !== "ADMIN") redirect("/");

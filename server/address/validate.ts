@@ -1,9 +1,10 @@
-// lib/address.ts
 import { assertKzCity } from "@/shared/kz/kz";
 
 export type AddressCheckResult = {
   lat: number;
   lng: number;
+  normalizedAddress: string;
+  provider: "2gis";
 };
 
 function norm(s: string) {
@@ -14,31 +15,58 @@ function normLower(s: string) {
   return norm(s).toLowerCase();
 }
 
-// Достаём "номер дома" из строки: 34, 34а, 34A, 34/1, 34-1, 34к1 и т.п.
-function extractHouseNumber(address: string): string | null {
-  const a = normLower(address);
-
-  // ищем самый "явный" номер: цифры + опционально буква/суффикс/дробь
-  // примеры: 34, 34а, 34a, 34/1, 34-1, 34к1
-  const m =
-    a.match(/\b(\d{1,5}\s*(?:[a-zа-яё]{1,3})?\s*(?:[\/-]\s*\d{1,3})?)\b/i) ??
-    null;
-
-  if (!m) return null;
-
-  return normalizeHouseNumber(m[1]);
-}
-
-function normalizeHouseNumber(h: string) {
-  return normLower(h)
+function normalizeHouseToken(value: string) {
+  return norm(value)
     .replace(/\s+/g, "")
-    .replace(/ё/g, "е")
-    .replace(/корпус/g, "к")
-    .replace(/строение/g, "с")
+    .replace(/ё/gi, "е")
     .toUpperCase();
 }
 
-// Вытащим ключевые слова улицы (без типа улицы и без цифр)
+// Сначала ищем явное "дом 111" / "д. 111".
+// Если нет — берём ПОСЛЕДНИЙ числовой блок, а не первый.
+// Это важно для адресов вроде "мкр Самал-2, дом 111".
+function extractDesiredHouse(address: string): string | null {
+  const a = norm(address);
+
+  const explicit =
+    a.match(
+      /(?:^|[\s,;])(?:дом|д\.?)\s*([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[\/-][0-9]{1,4})?)/iu,
+    ) ?? null;
+
+  if (explicit?.[1]) {
+    return normalizeHouseToken(explicit[1]);
+  }
+
+  const all = Array.from(
+    a.matchAll(/\b([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[\/-][0-9]{1,4})?)\b/gu),
+  );
+
+  if (!all.length) return null;
+
+  return normalizeHouseToken(all[all.length - 1][1]);
+}
+
+function leadingDigits(value: string) {
+  const m = value.match(/^\d+/);
+  return m?.[0] ?? "";
+}
+
+function houseScore(inputHouse: string, candidateHouse: string) {
+  const a = normalizeHouseToken(inputHouse);
+  const b = normalizeHouseToken(candidateHouse);
+
+  if (a === b) return 5;
+
+  const aDigits = leadingDigits(a);
+  const bDigits = leadingDigits(b);
+
+  if (aDigits && bDigits && aDigits === bDigits) {
+    return 2;
+  }
+
+  return 0;
+}
+
 function streetKeywords(address: string): string[] {
   const a = normLower(address)
     .replace(/\d/g, " ")
@@ -49,19 +77,30 @@ function streetKeywords(address: string): string[] {
     "ул",
     "улица",
     "пр",
-    "проспект",
     "пр-т",
     "просп",
-    "площадь",
+    "проспект",
     "пл",
+    "площадь",
+    "бул",
+    "бульвар",
+    "пер",
+    "переулок",
+    "ш",
+    "шоссе",
+    "наб",
+    "набережная",
     "мкр",
     "микрорайон",
+    "м-н",
     "дом",
     "д",
     "корпус",
     "к",
     "строение",
     "с",
+    "район",
+    "р-н",
   ]);
 
   return a
@@ -72,154 +111,139 @@ function streetKeywords(address: string): string[] {
     .filter((w) => !stop.has(w));
 }
 
-async function geocodeNominatimStrict(params: {
-  query: string;
+async function geocode2gis(params: {
+  city: string;
+  address: string;
   desiredHouse: string;
   kw: string[];
 }): Promise<AddressCheckResult | null> {
-  const base =
-    process.env.NOMINATIM_BASE_URL ??
-    "https://nominatim.openstreetmap.org/search";
+  const key = process.env.TWOGIS_GEOCODER_API_KEY;
+  if (!key) {
+    throw new Error(
+      "Адрес: не настроен ключ 2GIS. Добавьте TWOGIS_GEOCODER_API_KEY в .env.local",
+    );
+  }
 
-  const u = new URL(base);
-  u.searchParams.set("format", "jsonv2");
-  u.searchParams.set("limit", "8");
-  u.searchParams.set("addressdetails", "1");
-  u.searchParams.set("countrycodes", "kz");
-  u.searchParams.set("q", params.query);
-
-  const email = process.env.NOMINATIM_EMAIL;
-  if (email) u.searchParams.set("email", email);
-
-  const userAgent =
-    process.env.APP_USER_AGENT ??
-    "review-kz/1.0 (contact: NOMINATIM_EMAIL not set)";
-  const referer = process.env.APP_ORIGIN ?? "http://localhost:3000";
+  const url = new URL("https://catalog.api.2gis.com/3.0/items/geocode");
+  url.searchParams.set("q", `${params.address}, ${params.city}, Казахстан`);
+  url.searchParams.set("fields", "items.point");
+  url.searchParams.set("page_size", "5");
+  url.searchParams.set("key", key);
 
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 6000);
+  const timeout = setTimeout(() => controller.abort(), 7000);
 
   try {
-    const res = await fetch(u.toString(), {
+    const res = await fetch(url.toString(), {
+      method: "GET",
       cache: "no-store",
       signal: controller.signal,
-      headers: {
-        "accept-language": "ru",
-        "user-agent": userAgent,
-        referer,
-      },
     });
 
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(
+          "Адрес: 2GIS отклонил запрос. Проверьте TWOGIS_GEOCODER_API_KEY.",
+        );
+      }
+
       if (res.status === 429) {
         throw new Error(
-          "Адрес: сервис проверки перегружен (лимит запросов). Подождите 1–2 минуты и попробуйте снова.",
+          "Адрес: 2GIS временно ограничил запросы. Попробуйте ещё раз чуть позже.",
         );
       }
-      if (res.status === 403) {
-        throw new Error(
-          "Адрес: сервис проверки отклонил запрос (403). Добавь APP_USER_AGENT и NOMINATIM_EMAIL в .env.local.",
-        );
-      }
-      throw new Error("Адрес: сервис проверки временно недоступен");
+
+      throw new Error("Адрес: сервис 2GIS временно недоступен.");
     }
 
-    const rows = (await res.json().catch(() => [])) as any[];
-    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const data = (await res.json().catch(() => null)) as
+      | {
+          result?: {
+            items?: Array<{
+              type?: string;
+              name?: string;
+              address_name?: string;
+              full_name?: string;
+              point?: { lat?: number; lon?: number };
+            }>;
+          };
+        }
+      | null;
 
-    // Ищем строгий матч:
-    for (const r of rows) {
-      const lat = Number(r?.lat);
-      const lng = Number(r?.lon);
+    const items = data?.result?.items;
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    let best:
+      | (AddressCheckResult & {
+          score: number;
+        })
+      | null = null;
+
+    for (const item of items) {
+      const lat = Number(item?.point?.lat);
+      const lng = Number(item?.point?.lon);
+
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-      const addr = r?.address ?? {};
-      const houseRaw =
-        addr.house_number ?? addr["house_number"] ?? r?.house_number ?? null;
+      const addressName = norm(String(item?.address_name ?? ""));
+      const fullName = norm(String(item?.full_name ?? ""));
+      const display = addressName || fullName || norm(params.address);
+      const text = normLower(`${addressName} ${fullName} ${item?.name ?? ""}`);
 
-      if (!houseRaw) continue;
-      const gotHouse = normalizeHouseNumber(String(houseRaw));
+      let score = 0;
 
-      // ✅ строгий матч номера дома
-      if (gotHouse !== params.desiredHouse) continue;
+      if (item?.type === "building") score += 4;
 
-      // ✅ примитивная проверка улицы: keyword должен встречаться в road/pedestrian/display_name
-      const roadText = normLower(
-        String(addr.road ?? addr.pedestrian ?? addr.footway ?? r?.display_name ?? ""),
-      );
-
-      if (params.kw.length) {
-        const okStreet = params.kw.some((k) => roadText.includes(k));
-        if (!okStreet) continue;
+      const candidateHouse = extractDesiredHouse(display);
+      if (candidateHouse) {
+        score += houseScore(params.desiredHouse, candidateHouse);
       }
 
-      return { lat, lng };
+      if (params.kw.length > 0 && params.kw.some((k) => text.includes(k))) {
+        score += 2;
+      }
+
+      if (text.includes(normLower(params.city))) {
+        score += 1;
+      }
+
+      const candidate: AddressCheckResult & { score: number } = {
+        lat,
+        lng,
+        normalizedAddress: display,
+        provider: "2gis",
+        score,
+      };
+
+      if (!best || candidate.score > best.score) {
+        best = candidate;
+      }
+    }
+
+    if (!best) return null;
+
+    // Принимаем только если:
+    // - либо найдено хорошее building-совпадение,
+    // - либо в целом адрес совпал достаточно уверенно.
+    if (best.score >= 6) {
+      return {
+        lat: best.lat,
+        lng: best.lng,
+        normalizedAddress: best.normalizedAddress,
+        provider: "2gis",
+      };
     }
 
     return null;
   } catch (e: any) {
     if (String(e?.name) === "AbortError") {
-      throw new Error("Адрес: проверка заняла слишком много времени, попробуйте ещё раз");
+      throw new Error(
+        "Адрес: 2GIS слишком долго отвечает, попробуйте ещё раз.",
+      );
     }
     throw e;
   } finally {
-    clearTimeout(t);
-  }
-}
-
-async function geocodePhotonStrict(params: {
-  query: string;
-  desiredHouse: string;
-  kw: string[];
-}): Promise<AddressCheckResult | null> {
-  const u = new URL("https://photon.komoot.io/api/");
-  u.searchParams.set("q", params.query);
-  u.searchParams.set("limit", "8");
-  u.searchParams.set("lang", "ru");
-
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 6000);
-
-  try {
-    const res = await fetch(u.toString(), { cache: "no-store", signal: controller.signal });
-    if (!res.ok) return null;
-
-    const data = (await res.json().catch(() => null)) as any;
-    const feats = data?.features;
-    if (!Array.isArray(feats) || feats.length === 0) return null;
-
-    for (const f of feats) {
-      const props = f?.properties ?? {};
-      const cc = String(props?.countrycode ?? "").toUpperCase();
-      if (cc !== "KZ") continue;
-
-      const hn = props?.housenumber ? normalizeHouseNumber(String(props.housenumber)) : null;
-      if (!hn) continue;
-
-      // ✅ строгий матч номера дома
-      if (hn !== params.desiredHouse) continue;
-
-      const name = normLower(String(props?.name ?? props?.street ?? ""));
-      if (params.kw.length) {
-        const okStreet = params.kw.some((k) => name.includes(k));
-        if (!okStreet) continue;
-      }
-
-      const coords = f?.geometry?.coordinates; // [lng, lat]
-      if (!coords || coords.length < 2) continue;
-
-      const lng = Number(coords[0]);
-      const lat = Number(coords[1]);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-      return { lat, lng };
-    }
-
-    return null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
+    clearTimeout(timeout);
   }
 }
 
@@ -232,35 +256,31 @@ export async function validateKzAddress(params: {
 
   assertKzCity(city, "Город");
 
-  if (address.length < 5) throw new Error("Адрес: минимум 5 символов");
-
-  const rawHouse = extractHouseNumber(address);
-  if (!rawHouse) {
-    throw new Error("Адрес: укажите номер дома (например «Сейфуллина 34»)");
+  if (address.length < 5) {
+    throw new Error("Адрес: минимум 5 символов");
   }
-  const desiredHouse = normalizeHouseNumber(rawHouse);
+
+  const desiredHouse = extractDesiredHouse(address);
+  if (!desiredHouse) {
+    throw new Error(
+      "Адрес: укажите номер дома (например «Сейфуллина 34» или «Абиша Кекилбайулы 151»).",
+    );
+  }
 
   const kw = streetKeywords(address);
 
-  const query = `${address}, ${city}, Казахстан`;
-
-  // 1) строгий Nominatim
-  const nom = await geocodeNominatimStrict({ query, desiredHouse, kw }).catch((e) => {
-    return { __err: e as Error } as any;
+  const result = await geocode2gis({
+    city,
+    address,
+    desiredHouse,
+    kw,
   });
-  if (nom && !("__err" in nom)) return nom as AddressCheckResult;
 
-  // 2) строгий fallback Photon
-  const ph = await geocodePhotonStrict({ query, desiredHouse, kw });
-  if (ph) return ph;
-
-  if (nom && "__err" in nom && nom.__err?.message) {
-    // если Nominatim дал понятную ошибку (403/429), покажем её
-    throw nom.__err;
+  if (!result) {
+    throw new Error(
+      "Адрес: 2GIS не смог уверенно подтвердить этот адрес. Проверьте улицу и номер дома.",
+    );
   }
 
-  // иначе — не найдено строго по номеру дома
-  throw new Error(
-    "Адрес: не найден с таким номером дома. Проверь улицу и номер (например «Сейфуллина 34»).",
-  );
+  return result;
 }

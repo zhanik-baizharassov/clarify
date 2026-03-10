@@ -90,20 +90,30 @@ export async function POST(req: Request) {
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();
-    if (!user) return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
-    if (user.role !== "COMPANY") return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
+    }
+    if (user.role !== "COMPANY") {
+      return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+    }
 
     const company = await prisma.company.findUnique({
       where: { ownerId: user.id },
       select: { id: true, name: true, bin: true },
     });
-    if (!company) return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+
+    if (!company) {
+      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+    }
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
       select: { id: true },
     });
-    if (!category) return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+
+    if (!category) {
+      return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+    }
 
     assertNoProfanity(company.name, "Название компании");
     assertNoProfanity(input.address, "Адрес филиала");
@@ -112,7 +122,10 @@ export async function POST(req: Request) {
     const phone = normalizeKzPhone(input.phone, "Телефон филиала");
     const workHours = buildWorkHours(input);
 
-    const { lat, lng } = await validateKzAddress({ city, address: input.address });
+    const { lat, lng, normalizedAddress } = await validateKzAddress({
+      city,
+      address: input.address,
+    });
 
     const slug = `${slugifyAscii(company.name)}-${
       company.bin ?? company.id.slice(0, 6)
@@ -124,7 +137,7 @@ export async function POST(req: Request) {
         slug,
         categoryId: input.categoryId,
         city,
-        address: input.address,
+        address: normalizedAddress,
         phone,
         workHours,
         companyId: company.id,
@@ -138,7 +151,10 @@ export async function POST(req: Request) {
   } catch (err: any) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
-        return NextResponse.json({ error: "Филиал уже создан (повторите запрос позже)" }, { status: 409 });
+        return NextResponse.json(
+          { error: "Филиал уже создан (повторите запрос позже)" },
+          { status: 409 },
+        );
       }
     }
 
@@ -155,7 +171,8 @@ export async function POST(req: Request) {
         err.message.includes("Адрес") ||
         err.message.includes("Будние дни") ||
         err.message.includes("Выходные дни") ||
-        err.message.includes("недопустимые слова")
+        err.message.includes("недопустимые слова") ||
+        err.message.includes("2GIS")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
