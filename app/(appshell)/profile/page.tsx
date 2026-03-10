@@ -5,7 +5,6 @@ import { getSessionUser } from "@/server/auth/session";
 import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 type TabKey = "main" | "security" | "reviews" | "notifications";
 

@@ -1,11 +1,27 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ClaimPlaceButton from "@/features/places/components/claim-place-button";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+
+type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+function getAuthorLabel(author: {
+  nickname?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  name?: string | null;
+}) {
+  const nick = author?.nickname ?? "";
+  const fullName = [author?.firstName, author?.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const name = author?.name ?? "";
+
+  return nick || fullName || name || "Пользователь";
+}
 
 export default async function PlacePage({
   params,
@@ -67,7 +83,7 @@ export default async function PlacePage({
     | null = null;
 
   let isOwnerBranch = false;
-  let myClaimStatus: "PENDING" | "APPROVED" | "REJECTED" | null = null;
+  let myClaimStatus: ClaimStatus | null = null;
 
   if (sessionUser?.role === "COMPANY") {
     try {
@@ -120,6 +136,8 @@ export default async function PlacePage({
   }
 
   const nextUrl = `/place/${place.slug}/review`;
+  const isCatalogCard = !place.companyId;
+  const isManagedCard = Boolean(place.companyId);
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -156,7 +174,7 @@ export default async function PlacePage({
         </div>
 
         <div className="mt-4 rounded-xl border bg-muted/20 p-4 text-sm">
-          {place.companyId ? (
+          {isManagedCard ? (
             <>
               <div className="font-medium">Карточка управляется компанией</div>
               <div className="mt-1 text-muted-foreground">
@@ -185,7 +203,7 @@ export default async function PlacePage({
               </div>
             ) : (
               <Link
-                href={`/place/${place.slug}/review`}
+                href={nextUrl}
                 className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90"
               >
                 Оставить отзыв
@@ -207,7 +225,7 @@ export default async function PlacePage({
                 </Link>
               </div>
             </div>
-          ) : sessionUser?.role === "COMPANY" && !place.companyId ? (
+          ) : sessionUser?.role === "COMPANY" && isCatalogCard ? (
             <div className="grid gap-3">
               <div className="rounded-lg border bg-muted/30 p-4 text-sm">
                 <div className="font-medium">Вы можете заявить права на карточку</div>
@@ -218,11 +236,27 @@ export default async function PlacePage({
                 </div>
               </div>
 
+              {myClaimStatus === "PENDING" ? (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+                  <div className="font-medium">Заявка уже отправлена</div>
+                  <div className="mt-1 text-muted-foreground">
+                    Ваша заявка сейчас находится на проверке администратора.
+                  </div>
+                </div>
+              ) : null}
+
+              {myClaimStatus === "REJECTED" ? (
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                  <div className="font-medium">Прошлая заявка была отклонена</div>
+                  <div className="mt-1 text-muted-foreground">
+                    Вы можете отправить новую заявку, если данные были уточнены
+                    или если это действительно карточка вашего бизнеса.
+                  </div>
+                </div>
+              ) : null}
+
               {myCompany ? (
-                <ClaimPlaceButton
-                  placeId={place.id}
-                  status={myClaimStatus}
-                />
+                <ClaimPlaceButton placeId={place.id} status={myClaimStatus} />
               ) : (
                 <div className="rounded-lg border bg-muted/30 p-4 text-sm">
                   <div className="font-medium">
@@ -265,46 +299,40 @@ export default async function PlacePage({
       <h2 className="mt-8 text-lg font-semibold">Отзывы</h2>
 
       <div className="mt-3 grid gap-3">
-        {place.reviews.map((r) => {
-          const nick = r.author?.nickname ?? "";
-          const fullName = [r.author?.firstName, r.author?.lastName]
-            .filter(Boolean)
-            .join(" ");
-          const name = r.author?.name ?? "";
-
-          const authorLabel = nick || fullName || name || "Пользователь";
+        {place.reviews.map((review) => {
+          const label = getAuthorLabel(review.author ?? {});
 
           return (
-            <div key={r.id} className="rounded-xl border p-4">
+            <div key={review.id} className="rounded-xl border p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{authorLabel}</div>
-                <div className="text-sm font-semibold">{r.rating}/5</div>
+                <div className="text-sm font-medium">{label}</div>
+                <div className="text-sm font-semibold">{review.rating}/5</div>
               </div>
 
-              <p className="mt-2 whitespace-pre-wrap text-sm">{r.text}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm">{review.text}</p>
 
-              {r.tags.length > 0 ? (
+              {review.tags.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {r.tags.map((t) => (
+                  {review.tags.map((tag) => (
                     <span
-                      key={t.tagId}
+                      key={tag.tagId}
                       className="rounded-full border px-2 py-1 text-xs"
                     >
-                      {t.tag.name}
+                      {tag.tag.name}
                     </span>
                   ))}
                 </div>
               ) : null}
 
-              {r.replies.length > 0 ? (
+              {review.replies.length > 0 ? (
                 <div className="mt-4 rounded-lg bg-muted/40 p-3 text-sm">
                   <div className="font-medium">Ответ компании:</div>
-                  {r.replies.map((rep) => (
-                    <div key={rep.id} className="mt-2">
+                  {review.replies.map((reply) => (
+                    <div key={reply.id} className="mt-2">
                       <div className="text-xs text-muted-foreground">
-                        {rep.company.name}
+                        {reply.company.name}
                       </div>
-                      <div className="whitespace-pre-wrap">{rep.text}</div>
+                      <div className="whitespace-pre-wrap">{reply.text}</div>
                     </div>
                   ))}
                 </div>
@@ -313,11 +341,11 @@ export default async function PlacePage({
           );
         })}
 
-        {place.reviews.length === 0 && (
+        {place.reviews.length === 0 ? (
           <div className="rounded-xl border p-6 text-sm text-muted-foreground">
             Пока нет отзывов. Будь первым 🙂
           </div>
-        )}
+        ) : null}
       </div>
     </main>
   );

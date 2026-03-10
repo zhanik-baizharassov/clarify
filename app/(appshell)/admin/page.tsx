@@ -16,7 +16,6 @@ import CreateCatalogPlaceForm from "@/features/admin/components/create-catalog-p
 import ClaimReviewActions from "@/features/admin/components/claim-review-actions";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   let user: Awaited<ReturnType<typeof getSessionUser>> = null;

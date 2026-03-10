@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MessageSquareText, PencilLine, ShieldCheck, Star } from "lucide-react";
+import { PencilLine, ShieldCheck, Star } from "lucide-react";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ReviewForm from "@/features/reviews/components/review-form";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 export default async function AddReviewPage({
   params,
