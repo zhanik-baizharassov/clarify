@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import KzAddressSuggestInput from "@/components/forms/KzAddressSuggestInput";
 import { KZ_CITIES, keepKzPhoneInput } from "@/shared/kz/kz";
 
 type Category = { id: string; name: string };
@@ -81,7 +82,8 @@ export default function CreateCatalogPlaceForm({
   return (
     <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-2xl border p-5">
       <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-        Эта форма создаёт <span className="font-medium text-foreground">каталожную карточку</span>{" "}
+        Эта форма создаёт{" "}
+        <span className="font-medium text-foreground">каталожную карточку</span>{" "}
         без привязки к компании. Позже такую карточку можно будет передать
         бизнесу через claim-flow.
       </div>
@@ -133,19 +135,23 @@ export default function CreateCatalogPlaceForm({
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Адрес</span>
-        <input
-          disabled={loading}
-          className="h-11 rounded-xl border px-3 disabled:opacity-60"
-          placeholder="Например: Достык 52, Алматы"
+        <KzAddressSuggestInput
+          city={city}
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          autoComplete="street-address"
+          onChange={setAddress}
+          disabled={loading}
+          placeholder="Начните вводить адрес и выберите подсказку 2GIS"
         />
+        <span className="text-xs text-muted-foreground">
+          Лучше выбирать адрес из подсказок, чтобы карточка точнее прошла проверку.
+        </span>
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1">
-          <span className="text-xs text-muted-foreground">Телефон (необязательно)</span>
+          <span className="text-xs text-muted-foreground">
+            Телефон (необязательно)
+          </span>
           <input
             disabled={loading}
             className="h-11 rounded-xl border px-3 disabled:opacity-60"
@@ -161,7 +167,9 @@ export default function CreateCatalogPlaceForm({
         </label>
 
         <label className="grid gap-1">
-          <span className="text-xs text-muted-foreground">Сайт (необязательно)</span>
+          <span className="text-xs text-muted-foreground">
+            Сайт (необязательно)
+          </span>
           <input
             disabled={loading}
             className="h-11 rounded-xl border px-3 disabled:opacity-60"
@@ -173,7 +181,9 @@ export default function CreateCatalogPlaceForm({
       </div>
 
       <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">График работы (необязательно)</span>
+        <span className="text-xs text-muted-foreground">
+          График работы (необязательно)
+        </span>
         <input
           disabled={loading}
           className="h-11 rounded-xl border px-3 disabled:opacity-60"
@@ -184,7 +194,9 @@ export default function CreateCatalogPlaceForm({
       </label>
 
       <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Описание (необязательно)</span>
+        <span className="text-xs text-muted-foreground">
+          Описание (необязательно)
+        </span>
         <textarea
           disabled={loading}
           className="min-h-[110px] rounded-xl border px-3 py-3 disabled:opacity-60"

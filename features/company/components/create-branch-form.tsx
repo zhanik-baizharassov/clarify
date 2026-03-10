@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import KzAddressSuggestInput from "@/components/forms/KzAddressSuggestInput";
 import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
 type Category = { id: string; name: string };
@@ -23,7 +24,11 @@ function buildTimeOptions(stepMin = 30): TimeOption[] {
   return out;
 }
 
-export default function CreateBranchForm({ categories }: { categories: Category[] }) {
+export default function CreateBranchForm({
+  categories,
+}: {
+  categories: Category[];
+}) {
   const router = useRouter();
 
   const timeOptions = useMemo(() => buildTimeOptions(30), []);
@@ -62,7 +67,9 @@ export default function CreateBranchForm({ categories }: { categories: Category[
     e.preventDefault();
     setErr(null);
 
-    if (!categories.length) return setErr("Категории не загружены. Обновите страницу.");
+    if (!categories.length) {
+      return setErr("Категории не загружены. Обновите страницу.");
+    }
     if (!categoryId) return setErr("Категория: выберите категорию");
     if (!city) return setErr("Город: выберите город из списка Казахстана");
 
@@ -83,7 +90,10 @@ export default function CreateBranchForm({ categories }: { categories: Category[
       return setErr("Будние дни: значение «С» должно быть раньше, чем «До»");
     }
 
-    if (!weekendClosed && toMinutes(weekendOpenTime) >= toMinutes(weekendCloseTime)) {
+    if (
+      !weekendClosed &&
+      toMinutes(weekendOpenTime) >= toMinutes(weekendCloseTime)
+    ) {
       return setErr("Выходные дни: значение «С» должно быть раньше, чем «До»");
     }
 
@@ -125,7 +135,9 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
   return (
     <form onSubmit={onSubmit} className="mt-4 grid gap-3 rounded-xl border p-5">
-      <div className="text-sm font-medium">Создать филиал (карточку для отзывов)</div>
+      <div className="text-sm font-medium">
+        Создать филиал (карточку для отзывов)
+      </div>
 
       {!categories.length ? (
         <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -167,18 +179,22 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Адрес</span>
-        <input
-          disabled={loading}
-          className="h-11 rounded-xl border px-3 disabled:opacity-60"
-          placeholder=""
+        <KzAddressSuggestInput
+          city={city}
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          autoComplete="street-address"
+          onChange={setAddress}
+          disabled={loading}
+          placeholder="Начните вводить адрес и выберите подсказку 2GIS"
         />
+        <span className="text-xs text-muted-foreground">
+          Для лучшего результата введите улицу и номер дома.
+        </span>
       </label>
 
       <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Телефон (+7XXXXXXXXXX)</span>
+        <span className="text-xs text-muted-foreground">
+          Телефон (+7XXXXXXXXXX)
+        </span>
         <input
           disabled={loading}
           className="h-11 rounded-xl border px-3 disabled:opacity-60"
@@ -247,7 +263,9 @@ export default function CreateBranchForm({ categories }: { categories: Category[
                 loading ? "opacity-60" : "",
               ].join(" ")}
             >
-              {weekendClosed ? "По выходным не работаем" : "Указать время выходных"}
+              {weekendClosed
+                ? "По выходным не работаем"
+                : "Указать время выходных"}
             </button>
           </div>
 
@@ -287,13 +305,17 @@ export default function CreateBranchForm({ categories }: { categories: Category[
 
           {weekendClosed ? (
             <div className="text-xs text-muted-foreground">
-              Для выходных установлен режим: <span className="font-medium text-foreground">выходной</span>
+              Для выходных установлен режим:{" "}
+              <span className="font-medium text-foreground">выходной</span>
             </div>
           ) : null}
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Итог: <span className="font-medium text-foreground">{workHoursSummary}</span>
+          Итог:{" "}
+          <span className="font-medium text-foreground">
+            {workHoursSummary}
+          </span>
         </div>
       </div>
 

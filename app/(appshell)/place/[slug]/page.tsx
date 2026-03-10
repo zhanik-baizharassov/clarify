@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ClaimPlaceButton from "@/features/places/components/claim-place-button";
+import PlaceMiniMap from "@/features/places/components/place-mini-map";
 
 export const runtime = "nodejs";
 
@@ -295,6 +296,14 @@ export default async function PlacePage({
           )}
         </div>
       </div>
+
+      {typeof place.lat === "number" && typeof place.lng === "number" ? (
+        <PlaceMiniMap
+          lat={place.lat}
+          lng={place.lng}
+          title={place.name}
+        />
+      ) : null}
 
       <h2 className="mt-8 text-lg font-semibold">Отзывы</h2>
 
