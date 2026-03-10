@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
+import ClaimPlaceButton from "@/features/places/components/claim-place-button";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,19 +59,44 @@ export default async function PlacePage({
     sessionUser = null;
   }
 
-  let isOwnerBranch = false;
+  let myCompany:
+    | {
+        id: string;
+        name: string;
+      }
+    | null = null;
 
-  if (sessionUser?.role === "COMPANY" && place.companyId) {
+  let isOwnerBranch = false;
+  let myClaimStatus: "PENDING" | "APPROVED" | "REJECTED" | null = null;
+
+  if (sessionUser?.role === "COMPANY") {
     try {
-      const myCompany = await prisma.company.findUnique({
+      myCompany = await prisma.company.findUnique({
         where: { ownerId: sessionUser.id },
-        select: { id: true },
+        select: { id: true, name: true },
       });
 
-      isOwnerBranch = Boolean(myCompany?.id && place.companyId === myCompany.id);
+      isOwnerBranch = Boolean(
+        myCompany?.id && place.companyId && place.companyId === myCompany.id,
+      );
+
+      if (myCompany?.id && !place.companyId) {
+        const existingClaim = await prisma.claim.findFirst({
+          where: {
+            placeId: place.id,
+            companyId: myCompany.id,
+          },
+          orderBy: { createdAt: "desc" },
+          select: { status: true },
+        });
+
+        myClaimStatus = existingClaim?.status ?? null;
+      }
     } catch (err) {
-      console.error("PlacePage: company lookup failed:", err);
+      console.error("PlacePage: company/claim lookup failed:", err);
+      myCompany = null;
       isOwnerBranch = false;
+      myClaimStatus = null;
     }
   }
 
@@ -97,7 +123,10 @@ export default async function PlacePage({
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <Link href="/explore" className="text-sm text-muted-foreground hover:underline">
+      <Link
+        href="/explore"
+        className="text-sm text-muted-foreground hover:underline"
+      >
         ← Назад к поиску
       </Link>
 
@@ -124,6 +153,28 @@ export default async function PlacePage({
               {place.ratingCount} отзывов
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border bg-muted/20 p-4 text-sm">
+          {place.companyId ? (
+            <>
+              <div className="font-medium">Карточка управляется компанией</div>
+              <div className="mt-1 text-muted-foreground">
+                У этой карточки уже есть привязанная компания, которая может
+                отвечать на отзывы через кабинет.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="font-medium">
+                Компания пока не подтвердила управление карточкой
+              </div>
+              <div className="mt-1 text-muted-foreground">
+                Карточка существует в каталоге, но официальный представитель
+                бизнеса ещё не заявил права на неё.
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mt-4">
@@ -155,6 +206,42 @@ export default async function PlacePage({
                   Перейти в кабинет компании
                 </Link>
               </div>
+            </div>
+          ) : sessionUser?.role === "COMPANY" && !place.companyId ? (
+            <div className="grid gap-3">
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                <div className="font-medium">Вы можете заявить права на карточку</div>
+                <div className="mt-1 text-muted-foreground">
+                  Если это ваш бизнес, отправьте заявку на привязку карточки к
+                  вашей компании. После проверки управление можно будет получить
+                  через кабинет компании.
+                </div>
+              </div>
+
+              {myCompany ? (
+                <ClaimPlaceButton
+                  placeId={place.id}
+                  status={myClaimStatus}
+                />
+              ) : (
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                  <div className="font-medium">
+                    Сначала завершите регистрацию компании
+                  </div>
+                  <div className="mt-1 text-muted-foreground">
+                    Для подачи заявки на управление карточкой нужен созданный
+                    company account.
+                  </div>
+                  <div className="mt-3">
+                    <Link
+                      href="/business/signup"
+                      className="inline-flex h-10 items-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
+                    >
+                      Регистрация компании
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           ) : sessionUser?.role === "COMPANY" ? (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">

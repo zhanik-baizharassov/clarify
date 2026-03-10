@@ -13,6 +13,7 @@ import {
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import CreateCatalogPlaceForm from "@/features/admin/components/create-catalog-place-form";
+import ClaimReviewActions from "@/features/admin/components/claim-review-actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function AdminPage() {
     unclaimedPlacesCount,
     categories,
     recentUnclaimedPlaces,
+    pendingClaims,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.company.count(),
@@ -64,6 +66,36 @@ export default async function AdminPage() {
         category: { select: { name: true } },
       },
     }),
+    prisma.claim.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        createdAt: true,
+        place: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            city: true,
+            address: true,
+          },
+        },
+        company: {
+          select: {
+            id: true,
+            name: true,
+            bin: true,
+            owner: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    }),
   ]);
 
   const dtf = new Intl.DateTimeFormat("ru-RU", {
@@ -84,15 +116,13 @@ export default async function AdminPage() {
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">
             Здесь начинается управление платформой: пользователи, компании,
-            карточки мест, отзывы и будущие claim-заявки.
+            карточки мест, отзывы и claim-заявки.
           </p>
         </div>
 
         <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
           Администратор:{" "}
-          <span className="font-medium text-foreground">
-            {user.email}
-          </span>
+          <span className="font-medium text-foreground">{user.email}</span>
         </div>
       </div>
 
@@ -148,8 +178,8 @@ export default async function AdminPage() {
         />
         <AdminActionCard
           title="Claim-заявки"
-          desc="Дальше сюда добавим принятие и отклонение заявок на управление карточками."
-          badge="Скоро"
+          desc="Проверяйте заявки компаний и вручную привязывайте карточки к владельцам."
+          href="#claims"
         />
         <AdminActionCard
           title="Модерация отзывов"
@@ -183,12 +213,98 @@ export default async function AdminPage() {
       </section>
 
       <section
+        id="claims"
+        className="mt-8 rounded-3xl border bg-background p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Claim-заявки</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Здесь администратор принимает решение, какой компании передать
+              управление карточкой места.
+            </p>
+          </div>
+
+          <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+            Ожидают проверки:{" "}
+            <span className="font-medium text-foreground">
+              {pendingClaimsCount}
+            </span>
+          </div>
+        </div>
+
+        {pendingClaims.length ? (
+          <div className="mt-6 grid gap-4">
+            {pendingClaims.map((claim) => (
+              <div
+                key={claim.id}
+                className="rounded-2xl border bg-muted/10 p-5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted-foreground">
+                      Заявка от {dtf.format(claim.createdAt)}
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="text-sm text-muted-foreground">
+                        Карточка места
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/place/${claim.place.slug}`}
+                          className="text-lg font-semibold hover:underline"
+                        >
+                          {claim.place.name}
+                        </Link>
+                        <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                          {claim.place.city}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {claim.place.address ?? "Адрес не указан"}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Компания-заявитель
+                      </div>
+                      <div className="mt-1 text-base font-medium">
+                        {claim.company.name}
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {claim.company.bin ? `БИН: ${claim.company.bin}` : "БИН не указан"}
+                        {claim.company.owner.email
+                          ? ` • ${claim.company.owner.email}`
+                          : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full max-w-[320px]">
+                    <ClaimReviewActions claimId={claim.id} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
+            Сейчас нет заявок, ожидающих проверки.
+          </div>
+        )}
+      </section>
+
+      <section
         id="unclaimed-places"
         className="mt-8 rounded-3xl border bg-background p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold">Последние карточки без владельца</h2>
+            <h2 className="text-xl font-semibold">
+              Последние карточки без владельца
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Это места, у которых пока нет привязанной компании и официального кабинета.
             </p>
