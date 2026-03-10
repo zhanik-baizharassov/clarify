@@ -5,6 +5,7 @@ import {
   BarChart3,
   Building2,
   ChevronRight,
+  FileCheck2,
   Plus,
   Store,
 } from "lucide-react";
@@ -21,9 +22,11 @@ type CompanyTab =
   | "info"
   | "create-branch"
   | "branches"
+  | "claims"
   | "analytics";
 
 type ReviewFilter = "answered" | "unanswered";
+type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 function authorLabel(a: {
   nickname: string | null;
@@ -39,6 +42,32 @@ function authorLabel(a: {
 
 function getSingleSearchParam(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function claimStatusLabel(status: ClaimStatus) {
+  switch (status) {
+    case "PENDING":
+      return "На проверке";
+    case "APPROVED":
+      return "Одобрена";
+    case "REJECTED":
+      return "Отклонена";
+    default:
+      return status;
+  }
+}
+
+function claimStatusClass(status: ClaimStatus) {
+  switch (status) {
+    case "PENDING":
+      return "border-primary/40 bg-primary/10 text-primary";
+    case "APPROVED":
+      return "border-primary/40 bg-primary/10 text-primary";
+    case "REJECTED":
+      return "border-muted-foreground/30 bg-muted/20 text-muted-foreground";
+    default:
+      return "border-muted-foreground/30 bg-muted/20 text-muted-foreground";
+  }
 }
 
 export default async function CompanyPage({
@@ -86,6 +115,7 @@ export default async function CompanyPage({
     requestedTab === "info" ||
     requestedTab === "create-branch" ||
     requestedTab === "branches" ||
+    requestedTab === "claims" ||
     requestedTab === "analytics" ||
     requestedTab === "dashboard"
       ? requestedTab
@@ -97,7 +127,14 @@ export default async function CompanyPage({
       ? requestedReviewFilter
       : null;
 
-  const [categories, branches, reviewCount] = await Promise.all([
+  const [
+    categories,
+    branches,
+    reviewCount,
+    pendingClaimsCount,
+    approvedClaimsCount,
+    rejectedClaimsCount,
+  ] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -125,7 +162,31 @@ export default async function CompanyPage({
         place: { companyId: company.id },
       },
     }),
+
+    prisma.claim.count({
+      where: {
+        companyId: company.id,
+        status: "PENDING",
+      },
+    }),
+
+    prisma.claim.count({
+      where: {
+        companyId: company.id,
+        status: "APPROVED",
+      },
+    }),
+
+    prisma.claim.count({
+      where: {
+        companyId: company.id,
+        status: "REJECTED",
+      },
+    }),
   ]);
+
+  const totalClaimsCount =
+    pendingClaimsCount + approvedClaimsCount + rejectedClaimsCount;
 
   const cityCounts = new Map<string, number>();
   for (const branch of branches) {
@@ -218,6 +279,30 @@ export default async function CompanyPage({
         })
       : [];
 
+  const companyClaims =
+    activeTab === "claims"
+      ? await prisma.claim.findMany({
+          where: { companyId: company.id },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            place: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                city: true,
+                address: true,
+                companyId: true,
+              },
+            },
+          },
+        })
+      : [];
+
   const defaultBranchesHref = activeCity
     ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}`
     : "/company?tab=branches";
@@ -237,10 +322,11 @@ export default async function CompanyPage({
         <div className="flex flex-wrap gap-2">
           <TopStat label="Филиалов" value={String(branches.length)} />
           <TopStat label="Отзывы" value={String(reviewCount)} />
+          <TopStat label="Заявок" value={String(totalClaimsCount)} />
         </div>
       </div>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <DashboardCard
           href="/company?tab=info"
           title="Информация о компании"
@@ -269,6 +355,15 @@ export default async function CompanyPage({
         />
 
         <DashboardCard
+          href="/company?tab=claims"
+          title="Мои заявки"
+          description="Проверяйте статусы заявок на привязку карточек к вашей компании."
+          icon={<FileCheck2 className="h-5 w-5" />}
+          badge={`${pendingClaimsCount}`}
+          active={activeTab === "claims"}
+        />
+
+        <DashboardCard
           href="/company?tab=analytics"
           title="Бизнес-аналитика"
           description="Будущие платные инструменты: аналитика отзывов, тренды, отчёты и инсайты."
@@ -289,7 +384,7 @@ export default async function CompanyPage({
             </p>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
             <MiniInfoCard
               label="Компания"
               value={company.name}
@@ -304,6 +399,11 @@ export default async function CompanyPage({
               label="Отзывы"
               value={String(reviewCount)}
               subvalue="Опубликованные отзывы по филиалам"
+            />
+            <MiniInfoCard
+              label="Заявки"
+              value={String(totalClaimsCount)}
+              subvalue="Claim-заявки вашей компании"
             />
           </div>
         </section>
@@ -646,6 +746,135 @@ export default async function CompanyPage({
             </>
           ) : (
             <EmptyState text="У вас пока нет филиалов. Сначала создайте первый филиал через соответствующую карточку сверху." />
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === "claims" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Мои заявки</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь отображаются заявки на привязку каталожных карточек к вашей компании.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего заявок:{" "}
+              <span className="font-medium text-foreground">
+                {totalClaimsCount}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <MiniInfoCard
+              label="На проверке"
+              value={String(pendingClaimsCount)}
+              subvalue="Ожидают решения администратора"
+            />
+            <MiniInfoCard
+              label="Одобрено"
+              value={String(approvedClaimsCount)}
+              subvalue="Карточки переданы вашей компании"
+            />
+            <MiniInfoCard
+              label="Отклонено"
+              value={String(rejectedClaimsCount)}
+              subvalue="Заявки без подтверждения"
+            />
+          </div>
+
+          {companyClaims.length > 0 ? (
+            <div className="mt-8 grid gap-4">
+              {companyClaims.map((claim) => {
+                const isApprovedAndAttached =
+                  claim.status === "APPROVED" &&
+                  claim.place.companyId === company.id;
+
+                return (
+                  <div
+                    key={claim.id}
+                    className="rounded-2xl border bg-background p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/place/${claim.place.slug}`}
+                            className="text-lg font-semibold hover:underline"
+                            scroll={false}
+                          >
+                            {claim.place.name}
+                          </Link>
+
+                          <span
+                            className={[
+                              "rounded-full border px-3 py-1 text-xs",
+                              claimStatusClass(claim.status),
+                            ].join(" ")}
+                          >
+                            {claimStatusLabel(claim.status)}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {claim.place.city}
+                          {claim.place.address ? ` • ${claim.place.address}` : ""}
+                        </div>
+
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          Заявка отправлена: {dtf.format(claim.createdAt)}
+                        </div>
+
+                        <div className="mt-4 rounded-xl border bg-muted/20 p-4 text-sm">
+                          {claim.status === "PENDING" ? (
+                            <div className="text-muted-foreground">
+                              Заявка находится на проверке. После решения администратора
+                              карточка либо перейдёт вашей компании, либо заявка будет отклонена.
+                            </div>
+                          ) : null}
+
+                          {claim.status === "APPROVED" ? (
+                            <div className="text-muted-foreground">
+                              Заявка одобрена.
+                              {isApprovedAndAttached ? (
+                                <>
+                                  {" "}
+                                  Карточка уже должна отображаться в разделе{" "}
+                                  <Link
+                                    href="/company?tab=branches"
+                                    className="font-medium text-primary underline underline-offset-4"
+                                    scroll={false}
+                                  >
+                                    «Мои филиалы»
+                                  </Link>
+                                  .
+                                </>
+                              ) : (
+                                " Карточка была подтверждена, но ещё не отображается как филиал."
+                              )}
+                            </div>
+                          ) : null}
+
+                          {claim.status === "REJECTED" ? (
+                            <div className="text-muted-foreground">
+                              Заявка была отклонена. Если это действительно ваш бизнес,
+                              можно обратиться к администратору или подать новую заявку позже.
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-8">
+              <EmptyState text="У вашей компании пока нет claim-заявок." />
+            </div>
           )}
         </section>
       ) : null}
