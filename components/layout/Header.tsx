@@ -72,7 +72,11 @@ export default async function Header() {
               className="flex items-center gap-2 text-xs sm:text-sm"
               aria-label="Навигация"
             >
-              {user.role === "COMPANY" ? (
+              {user.role === "ADMIN" ? (
+                <Link href="/admin" className={secondaryNavClass}>
+                  Админ
+                </Link>
+              ) : user.role === "COMPANY" ? (
                 <Link href="/company" className={secondaryNavClass}>
                   Кабинет
                 </Link>
