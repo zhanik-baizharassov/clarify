@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import {
-  getSessionUser,
-  isDynamicServerUsageError,
-} from "@/server/auth/session";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,33 +45,18 @@ export const viewport = {
   colorScheme: "dark",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
-
-  try {
-    sessionUser = await getSessionUser();
-  } catch (err) {
-    if (!isDynamicServerUsageError(err)) {
-      console.error("RootLayout: getSessionUser failed:", err);
-    }
-    sessionUser = null;
-  }
-
   return (
     <html
       lang="ru"
       className={`${geistSans.variable} ${geistMono.variable} dark`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen antialiased">
-        <Header />
-        <main>{children}</main>
-        <Footer role={sessionUser?.role ?? null} />
-      </body>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

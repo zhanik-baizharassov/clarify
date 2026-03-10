@@ -1,0 +1,62 @@
+import Image from "next/image";
+import Link from "next/link";
+
+export default function PublicHeader() {
+  const secondaryNavClass =
+    "inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm";
+
+  return (
+    <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="group flex items-center gap-3"
+          aria-label="На главную"
+        >
+          <Image
+            src="/icon.png"
+            alt="Clarify"
+            width={50}
+            height={50}
+            priority
+            className="h-[50px] w-[50px] shrink-0 rounded-xl object-contain transition group-hover:scale-[1.02]"
+          />
+
+          <span className="flex flex-col justify-center leading-tight">
+            <span className="text-base font-semibold tracking-tight">
+              Clarify
+            </span>
+            <span className="text-sm text-muted-foreground">
+              Отзывы по Казахстану
+            </span>
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link href="/charts" className={secondaryNavClass}>
+            Чарты Clarify
+          </Link>
+
+          <Link href="/explore" className={secondaryNavClass}>
+            Найти места
+          </Link>
+
+          <nav
+            className="flex items-center gap-2 text-xs sm:text-sm"
+            aria-label="Навигация"
+          >
+            <Link href="/login" className={secondaryNavClass}>
+              Войти
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:text-sm"
+            >
+              Регистрация
+            </Link>
+          </nav>
+        </div>
+      </div>
+    </header>
+  );
+}
