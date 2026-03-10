@@ -13,23 +13,93 @@ export const dynamic = "force-dynamic";
 
 const Schema = z
   .object({
-    name: z.string().trim().min(2, "Название: минимум 2 символа").max(120, "Название слишком длинное"),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Название: минимум 2 символа")
+      .max(120, "Название слишком длинное"),
     categoryId: z.string().min(1, "Категория обязательна"),
-    city: z.string().trim().min(2, "Город обязателен").max(60, "Город слишком длинный"),
-    address: z.string().trim().min(5, "Адрес: минимум 5 символов").max(200, "Адрес слишком длинный"),
-    phone: z.string().trim().max(30, "Телефон слишком длинный").optional().default(""),
-    website: z.string().trim().max(200, "Сайт слишком длинный").optional().default(""),
-    workHours: z.string().trim().max(120, "Время работы слишком длинное").optional().default(""),
-    description: z.string().trim().max(500, "Описание слишком длинное").optional().default(""),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Город обязателен")
+      .max(60, "Город слишком длинный"),
+    address: z
+      .string()
+      .trim()
+      .min(5, "Адрес: минимум 5 символов")
+      .max(200, "Адрес слишком длинный"),
+    phone: z
+      .string()
+      .trim()
+      .max(30, "Телефон слишком длинный")
+      .optional()
+      .default(""),
+    website: z
+      .string()
+      .trim()
+      .max(200, "Сайт слишком длинный")
+      .optional()
+      .default(""),
+    workHours: z
+      .string()
+      .trim()
+      .max(120, "Время работы слишком длинное")
+      .optional()
+      .default(""),
+    description: z
+      .string()
+      .trim()
+      .max(500, "Описание слишком длинное")
+      .optional()
+      .default(""),
   })
   .strict();
 
 function translitRuKz(s: string) {
   const map: Record<string, string> = {
-    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y",
-    к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
-    х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
-    ә: "a", ө: "o", ү: "u", ұ: "u", қ: "k", ғ: "g", ң: "n", і: "i", һ: "h",
+    а: "a",
+    б: "b",
+    в: "v",
+    г: "g",
+    д: "d",
+    е: "e",
+    ё: "e",
+    ж: "zh",
+    з: "z",
+    и: "i",
+    й: "y",
+    к: "k",
+    л: "l",
+    м: "m",
+    н: "n",
+    о: "o",
+    п: "p",
+    р: "r",
+    с: "s",
+    т: "t",
+    у: "u",
+    ф: "f",
+    х: "h",
+    ц: "ts",
+    ч: "ch",
+    ш: "sh",
+    щ: "sch",
+    ъ: "",
+    ы: "y",
+    ь: "",
+    э: "e",
+    ю: "yu",
+    я: "ya",
+    ә: "a",
+    ө: "o",
+    ү: "u",
+    ұ: "u",
+    қ: "k",
+    ғ: "g",
+    ң: "n",
+    і: "i",
+    һ: "h",
   };
 
   return s
@@ -103,7 +173,7 @@ export async function POST(req: Request) {
       : undefined;
     const website = normalizeOptionalUrl(input.website ?? "");
 
-    const { lat, lng } = await validateKzAddress({
+    const { lat, lng, normalizedAddress } = await validateKzAddress({
       city,
       address: input.address,
     });
@@ -118,7 +188,7 @@ export async function POST(req: Request) {
         slug,
         categoryId: input.categoryId,
         city,
-        address: input.address.trim(),
+        address: normalizedAddress,
         phone,
         website,
         workHours: input.workHours.trim() || undefined,
@@ -157,16 +227,14 @@ export async function POST(req: Request) {
         err.message.includes("Название") ||
         err.message.includes("Описание") ||
         err.message.includes("Сайт") ||
-        err.message.includes("недопустимые слова")
+        err.message.includes("недопустимые слова") ||
+        err.message.includes("2GIS")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
     }
 
     console.error("POST /api/admin/places failed:", err);
-    return NextResponse.json(
-      { error: "Ошибка сервера" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
