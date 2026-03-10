@@ -1,6 +1,17 @@
-// server/auth/session.ts
 import { cookies } from "next/headers";
 import { prisma } from "@/server/db/prisma";
+
+export function isDynamicServerUsageError(
+  err: unknown,
+): err is { digest: string } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest?: unknown }).digest === "string" &&
+    (err as { digest: string }).digest === "DYNAMIC_SERVER_USAGE"
+  );
+}
 
 export async function getSessionUser() {
   const store = await cookies();

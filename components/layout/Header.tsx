@@ -1,7 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
-import { getSessionUser } from "@/server/auth/session";
+import {
+  getSessionUser,
+  isDynamicServerUsageError,
+} from "@/server/auth/session";
 
 export default async function Header() {
   let user: Awaited<ReturnType<typeof getSessionUser>> = null;
@@ -9,7 +12,9 @@ export default async function Header() {
   try {
     user = await getSessionUser();
   } catch (err) {
-    console.error("Header: getSessionUser failed:", err);
+    if (!isDynamicServerUsageError(err)) {
+      console.error("Header: getSessionUser failed:", err);
+    }
     user = null;
   }
 

@@ -3,7 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { getSessionUser } from "@/server/auth/session";
+import {
+  getSessionUser,
+  isDynamicServerUsageError,
+} from "@/server/auth/session";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +61,9 @@ export default async function RootLayout({
   try {
     sessionUser = await getSessionUser();
   } catch (err) {
-    console.error("RootLayout: getSessionUser failed:", err);
+    if (!isDynamicServerUsageError(err)) {
+      console.error("RootLayout: getSessionUser failed:", err);
+    }
     sessionUser = null;
   }
 
