@@ -8,25 +8,28 @@ import AuthShell from "@/features/auth/components/AuthShell";
 
 const OTP_LEN = 6;
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export default function LoginClient() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/";
+
+  const nextRaw = search.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/";
 
   const [step, setStep] = useState<"login" | "verify">("login");
 
-  // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // verify
   const [pendingEmail, setPendingEmail] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LEN).fill(""));
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const otpValue = otp.join("");
 
-  // resend cooldown
   const [cooldownSec, setCooldownSec] = useState(0);
 
   const [err, setErr] = useState<string | null>(null);
@@ -58,7 +61,7 @@ export default function LoginClient() {
     const res = await fetch("/api/auth/resend-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailToSend }),
+      body: JSON.stringify({ email: normalizeEmail(emailToSend) }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -72,12 +75,13 @@ export default function LoginClient() {
 
     const cooldown =
       typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
+
     setCooldownSec(cooldown);
     resetOtp();
   }
 
   async function doLogin(sendToVerifyUI = true) {
-    const em = email.trim();
+    const em = normalizeEmail(email);
 
     if (!em) return setErr("Введите email");
     if (!password) return setErr("Введите пароль");
@@ -93,8 +97,15 @@ export default function LoginClient() {
       });
 
       const data = await res.json().catch(() => ({}));
+      const errorCode = typeof data?.code === "string" ? data.code : null;
 
-      if (res.status === 403) {
+      const requiresEmailVerification =
+        errorCode === "EMAIL_NOT_VERIFIED" ||
+        (res.status === 403 &&
+          typeof data?.error === "string" &&
+          data.error.toLowerCase().includes("подтвердите email"));
+
+      if (requiresEmailVerification) {
         if (sendToVerifyUI) {
           setPendingEmail(em);
           setStep("verify");
@@ -107,7 +118,9 @@ export default function LoginClient() {
           setErr("Код отправлен. Проверьте почту и введите 6 цифр.");
         } catch (e: any) {
           setErr(
-            e?.message ?? data?.error ?? "Подтвердите email: введите код из письма",
+            e?.message ??
+              data?.error ??
+              "Подтвердите email: введите код из письма",
           );
         } finally {
           setResendLoading(false);
@@ -147,7 +160,10 @@ export default function LoginClient() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось подтвердить email");
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось подтвердить email");
+      }
 
       router.push(next);
       router.refresh();
@@ -161,6 +177,7 @@ export default function LoginClient() {
 
   async function resendCode() {
     setErr(null);
+
     if (cooldownSec > 0) return;
     if (!pendingEmail) return setErr("Email для отправки кода не найден");
 
@@ -379,6 +396,7 @@ export default function LoginClient() {
                 onClick={() => {
                   setStep("login");
                   setPendingEmail("");
+                  setCooldownSec(0);
                   resetOtp();
                   setErr(null);
                 }}

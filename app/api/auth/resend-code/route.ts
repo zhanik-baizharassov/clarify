@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
-import { generate6DigitCode, hashCode, codeTtlMs } from "@/server/email/verification";
+import {
+  generate6DigitCode,
+  hashCode,
+  codeTtlMs,
+} from "@/server/email/verification";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,14 +16,47 @@ const BodySchema = z.object({
 });
 
 const COOLDOWN_SEC = 60;
+const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
+  const verification = await prisma.emailVerification.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
+  const ageMs = Date.now() - activityAt.getTime();
+  const cooldownLeftSec = verification
+    ? Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) / 1000)
+    : 0;
+
+  return {
+    expired: ageMs >= PENDING_TTL_MS,
+    cooldownLeftSec: Math.max(0, cooldownLeftSec),
+  };
+}
+
+async function cleanupPendingUser(userId: string) {
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+}
 
 export async function POST(req: Request) {
   try {
-    const { email } = BodySchema.parse(await req.json().catch(() => ({})));
+    const body = BodySchema.parse(await req.json().catch(() => ({})));
+    const email = body.email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, emailVerifiedAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        emailVerifiedAt: true,
+        blockedUntil: true,
+        role: true,
+      },
     });
 
     if (!user) {
@@ -29,28 +66,67 @@ export async function POST(req: Request) {
       );
     }
 
-    if (user.emailVerifiedAt) {
+    const now = new Date();
+
+    if (user.blockedUntil && user.blockedUntil > now) {
       return NextResponse.json(
-        { error: "Email уже подтверждён" },
-        { status: 400 },
+        {
+          error: "Аккаунт заблокирован модерацией Clarify",
+          code: "ACCOUNT_BLOCKED",
+        },
+        { status: 423 },
       );
     }
 
-    const existing = await prisma.emailVerification.findUnique({
-      where: { userId_email: { userId: user.id, email } },
-      select: { createdAt: true },
-    });
+    if (user.role === "COMPANY") {
+      const company = await prisma.company.findUnique({
+        where: { ownerId: user.id },
+        select: { blockedUntil: true },
+      });
 
-    if (existing) {
-      const ageMs = Date.now() - existing.createdAt.getTime();
-      const leftSec = Math.ceil((COOLDOWN_SEC * 1000 - ageMs) / 1000);
-
-      if (leftSec > 0) {
+      if (company?.blockedUntil && company.blockedUntil > now) {
         return NextResponse.json(
-          { error: `Подождите ${leftSec}с и попробуйте снова`, retryAfterSec: leftSec },
-          { status: 429 },
+          {
+            error: "Компания заблокирована модерацией Clarify",
+            code: "COMPANY_BLOCKED",
+          },
+          { status: 423 },
         );
       }
+    }
+
+    if (user.emailVerifiedAt) {
+      return NextResponse.json(
+        {
+          error: "Email уже подтверждён. Войдите по паролю.",
+          code: "ALREADY_VERIFIED",
+        },
+        { status: 409 },
+      );
+    }
+
+    const pendingMeta = await getPendingMeta(user.id, user.createdAt);
+
+    if (pendingMeta.expired) {
+      await cleanupPendingUser(user.id);
+
+      return NextResponse.json(
+        {
+          error: "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+          code: "PENDING_REGISTRATION_EXPIRED",
+        },
+        { status: 410 },
+      );
+    }
+
+    if (pendingMeta.cooldownLeftSec > 0) {
+      return NextResponse.json(
+        {
+          error: `Подождите ${pendingMeta.cooldownLeftSec}с и попробуйте снова`,
+          retryAfterSec: pendingMeta.cooldownLeftSec,
+        },
+        { status: 429 },
+      );
     }
 
     const code = generate6DigitCode();
@@ -70,13 +146,17 @@ export async function POST(req: Request) {
         codeHash: hashCode(code),
         expiresAt: new Date(Date.now() + ttlMs),
         attempts: 0,
-        createdAt: new Date(), // чтобы cooldown работал
+        createdAt: new Date(),
       },
     });
 
     await sendEmailVerificationCode(email, code, { ttlMinutes });
 
-    return NextResponse.json({ ok: true, cooldownSec: COOLDOWN_SEC, ttlMinutes });
+    return NextResponse.json({
+      ok: true,
+      cooldownSec: COOLDOWN_SEC,
+      ttlMinutes,
+    });
   } catch (err: any) {
     console.error("POST /api/auth/resend-code failed:", err);
 

@@ -18,11 +18,21 @@ type SignupPayload = {
 
 const OTP_LEN = 6;
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const search = useSearchParams();
 
-  const next = search.get("next") || "/";
+  const nextRaw = search.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/";
+
   const mode = search.get("mode");
   const emailFromQuery = search.get("email");
 
@@ -36,7 +46,6 @@ export default function SignupPage() {
 
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [lastPayload, setLastPayload] = useState<SignupPayload | null>(null);
 
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,8 +68,10 @@ export default function SignupPage() {
   }
 
   useEffect(() => {
-    if (mode === "verify" && emailFromQuery) {
-      setPendingEmail(emailFromQuery);
+    const normalizedEmail = normalizeEmail(emailFromQuery ?? "");
+
+    if (mode === "verify" && isValidEmail(normalizedEmail)) {
+      setPendingEmail(normalizedEmail);
       setStep("verify");
       setCooldownSec(60);
       resetOtp();
@@ -79,6 +90,7 @@ export default function SignupPage() {
   async function submitSignup(payload: SignupPayload) {
     setLoading(true);
     setErr(null);
+
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
@@ -90,11 +102,13 @@ export default function SignupPage() {
       if (!res.ok) throw new Error(data?.error ?? "Ошибка регистрации");
 
       if (data?.needsEmailVerification) {
-        setLastPayload(payload);
-        setPendingEmail(String(data?.email ?? payload.email));
+        setPendingEmail(normalizeEmail(String(data?.email ?? payload.email)));
         setStep("verify");
-        setCooldownSec(60);
+        setCooldownSec(
+          typeof data?.cooldownSec === "number" ? data.cooldownSec : 60,
+        );
         resetOtp();
+        setErr(typeof data?.notice === "string" ? data.notice : null);
         return;
       }
 
@@ -115,20 +129,23 @@ export default function SignupPage() {
     const ln = lastName.trim();
     const nn = nickname.trim();
     const ph = phone.trim();
-    const em = email.trim();
+    const em = normalizeEmail(email);
 
     if (fn.length < 2) return setErr("Имя: минимум 2 символа");
     if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
     if (nn.length < 2) return setErr("Никнейм: минимум 2 символа");
-    if (!/^[a-zA-Z0-9_.-]+$/.test(nn))
+    if (!/^[a-zA-Z0-9_.-]+$/.test(nn)) {
       return setErr("Ник: только латиница/цифры/._-");
+    }
     if (!em) return setErr("Введите email");
 
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
-    if (!/[A-Z]/.test(password))
+    if (!/[A-Z]/.test(password)) {
       return setErr("Пароль: нужна хотя бы 1 заглавная буква");
-    if (!/[a-z]/.test(password))
+    }
+    if (!/[a-z]/.test(password)) {
       return setErr("Пароль: нужна хотя бы 1 строчная буква");
+    }
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
 
     const payload: SignupPayload = {
@@ -158,7 +175,9 @@ export default function SignupPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось подтвердить email");
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось подтвердить email");
+      }
 
       router.push(next);
       router.refresh();
@@ -174,12 +193,6 @@ export default function SignupPage() {
     setErr(null);
 
     if (cooldownSec > 0) return;
-
-    if (lastPayload) {
-      await submitSignup(lastPayload);
-      return;
-    }
-
     if (!pendingEmail) return setErr("Email для отправки кода не найден");
 
     setVerifyLoading(true);
@@ -191,10 +204,26 @@ export default function SignupPage() {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 410) {
+        setStep("form");
+        setPendingEmail("");
+        setCooldownSec(0);
+        setOtp(Array(OTP_LEN).fill(""));
+        setErr(
+          data?.error ?? "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+        );
+        return;
+      }
+
       if (!res.ok) throw new Error(data?.error ?? "Не удалось отправить код");
 
-      setCooldownSec(60);
+      const nextCooldown =
+        typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
+
+      setCooldownSec(nextCooldown);
       resetOtp();
+      setErr("Код отправлен. Проверьте почту.");
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
     } finally {
@@ -204,6 +233,7 @@ export default function SignupPage() {
 
   function onOtpChange(i: number, raw: string) {
     const v = (raw ?? "").replace(/\D/g, "").slice(0, 1);
+
     setOtp((prev) => {
       const copy = [...prev];
       copy[i] = v;
@@ -230,6 +260,7 @@ export default function SignupPage() {
         });
         return;
       }
+
       if (i > 0) {
         focusOtp(i - 1);
         setOtp((prev) => {
@@ -239,6 +270,7 @@ export default function SignupPage() {
         });
       }
     }
+
     if (e.key === "ArrowLeft" && i > 0) focusOtp(i - 1);
     if (e.key === "ArrowRight" && i < OTP_LEN - 1) focusOtp(i + 1);
   }
@@ -251,6 +283,7 @@ export default function SignupPage() {
     e.preventDefault();
 
     const arr = digits.split("");
+
     setOtp((prev) => {
       const copy = [...prev];
       for (let i = 0; i < OTP_LEN; i++) copy[i] = arr[i] ?? "";
@@ -443,6 +476,7 @@ export default function SignupPage() {
                 onClick={() => {
                   setStep("form");
                   setPendingEmail("");
+                  setCooldownSec(0);
                   setOtp(Array(OTP_LEN).fill(""));
                   setErr(null);
                 }}

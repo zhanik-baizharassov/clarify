@@ -24,6 +24,10 @@ type CompanySignupPayload = {
 
 const OTP_LEN = 6;
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export default function BusinessSignupPage() {
   const router = useRouter();
   const search = useSearchParams();
@@ -42,9 +46,6 @@ export default function BusinessSignupPage() {
 
   const [step, setStep] = useState<"form" | "verify">("form");
   const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [lastPayload, setLastPayload] = useState<CompanySignupPayload | null>(
-    null,
-  );
 
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,6 +80,7 @@ export default function BusinessSignupPage() {
   async function submitCompanySignup(payload: CompanySignupPayload) {
     setLoading(true);
     setErr(null);
+
     try {
       const res = await fetch("/api/auth/company-signup", {
         method: "POST",
@@ -90,11 +92,13 @@ export default function BusinessSignupPage() {
       if (!res.ok) throw new Error(data?.error ?? "Ошибка регистрации компании");
 
       if (data?.needsEmailVerification) {
-        setLastPayload(payload);
-        setPendingEmail(String(data?.email ?? payload.email));
+        setPendingEmail(normalizeEmail(String(data?.email ?? payload.email)));
         setStep("verify");
-        setCooldownSec(60);
+        setCooldownSec(
+          typeof data?.cooldownSec === "number" ? data.cooldownSec : 60,
+        );
         resetOtp();
+        setErr(typeof data?.notice === "string" ? data.notice : null);
         return;
       }
 
@@ -114,7 +118,7 @@ export default function BusinessSignupPage() {
     const cn = companyName.trim();
     const b = bin.trim();
     const ph = phone.trim();
-    const em = email.trim();
+    const em = normalizeEmail(email);
     const addr = address.trim();
 
     if (cn.length < 2) return setErr("Название компании: минимум 2 символа");
@@ -135,10 +139,12 @@ export default function BusinessSignupPage() {
     }
 
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
-    if (!/[A-Z]/.test(password))
+    if (!/[A-Z]/.test(password)) {
       return setErr("Пароль: нужна хотя бы 1 заглавная буква");
-    if (!/[a-z]/.test(password))
+    }
+    if (!/[a-z]/.test(password)) {
       return setErr("Пароль: нужна хотя бы 1 строчная буква");
+    }
     if (!/\d/.test(password)) return setErr("Пароль: нужна хотя бы 1 цифра");
 
     const payload: CompanySignupPayload = {
@@ -185,17 +191,47 @@ export default function BusinessSignupPage() {
     setErr(null);
 
     if (cooldownSec > 0) return;
-    if (!lastPayload) {
-      setStep("form");
-      setPendingEmail("");
-      return setErr("Заполните форму ещё раз, чтобы отправить код повторно.");
-    }
+    if (!pendingEmail) return setErr("Email для отправки кода не найден");
 
-    await submitCompanySignup(lastPayload);
+    setVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 410) {
+        setStep("form");
+        setPendingEmail("");
+        setCooldownSec(0);
+        setOtp(Array(OTP_LEN).fill(""));
+        setErr(
+          data?.error ?? "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+        );
+        return;
+      }
+
+      if (!res.ok) throw new Error(data?.error ?? "Не удалось отправить код");
+
+      const nextCooldown =
+        typeof data?.cooldownSec === "number" ? data.cooldownSec : 60;
+
+      setCooldownSec(nextCooldown);
+      resetOtp();
+      setErr("Код отправлен. Проверьте почту.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Ошибка");
+    } finally {
+      setVerifyLoading(false);
+    }
   }
 
   function onOtpChange(i: number, raw: string) {
     const v = (raw ?? "").replace(/\D/g, "").slice(0, 1);
+
     setOtp((prev) => {
       const copy = [...prev];
       copy[i] = v;
@@ -222,6 +258,7 @@ export default function BusinessSignupPage() {
         });
         return;
       }
+
       if (i > 0) {
         focusOtp(i - 1);
         setOtp((prev) => {
@@ -231,6 +268,7 @@ export default function BusinessSignupPage() {
         });
       }
     }
+
     if (e.key === "ArrowLeft" && i > 0) focusOtp(i - 1);
     if (e.key === "ArrowRight" && i < OTP_LEN - 1) focusOtp(i + 1);
   }
@@ -457,6 +495,7 @@ export default function BusinessSignupPage() {
                 onClick={() => {
                   setStep("form");
                   setPendingEmail("");
+                  setCooldownSec(0);
                   setOtp(Array(OTP_LEN).fill(""));
                   setErr(null);
                 }}

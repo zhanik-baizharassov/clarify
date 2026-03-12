@@ -11,21 +11,38 @@ const Schema = z.object({
   password: z.string().min(1, "Введите пароль"),
 });
 
-function formatBlockDate(date: Date) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INVALID_LOGIN_ERROR = "Неверный email или пароль";
+
+async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
+  const verification = await prisma.emailVerification.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
+  const expired = Date.now() - activityAt.getTime() >= PENDING_TTL_MS;
+
+  return { expired };
+}
+
+async function cleanupPendingUser(userId: string) {
+  await prisma.user.delete({
+    where: { id: userId },
+  });
 }
 
 export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
+    const email = input.email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
-      where: { email: input.email },
+      where: { email },
       select: {
         id: true,
+        createdAt: true,
         passwordHash: true,
         emailVerifiedAt: true,
         role: true,
@@ -35,24 +52,29 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Пользователь с таким email не найден" },
+        { error: INVALID_LOGIN_ERROR },
         { status: 401 },
       );
     }
 
-    if (!user.emailVerifiedAt) {
+    const ok = await bcrypt.compare(input.password, user.passwordHash);
+
+    if (!ok) {
       return NextResponse.json(
-        { error: "Подтвердите email: введите код из письма и попробуйте снова" },
-        { status: 403 },
+        { error: INVALID_LOGIN_ERROR },
+        { status: 401 },
       );
     }
 
-    if (user.blockedUntil && user.blockedUntil > new Date()) {
+    const now = new Date();
+
+    if (user.blockedUntil && user.blockedUntil > now) {
       return NextResponse.json(
         {
-          error: `Аккаунт временно заблокирован до ${formatBlockDate(user.blockedUntil)}`,
+          error: "Аккаунт заблокирован модерацией Clarify",
+          code: "ACCOUNT_BLOCKED",
         },
-        { status: 403 },
+        { status: 423 },
       );
     }
 
@@ -64,20 +86,39 @@ export async function POST(req: Request) {
         },
       });
 
-      if (company?.blockedUntil && company.blockedUntil > new Date()) {
+      if (company?.blockedUntil && company.blockedUntil > now) {
         return NextResponse.json(
           {
-            error: `Компания временно заблокирована до ${formatBlockDate(company.blockedUntil)}`,
+            error: "Компания заблокирована модерацией Clarify",
+            code: "COMPANY_BLOCKED",
           },
-          { status: 403 },
+          { status: 423 },
         );
       }
     }
 
-    const ok = await bcrypt.compare(input.password, user.passwordHash);
+    if (!user.emailVerifiedAt) {
+      const pendingMeta = await getPendingMeta(user.id, user.createdAt);
 
-    if (!ok) {
-      return NextResponse.json({ error: "Неверный пароль" }, { status: 401 });
+      if (pendingMeta.expired) {
+        await cleanupPendingUser(user.id);
+
+        return NextResponse.json(
+          {
+            error: "Срок подтверждения аккаунта истёк. Зарегистрируйтесь заново.",
+            code: "PENDING_REGISTRATION_EXPIRED",
+          },
+          { status: 410 },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "Подтвердите email: введите код из письма и попробуйте снова",
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        { status: 403 },
+      );
     }
 
     const token = crypto.randomUUID();

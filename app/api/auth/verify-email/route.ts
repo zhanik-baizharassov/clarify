@@ -1,4 +1,3 @@
-// app/api/auth/verify-email/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
@@ -25,17 +24,19 @@ function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
 export async function POST(req: Request) {
   try {
     const parsed = Schema.parse(await req.json());
-
-    // ✅ нормализуем email
-    const email = parsed.email.toLowerCase();
+    const email = parsed.email.trim().toLowerCase();
     const code = parsed.code;
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, emailVerifiedAt: true },
+      select: {
+        id: true,
+        emailVerifiedAt: true,
+        blockedUntil: true,
+        role: true,
+      },
     });
 
-    // ✅ не раскрываем существование email
     if (!user) {
       return NextResponse.json(
         { error: "Неверный email или код" },
@@ -43,10 +44,43 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ если уже подтвержден — НЕ логиним здесь
-    // (логин — только через /api/auth/login по паролю)
+    const now = new Date();
+
+    if (user.blockedUntil && user.blockedUntil > now) {
+      return NextResponse.json(
+        {
+          error: "Аккаунт заблокирован модерацией Clarify",
+          code: "ACCOUNT_BLOCKED",
+        },
+        { status: 423 },
+      );
+    }
+
+    if (user.role === "COMPANY") {
+      const company = await prisma.company.findUnique({
+        where: { ownerId: user.id },
+        select: { blockedUntil: true },
+      });
+
+      if (company?.blockedUntil && company.blockedUntil > now) {
+        return NextResponse.json(
+          {
+            error: "Компания заблокирована модерацией Clarify",
+            code: "COMPANY_BLOCKED",
+          },
+          { status: 423 },
+        );
+      }
+    }
+
     if (user.emailVerifiedAt) {
-      return NextResponse.json({ ok: true, alreadyVerified: true });
+      return NextResponse.json(
+        {
+          error: "Email уже подтверждён. Войдите по паролю.",
+          code: "ALREADY_VERIFIED",
+        },
+        { status: 409 },
+      );
     }
 
     const rec = await prisma.emailVerification.findUnique({
@@ -54,7 +88,6 @@ export async function POST(req: Request) {
       select: { codeHash: true, expiresAt: true, attempts: true },
     });
 
-    // ✅ единое сообщение (не палим детали)
     if (!rec) {
       return NextResponse.json(
         { error: "Неверный email или код" },
@@ -62,7 +95,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (rec.expiresAt < new Date()) {
+    if (rec.expiresAt < now) {
       return NextResponse.json(
         { error: "Код истёк. Нажмите «Отправить заново»." },
         { status: 400 },
@@ -83,24 +116,26 @@ export async function POST(req: Request) {
         where: { userId_email: { userId: user.id, email } },
         data: { attempts: { increment: 1 } },
       });
+
       return NextResponse.json({ error: "Неверный код" }, { status: 400 });
     }
 
-    // ✅ подтверждаем + удаляем код + создаём сессию атомарно
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { emailVerifiedAt: new Date() },
+        data: { emailVerifiedAt: now },
       });
 
       await tx.emailVerification.delete({
         where: { userId_email: { userId: user.id, email } },
       });
 
-      await tx.session.create({ data: { userId: user.id, token, expiresAt } });
+      await tx.session.create({
+        data: { userId: user.id, token, expiresAt },
+      });
     });
 
     const res = NextResponse.json({ ok: true });
@@ -111,6 +146,7 @@ export async function POST(req: Request) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
+
     console.error("VERIFY EMAIL ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
