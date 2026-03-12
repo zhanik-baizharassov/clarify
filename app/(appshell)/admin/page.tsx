@@ -14,13 +14,49 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import CreateCatalogPlaceForm from "@/features/admin/components/create-catalog-place-form";
 import ClaimReviewActions from "@/features/admin/components/claim-review-actions";
+import UserModerationActions from "@/features/admin/components/user-moderation-actions";
+import CompanyModerationActions from "@/features/admin/components/company-moderation-actions";
 
 export const runtime = "nodejs";
 
-type AdminSection = "create-place" | "claims" | "unclaimed-places" | null;
+type AdminSection =
+  | "users"
+  | "companies"
+  | "create-place"
+  | "claims"
+  | "unclaimed-places"
+  | null;
+
+const PAGE_SIZE = 10;
 
 function getSingleSearchParam(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function clampPage(page: number, total: number) {
+  if (total <= 0) return 1;
+  return Math.min(Math.max(page, 1), total);
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function buildAdminHref(section: Exclude<AdminSection, null>, page = 1) {
+  return `/admin?section=${section}&page=${page}`;
+}
+
+function getUserLabel(user: {
+  nickname: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}) {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  return user.nickname || fullName || user.email;
 }
 
 export default async function AdminPage({
@@ -28,6 +64,7 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<{
     section?: string | string[];
+    page?: string | string[];
   }>;
 }) {
   const user = await getSessionUser();
@@ -37,8 +74,15 @@ export default async function AdminPage({
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedSection = getSingleSearchParam(resolvedSearchParams.section);
+  const requestedPageRaw = Number(getSingleSearchParam(resolvedSearchParams.page));
+  const requestedPage =
+    Number.isFinite(requestedPageRaw) && requestedPageRaw > 0
+      ? Math.floor(requestedPageRaw)
+      : 1;
 
   const activeSection: AdminSection =
+    requestedSection === "users" ||
+    requestedSection === "companies" ||
     requestedSection === "create-place" ||
     requestedSection === "claims" ||
     requestedSection === "unclaimed-places"
@@ -53,10 +97,8 @@ export default async function AdminPage({
     pendingClaimsCount,
     unclaimedPlacesCount,
     categories,
-    recentUnclaimedPlaces,
-    pendingClaims,
   ] = await Promise.all([
-    prisma.user.count(),
+    prisma.user.count({ where: { role: "USER" } }),
     prisma.company.count(),
     prisma.place.count(),
     prisma.review.count(),
@@ -66,55 +108,120 @@ export default async function AdminPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.place.findMany({
-      where: { companyId: null },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        city: true,
-        address: true,
-        createdAt: true,
-        category: { select: { name: true } },
-      },
-    }),
-    prisma.claim.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: {
-        id: true,
-        createdAt: true,
-        place: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            city: true,
-            address: true,
-          },
-        },
-        company: {
-          select: {
-            id: true,
-            name: true,
-            bin: true,
-            owner: {
-              select: {
-                email: true,
-              },
-            },
-          },
-        },
-      },
-    }),
   ]);
 
-  const dtf = new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "medium",
-  });
+  const usersTotalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
+  const companiesTotalPages = Math.max(1, Math.ceil(companiesCount / PAGE_SIZE));
+
+  const usersPage = clampPage(requestedPage, usersTotalPages);
+  const companiesPage = clampPage(requestedPage, companiesTotalPages);
+
+  const [recentUnclaimedPlaces, pendingClaims, usersList, companiesList] =
+    await Promise.all([
+      activeSection === "unclaimed-places"
+        ? prisma.place.findMany({
+            where: { companyId: null },
+            orderBy: { createdAt: "desc" },
+            take: 8,
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              city: true,
+              address: true,
+              createdAt: true,
+              category: { select: { name: true } },
+            },
+          })
+        : Promise.resolve([]),
+
+      activeSection === "claims"
+        ? prisma.claim.findMany({
+            where: { status: "PENDING" },
+            orderBy: { createdAt: "desc" },
+            take: 20,
+            select: {
+              id: true,
+              createdAt: true,
+              place: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  city: true,
+                  address: true,
+                },
+              },
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  bin: true,
+                  owner: {
+                    select: {
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+
+      activeSection === "users"
+        ? prisma.user.findMany({
+            where: { role: "USER" },
+            orderBy: { createdAt: "desc" },
+            skip: (usersPage - 1) * PAGE_SIZE,
+            take: PAGE_SIZE,
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              nickname: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+              blockedUntil: true,
+              blockReason: true,
+              _count: {
+                select: {
+                  reviews: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+
+      activeSection === "companies"
+        ? prisma.company.findMany({
+            orderBy: { createdAt: "desc" },
+            skip: (companiesPage - 1) * PAGE_SIZE,
+            take: PAGE_SIZE,
+            select: {
+              id: true,
+              name: true,
+              bin: true,
+              address: true,
+              createdAt: true,
+              blockedUntil: true,
+              blockReason: true,
+              owner: {
+                select: {
+                  email: true,
+                  phone: true,
+                },
+              },
+              _count: {
+                select: {
+                  places: true,
+                  claims: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
 
   return (
     <main className="mx-auto max-w-7xl p-6">
@@ -145,13 +252,17 @@ export default async function AdminPage({
           icon={<UserRound className="h-5 w-5" />}
           label="Пользователи"
           value={usersCount}
-          note="Всего аккаунтов"
+          note="Пользовательские аккаунты"
+          href={buildAdminHref("users")}
+          active={activeSection === "users"}
         />
         <AdminStatCard
           icon={<Building2 className="h-5 w-5" />}
           label="Компании"
           value={companiesCount}
           note="Зарегистрированные компании"
+          href={buildAdminHref("companies")}
+          active={activeSection === "companies"}
         />
         <AdminStatCard
           icon={<MapPinned className="h-5 w-5" />}
@@ -183,19 +294,19 @@ export default async function AdminPage({
         <AdminActionCard
           title="Создать карточку места"
           desc="Откройте форму создания каталожной карточки без привязки к компании."
-          href="/admin?section=create-place"
+          href={buildAdminHref("create-place")}
           active={activeSection === "create-place"}
         />
         <AdminActionCard
           title="Карточки без владельца"
           desc="Откройте список мест, которые ещё не привязаны к company account."
-          href="/admin?section=unclaimed-places"
+          href={buildAdminHref("unclaimed-places")}
           active={activeSection === "unclaimed-places"}
         />
         <AdminActionCard
           title="Claim-заявки"
           desc="Откройте заявки компаний и вручную передавайте карточки владельцам."
-          href="/admin?section=claims"
+          href={buildAdminHref("claims")}
           active={activeSection === "claims"}
         />
         <AdminActionCard
@@ -210,10 +321,234 @@ export default async function AdminPage({
           <div className="max-w-2xl">
             <h2 className="text-xl font-semibold">Выберите раздел</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Секции админки больше не открыты все сразу. Нажмите на нужную
-              карточку выше, чтобы открыть только конкретный рабочий блок.
+              Нажмите на карточку пользователей, компаний или на нужный рабочий
+              блок выше, чтобы открыть только конкретный раздел админки.
             </p>
           </div>
+        </section>
+      ) : null}
+
+      {activeSection === "users" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Пользователи</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь можно просматривать пользовательские аккаунты, временно
+                блокировать их и снимать блокировку.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего пользователей:{" "}
+              <span className="font-medium text-foreground">{usersCount}</span>
+            </div>
+          </div>
+
+          {usersList.length > 0 ? (
+            <>
+              <div className="mt-6 grid gap-4">
+                {usersList.map((item) => {
+                  const isBlocked =
+                    item.blockedUntil && item.blockedUntil > new Date();
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border bg-muted/10 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-lg font-semibold">
+                              {getUserLabel(item)}
+                            </div>
+
+                            <span
+                              className={[
+                                "rounded-full border px-2.5 py-1 text-[11px]",
+                                isBlocked
+                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                              ].join(" ")}
+                            >
+                              {isBlocked ? "Заблокирован" : "Активен"}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {item.email}
+                            {item.phone ? ` • ${item.phone}` : ""}
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Отзывов: {item._count.reviews}
+                          </div>
+
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Создан: {formatDate(item.createdAt)}
+                          </div>
+
+                          {isBlocked && item.blockedUntil ? (
+                            <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                              До:{" "}
+                              <span className="font-medium text-foreground">
+                                {formatDate(item.blockedUntil)}
+                              </span>
+                              {item.blockReason ? (
+                                <>
+                                  <br />
+                                  Причина:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {item.blockReason}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="w-full max-w-[340px]">
+                          <UserModerationActions
+                            userId={item.id}
+                            blockedUntil={
+                              item.blockedUntil?.toISOString() ?? null
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Pagination
+                section="users"
+                page={usersPage}
+                totalPages={usersTotalPages}
+                totalItems={usersCount}
+                pageSize={PAGE_SIZE}
+              />
+            </>
+          ) : (
+            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
+              Пользователей пока нет.
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {activeSection === "companies" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Компании</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь можно просматривать зарегистрированные компании, временно
+                блокировать их и снимать блокировку.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего компаний:{" "}
+              <span className="font-medium text-foreground">{companiesCount}</span>
+            </div>
+          </div>
+
+          {companiesList.length > 0 ? (
+            <>
+              <div className="mt-6 grid gap-4">
+                {companiesList.map((item) => {
+                  const isBlocked =
+                    item.blockedUntil && item.blockedUntil > new Date();
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border bg-muted/10 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-lg font-semibold">{item.name}</div>
+
+                            <span
+                              className={[
+                                "rounded-full border px-2.5 py-1 text-[11px]",
+                                isBlocked
+                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                              ].join(" ")}
+                            >
+                              {isBlocked ? "Заблокирована" : "Активна"}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {item.bin ? `БИН: ${item.bin}` : "БИН не указан"}
+                            {item.owner.email ? ` • ${item.owner.email}` : ""}
+                            {item.owner.phone ? ` • ${item.owner.phone}` : ""}
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Филиалов: {item._count.places} • Claim-заявок:{" "}
+                            {item._count.claims}
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {item.address ?? "Адрес не указан"}
+                          </div>
+
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Создана: {formatDate(item.createdAt)}
+                          </div>
+
+                          {isBlocked && item.blockedUntil ? (
+                            <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                              До:{" "}
+                              <span className="font-medium text-foreground">
+                                {formatDate(item.blockedUntil)}
+                              </span>
+                              {item.blockReason ? (
+                                <>
+                                  <br />
+                                  Причина:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {item.blockReason}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="w-full max-w-[340px]">
+                          <CompanyModerationActions
+                            companyId={item.id}
+                            blockedUntil={
+                              item.blockedUntil?.toISOString() ?? null
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Pagination
+                section="companies"
+                page={companiesPage}
+                totalPages={companiesTotalPages}
+                totalItems={companiesCount}
+                pageSize={PAGE_SIZE}
+              />
+            </>
+          ) : (
+            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
+              Компаний пока нет.
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -277,7 +612,7 @@ export default async function AdminPage({
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground">
-                        Заявка от {dtf.format(claim.createdAt)}
+                        Заявка от {formatDate(claim.createdAt)}
                       </div>
 
                       <div className="mt-3">
@@ -383,7 +718,7 @@ export default async function AdminPage({
                       </div>
 
                       <div className="mt-2 text-xs text-muted-foreground">
-                        Создано: {dtf.format(place.createdAt)}
+                        Создано: {formatDate(place.createdAt)}
                       </div>
                     </div>
 
@@ -410,14 +745,24 @@ function AdminStatCard({
   label,
   value,
   note,
+  href,
+  active,
 }: {
   icon: ReactNode;
   label: string;
   value: number;
   note: string;
+  href?: string;
+  active?: boolean;
 }) {
-  return (
-    <div className="min-w-[220px] flex-1 rounded-2xl border bg-background p-5">
+  const content = (
+    <div
+      className={[
+        "min-w-[240px] flex-1 rounded-2xl border bg-background p-5",
+        href ? "transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20" : "",
+        active ? "border-primary bg-primary/5" : "",
+      ].join(" ")}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm text-muted-foreground">{label}</div>
@@ -432,6 +777,12 @@ function AdminStatCard({
       <div className="mt-3 text-sm text-muted-foreground">{note}</div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+
+  return content;
 }
 
 function AdminActionCard({
@@ -476,4 +827,82 @@ function AdminActionCard({
   }
 
   return <div className="rounded-2xl border bg-background p-5">{content}</div>;
+}
+
+function Pagination({
+  section,
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+}: {
+  section: "users" | "companies";
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+}) {
+  if (totalPages <= 1) return null;
+
+  const startItem = (page - 1) * pageSize + 1;
+  const endItem = Math.min(page * pageSize, totalItems);
+
+  const from = Math.max(1, page - 2);
+  const to = Math.min(totalPages, page + 2);
+
+  const pages = [];
+  for (let i = from; i <= to; i += 1) {
+    pages.push(i);
+  }
+
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="text-sm text-muted-foreground">
+        Показаны {startItem}-{endItem} из {totalItems}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {page > 1 ? (
+          <Link
+            href={buildAdminHref(section, page - 1)}
+            className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
+          >
+            Назад
+          </Link>
+        ) : (
+          <span className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm text-muted-foreground opacity-60">
+            Назад
+          </span>
+        )}
+
+        {pages.map((item) => (
+          <Link
+            key={item}
+            href={buildAdminHref(section, item)}
+            className={[
+              "inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-medium transition",
+              item === page
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background hover:bg-muted/40",
+            ].join(" ")}
+          >
+            {item}
+          </Link>
+        ))}
+
+        {page < totalPages ? (
+          <Link
+            href={buildAdminHref(section, page + 1)}
+            className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
+          >
+            Дальше
+          </Link>
+        ) : (
+          <span className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm text-muted-foreground opacity-60">
+            Дальше
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }

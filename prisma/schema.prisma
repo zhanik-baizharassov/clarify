@@ -51,6 +51,8 @@ model User {
   profileEditCount Int       @default(0)
   profileEditedAt  DateTime?
   emailVerifiedAt  DateTime?
+  blockedUntil     DateTime?
+  blockReason      String?
 
   sessions           Session[]
   emailVerifications EmailVerification[]
@@ -77,8 +79,10 @@ model Company {
   name    String
   ownerId String @unique
 
-  bin     String? @unique
-  address String?
+  bin          String?   @unique
+  address      String?
+  blockedUntil DateTime?
+  blockReason  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

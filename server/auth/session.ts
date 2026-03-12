@@ -31,10 +31,26 @@ export async function getSessionUser() {
     return null;
   }
 
-  // ✅ Верификация обязательна для всех
   if (!session.user.emailVerifiedAt) {
     await prisma.session.deleteMany({ where: { token } });
     return null;
+  }
+
+  if (session.user.blockedUntil && session.user.blockedUntil > new Date()) {
+    await prisma.session.deleteMany({ where: { token } });
+    return null;
+  }
+
+  if (session.user.role === "COMPANY") {
+    const company = await prisma.company.findUnique({
+      where: { ownerId: session.user.id },
+      select: { blockedUntil: true },
+    });
+
+    if (company?.blockedUntil && company.blockedUntil > new Date()) {
+      await prisma.session.deleteMany({ where: { token } });
+      return null;
+    }
   }
 
   return session.user;
