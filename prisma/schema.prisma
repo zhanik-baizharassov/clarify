@@ -187,6 +187,7 @@ model Review {
   @@index([placeId])
   @@index([authorId])
   @@index([createdAt])
+  @@unique([placeId, authorId])
 }
 
 model ReviewTag {

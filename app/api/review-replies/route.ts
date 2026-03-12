@@ -1,4 +1,4 @@
-// app/api/review-replies/route.ts
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
@@ -20,30 +20,43 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
     }
+
     if (user.role !== "COMPANY") {
       return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
     }
 
-    // ownerId у тебя @unique, значит findUnique ок
     const company = await prisma.company.findUnique({
       where: { ownerId: user.id },
       select: { id: true },
     });
+
     if (!company) {
       return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
     }
 
     assertNoProfanity(input.text, "Ответ компании");
 
-    const review = await prisma.review.findUnique({
-      where: { id: input.reviewId },
-      include: { place: { select: { companyId: true } } },
+    const review = await prisma.review.findFirst({
+      where: {
+        id: input.reviewId,
+        status: "PUBLISHED",
+      },
+      include: {
+        place: {
+          select: {
+            companyId: true,
+          },
+        },
+      },
     });
+
     if (!review) {
-      return NextResponse.json({ error: "Отзыв не найден" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Отзыв не найден или недоступен" },
+        { status: 404 },
+      );
     }
 
-    // отвечать можно только на отзывы по своим карточкам
     if (review.place.companyId !== company.id) {
       return NextResponse.json(
         { error: "Нет прав отвечать на этот отзыв" },
@@ -51,19 +64,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ просто создаём — дубль отрежет БД по @@unique([reviewId, companyId])
     const reply = await prisma.reviewReply.create({
       data: {
         reviewId: input.reviewId,
         companyId: company.id,
-        text: input.text,
+        text: input.text.trim(),
       },
     });
 
     return NextResponse.json(reply, { status: 201 });
   } catch (err: any) {
-    // ✅ ловим unique constraint violation (дубль ответа)
-    if (err?.code === "P2002") {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
       return NextResponse.json(
         { error: "Вы уже отвечали на этот отзыв" },
         { status: 409 },

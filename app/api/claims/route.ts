@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
@@ -13,10 +12,45 @@ const Schema = z
   })
   .strict();
 
+const CLAIM_RETRY_COOLDOWN_SEC = 3 * 60 * 60;
+
+function formatDurationFromSeconds(totalSec: number) {
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes} мин ${seconds} с` : `${minutes} мин`;
+  }
+
+  return `${seconds} с`;
+}
+
+function createAppError(
+  message: string,
+  status: number,
+  code: string,
+  extra?: Record<string, unknown>,
+) {
+  const err = new Error(message) as Error & {
+    status?: number;
+    appErrorCode?: string;
+    extra?: Record<string, unknown>;
+  };
+
+  err.status = status;
+  err.appErrorCode = code;
+  err.extra = extra;
+  return err;
+}
+
 export async function POST(req: Request) {
   try {
     const input = Schema.parse(await req.json());
-
     const user = await getSessionUser();
 
     if (!user) {
@@ -24,7 +58,10 @@ export async function POST(req: Request) {
     }
 
     if (user.role !== "COMPANY") {
-      return NextResponse.json({ error: "Только компании могут заявлять права" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Только компании могут заявлять права" },
+        { status: 403 },
+      );
     }
 
     const company = await prisma.company.findUnique({
@@ -39,73 +76,113 @@ export async function POST(req: Request) {
       );
     }
 
-    const place = await prisma.place.findUnique({
-      where: { id: input.placeId },
-      select: { id: true, companyId: true, name: true },
-    });
+    const claim = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(
+          hashtext(${company.id}),
+          hashtext(${input.placeId})
+        )
+      `;
 
-    if (!place) {
-      return NextResponse.json({ error: "Карточка места не найдена" }, { status: 404 });
-    }
+      const place = await tx.place.findUnique({
+        where: { id: input.placeId },
+        select: { id: true, companyId: true, name: true },
+      });
 
-    if (place.companyId) {
-      if (place.companyId === company.id) {
-        return NextResponse.json(
-          { error: "Эта карточка уже принадлежит вашей компании" },
-          { status: 409 },
+      if (!place) {
+        throw createAppError("Карточка места не найдена", 404, "PLACE_NOT_FOUND");
+      }
+
+      if (place.companyId) {
+        if (place.companyId === company.id) {
+          throw createAppError(
+            "Эта карточка уже принадлежит вашей компании",
+            409,
+            "PLACE_ALREADY_OWNED_BY_YOU",
+          );
+        }
+
+        throw createAppError(
+          "У этой карточки уже есть подтверждённая компания",
+          409,
+          "PLACE_ALREADY_MANAGED",
         );
       }
 
-      return NextResponse.json(
-        { error: "У этой карточки уже есть подтверждённая компания" },
-        { status: 409 },
-      );
-    }
+      const claims = await tx.claim.findMany({
+        where: {
+          placeId: place.id,
+          companyId: company.id,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+        },
+      });
 
-    const existingClaim = await prisma.claim.findFirst({
-      where: {
-        placeId: place.id,
-        companyId: company.id,
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        status: true,
-      },
-    });
+      const hasPending = claims.some((item) => item.status === "PENDING");
+      if (hasPending) {
+        throw createAppError(
+          "Вы уже отправили заявку на эту карточку",
+          409,
+          "CLAIM_ALREADY_PENDING",
+        );
+      }
 
-    if (existingClaim?.status === "PENDING") {
-      return NextResponse.json(
-        { error: "Вы уже отправили заявку на эту карточку" },
-        { status: 409 },
-      );
-    }
+      const hasApproved = claims.some((item) => item.status === "APPROVED");
+      if (hasApproved) {
+        throw createAppError(
+          "Заявка уже была одобрена ранее",
+          409,
+          "CLAIM_ALREADY_APPROVED",
+        );
+      }
 
-    if (existingClaim?.status === "APPROVED") {
-      return NextResponse.json(
-        { error: "Заявка уже была одобрена ранее" },
-        { status: 409 },
-      );
-    }
+      const latestRejected =
+        claims.find((item) => item.status === "REJECTED") ?? null;
 
-    const claim = await prisma.claim.create({
-      data: {
-        placeId: place.id,
-        companyId: company.id,
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-      },
+      if (latestRejected) {
+        const retryAfterSec =
+          CLAIM_RETRY_COOLDOWN_SEC -
+          Math.floor((Date.now() - latestRejected.createdAt.getTime()) / 1000);
+
+        if (retryAfterSec > 0) {
+          throw createAppError(
+            `Повторную заявку можно отправить через ${formatDurationFromSeconds(
+              retryAfterSec,
+            )}`,
+            429,
+            "CLAIM_RETRY_COOLDOWN",
+            { retryAfterSec },
+          );
+        }
+      }
+
+      return tx.claim.create({
+        data: {
+          placeId: place.id,
+          companyId: company.id,
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+        },
+      });
     });
 
     return NextResponse.json(claim, { status: 201 });
   } catch (err: any) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err?.appErrorCode) {
       return NextResponse.json(
-        { error: "Не удалось создать заявку" },
-        { status: 400 },
+        {
+          error: err.message ?? "Ошибка",
+          code: err.appErrorCode,
+          ...(err?.extra ?? {}),
+        },
+        { status: err.status ?? 400 },
       );
     }
 
@@ -115,9 +192,6 @@ export async function POST(req: Request) {
     }
 
     console.error("POST /api/claims failed:", err);
-    return NextResponse.json(
-      { error: "Ошибка сервера" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

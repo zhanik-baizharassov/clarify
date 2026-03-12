@@ -6,16 +6,53 @@ import { useRouter } from "next/navigation";
 type Props = {
   placeId: string;
   status?: "PENDING" | "APPROVED" | "REJECTED" | null;
+  retryAfterSec?: number;
 };
 
-export default function ClaimPlaceButton({ placeId, status }: Props) {
+function formatDurationFromSeconds(totalSec: number) {
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes} мин ${seconds} с` : `${minutes} мин`;
+  }
+
+  return `${seconds} с`;
+}
+
+export default function ClaimPlaceButton({
+  placeId,
+  status,
+  retryAfterSec = 0,
+}: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [cooldownSec, setCooldownSec] = useState(retryAfterSec);
 
   const isPending = status === "PENDING";
   const isApproved = status === "APPROVED";
+  const isRejectedCooldown = status === "REJECTED" && cooldownSec > 0;
+
+  useEffect(() => {
+    setCooldownSec(retryAfterSec);
+  }, [retryAfterSec]);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+
+    const t = setInterval(() => {
+      setCooldownSec((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, [cooldownSec]);
 
   useEffect(() => {
     if (status === "PENDING" || status === "APPROVED") {
@@ -24,7 +61,7 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
   }, [status]);
 
   async function handleClaim() {
-    if (loading || isPending || isApproved) return;
+    if (loading || isPending || isApproved || isRejectedCooldown) return;
 
     setErr(null);
     setSuccess(null);
@@ -40,6 +77,10 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 429 && typeof data?.retryAfterSec === "number") {
+          setCooldownSec(data.retryAfterSec);
+        }
+
         throw new Error(data?.error ?? "Не удалось отправить заявку");
       }
 
@@ -71,7 +112,11 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
 
       {status === "REJECTED" ? (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-          Предыдущая заявка была отклонена. Вы можете отправить новую заявку повторно.
+          {cooldownSec > 0
+            ? `Предыдущая заявка была отклонена. Повторная отправка станет доступна через ${formatDurationFromSeconds(
+                cooldownSec,
+              )}.`
+            : "Предыдущая заявка была отклонена. Вы можете отправить новую заявку повторно."}
         </div>
       ) : null}
 
@@ -81,7 +126,7 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
         </div>
       ) : null}
 
-      {success && !status ? (
+      {success ? (
         <div className="rounded-lg border bg-primary/5 p-4 text-sm text-primary">
           {success}
         </div>
@@ -89,7 +134,7 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
 
       <button
         type="button"
-        disabled={loading || isPending || isApproved}
+        disabled={loading || isPending || isApproved || isRejectedCooldown}
         onClick={handleClaim}
         className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
       >
@@ -99,9 +144,11 @@ export default function ClaimPlaceButton({ placeId, status }: Props) {
             ? "Заявка уже отправлена"
             : isApproved
               ? "Заявка уже одобрена"
-              : status === "REJECTED"
-                ? "Отправить заявку повторно"
-                : "Заявить права на карточку"}
+              : isRejectedCooldown
+                ? `Доступно через ${formatDurationFromSeconds(cooldownSec)}`
+                : status === "REJECTED"
+                  ? "Отправить заявку повторно"
+                  : "Заявить права на карточку"}
       </button>
     </div>
   );

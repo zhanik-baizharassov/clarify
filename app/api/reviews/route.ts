@@ -1,4 +1,4 @@
-// app/api/reviews/route.ts
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
@@ -17,11 +17,13 @@ const CreateReviewSchema = z.object({
 export async function POST(req: Request) {
   try {
     const input = CreateReviewSchema.parse(await req.json());
+    const trimmedText = input.text.trim();
 
     const user = await getSessionUser();
     if (!user) {
       return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
     }
+
     if (user.role !== "USER") {
       return NextResponse.json(
         { error: "Компания не может оставлять отзывы" },
@@ -29,25 +31,16 @@ export async function POST(req: Request) {
       );
     }
 
-    assertNoProfanity(input.text, "Отзыв");
+    assertNoProfanity(trimmedText, "Отзыв");
 
     const created = await prisma.$transaction(async (tx) => {
       const place = await tx.place.findUnique({
         where: { slug: input.placeSlug },
-        select: { id: true, avgRating: true, ratingCount: true },
-      });
-      if (!place) {
-        // бросаем ошибку, чтобы выйти из транзакции
-        throw new Error("PLACE_NOT_FOUND");
-      }
-
-      // ✅ защита от дубля (1 отзыв на 1 место от 1 юзера)
-      const already = await tx.review.findFirst({
-        where: { placeId: place.id, authorId: user.id },
         select: { id: true },
       });
-      if (already) {
-        throw new Error("REVIEW_ALREADY_EXISTS");
+
+      if (!place) {
+        throw new Error("PLACE_NOT_FOUND");
       }
 
       const uniqTagSlugs = input.tagSlugs
@@ -55,7 +48,10 @@ export async function POST(req: Request) {
         : [];
 
       const tags = uniqTagSlugs.length
-        ? await tx.tag.findMany({ where: { slug: { in: uniqTagSlugs } } })
+        ? await tx.tag.findMany({
+            where: { slug: { in: uniqTagSlugs } },
+            select: { id: true },
+          })
         : [];
 
       const review = await tx.review.create({
@@ -63,22 +59,33 @@ export async function POST(req: Request) {
           placeId: place.id,
           authorId: user.id,
           rating: input.rating,
-          text: input.text,
+          text: trimmedText,
           status: "PUBLISHED",
           tags: tags.length
-            ? { createMany: { data: tags.map((t) => ({ tagId: t.id })) } }
+            ? {
+                createMany: {
+                  data: tags.map((t) => ({ tagId: t.id })),
+                },
+              }
             : undefined,
         },
       });
 
-      // ✅ безопаснее: считаем от актуального place внутри tx
-      const newCount = place.ratingCount + 1;
-      const newAvg =
-        (place.avgRating * place.ratingCount + input.rating) / newCount;
+      const aggregate = await tx.review.aggregate({
+        where: {
+          placeId: place.id,
+          status: "PUBLISHED",
+        },
+        _avg: { rating: true },
+        _count: { _all: true },
+      });
 
       await tx.place.update({
         where: { id: place.id },
-        data: { ratingCount: newCount, avgRating: newAvg },
+        data: {
+          avgRating: aggregate._avg.rating ?? 0,
+          ratingCount: aggregate._count._all,
+        },
       });
 
       return review;
@@ -89,7 +96,11 @@ export async function POST(req: Request) {
     if (err?.message === "PLACE_NOT_FOUND") {
       return NextResponse.json({ error: "Место не найдено" }, { status: 404 });
     }
-    if (err?.message === "REVIEW_ALREADY_EXISTS") {
+
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
       return NextResponse.json(
         { error: "Вы уже оставляли отзыв для этого места" },
         { status: 409 },
@@ -100,9 +111,11 @@ export async function POST(req: Request) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные формы";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
+
     if (err?.message?.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
+
     console.error("REVIEWS POST ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }

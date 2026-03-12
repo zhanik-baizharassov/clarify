@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 
 type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+const CLAIM_RETRY_COOLDOWN_SEC = 3 * 60 * 60;
+
 function getAuthorLabel(author: {
   nickname?: string | null;
   firstName?: string | null;
@@ -22,6 +24,22 @@ function getAuthorLabel(author: {
   const name = author?.name ?? "";
 
   return nick || fullName || name || "Пользователь";
+}
+
+function formatDurationFromSeconds(totalSec: number) {
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes} мин ${seconds} с` : `${minutes} мин`;
+  }
+
+  return `${seconds} с`;
 }
 
 export default async function PlacePage({
@@ -85,6 +103,7 @@ export default async function PlacePage({
 
   let isOwnerBranch = false;
   let myClaimStatus: ClaimStatus | null = null;
+  let myClaimRetryAfterSec = 0;
 
   if (sessionUser?.role === "COMPANY") {
     try {
@@ -98,22 +117,43 @@ export default async function PlacePage({
       );
 
       if (myCompany?.id && !place.companyId) {
-        const existingClaim = await prisma.claim.findFirst({
+        const claims = await prisma.claim.findMany({
           where: {
             placeId: place.id,
             companyId: myCompany.id,
           },
           orderBy: { createdAt: "desc" },
-          select: { status: true },
+          select: {
+            status: true,
+            createdAt: true,
+          },
         });
 
-        myClaimStatus = existingClaim?.status ?? null;
+        const hasPending = claims.some((item) => item.status === "PENDING");
+        const hasApproved = claims.some((item) => item.status === "APPROVED");
+        const latestRejected =
+          claims.find((item) => item.status === "REJECTED") ?? null;
+
+        if (hasPending) {
+          myClaimStatus = "PENDING";
+        } else if (hasApproved) {
+          myClaimStatus = "APPROVED";
+        } else if (latestRejected) {
+          myClaimStatus = "REJECTED";
+
+          const retryAfterSec =
+            CLAIM_RETRY_COOLDOWN_SEC -
+            Math.floor((Date.now() - latestRejected.createdAt.getTime()) / 1000);
+
+          myClaimRetryAfterSec = Math.max(0, retryAfterSec);
+        }
       }
     } catch (err) {
       console.error("PlacePage: company/claim lookup failed:", err);
       myCompany = null;
       isOwnerBranch = false;
       myClaimStatus = null;
+      myClaimRetryAfterSec = 0;
     }
   }
 
@@ -200,7 +240,7 @@ export default async function PlacePage({
           {sessionUser?.role === "USER" ? (
             hasUserReview ? (
               <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Вы уже оставляли отзыв этой компании.
+                Вы уже оставляли отзыв этому месту.
               </div>
             ) : (
               <Link
@@ -250,14 +290,21 @@ export default async function PlacePage({
                 <div className="rounded-lg border bg-muted/30 p-4 text-sm">
                   <div className="font-medium">Прошлая заявка была отклонена</div>
                   <div className="mt-1 text-muted-foreground">
-                    Вы можете отправить новую заявку, если данные были уточнены
-                    или если это действительно карточка вашего бизнеса.
+                    {myClaimRetryAfterSec > 0
+                      ? `Повторную заявку можно отправить через ${formatDurationFromSeconds(
+                          myClaimRetryAfterSec,
+                        )}.`
+                      : "Вы можете отправить новую заявку, если данные были уточнены или если это действительно карточка вашего бизнеса."}
                   </div>
                 </div>
               ) : null}
 
               {myCompany ? (
-                <ClaimPlaceButton placeId={place.id} status={myClaimStatus} />
+                <ClaimPlaceButton
+                  placeId={place.id}
+                  status={myClaimStatus}
+                  retryAfterSec={myClaimRetryAfterSec}
+                />
               ) : (
                 <div className="rounded-lg border bg-muted/30 p-4 text-sm">
                   <div className="font-medium">
@@ -298,11 +345,7 @@ export default async function PlacePage({
       </div>
 
       {typeof place.lat === "number" && typeof place.lng === "number" ? (
-        <PlaceMiniMap
-          lat={place.lat}
-          lng={place.lng}
-          title={place.name}
-        />
+        <PlaceMiniMap lat={place.lat} lng={place.lng} title={place.name} />
       ) : null}
 
       <h2 className="mt-8 text-lg font-semibold">Отзывы</h2>
