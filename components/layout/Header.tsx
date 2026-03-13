@@ -18,15 +18,18 @@ export default async function Header() {
     user = null;
   }
 
-  const secondaryNavClass =
-    "inline-flex h-10 min-w-[120px] flex-1 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:min-w-0 sm:flex-none sm:text-sm";
+  const desktopNavClass =
+    "inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm";
+
+  const mobileNavClass =
+    "inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40";
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex min-h-[5rem] max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8 md:h-20 md:flex-row md:items-center md:justify-between md:gap-4 md:py-0">
+      <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="group flex min-w-0 items-center gap-3 md:shrink-0"
+          className="group flex min-w-0 items-center gap-3"
           aria-label="На главную"
         >
           <Image
@@ -48,53 +51,116 @@ export default async function Header() {
           </span>
         </Link>
 
-        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap md:justify-end">
-          <Link href="/charts" className={secondaryNavClass}>
+        <div className="hidden items-center gap-2 md:flex">
+          <Link href="/charts" className={desktopNavClass}>
             Чарты Clarify
           </Link>
 
-          <Link href="/explore" className={secondaryNavClass}>
+          <Link href="/explore" className={desktopNavClass}>
             Найти места
           </Link>
 
           {!user ? (
             <nav
-              className="flex w-full flex-wrap items-center gap-2 text-xs sm:text-sm md:w-auto md:flex-nowrap"
+              className="flex items-center gap-2 text-xs sm:text-sm"
               aria-label="Навигация"
             >
-              <Link href="/login" className={secondaryNavClass}>
+              <Link href="/login" className={desktopNavClass}>
                 Войти
               </Link>
 
               <Link
                 href="/signup"
-                className="inline-flex h-10 min-w-[120px] flex-1 items-center justify-center rounded-xl bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:min-w-0 sm:flex-none sm:text-sm"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:text-sm"
               >
                 Регистрация
               </Link>
             </nav>
           ) : (
             <nav
-              className="flex w-full flex-wrap items-center gap-2 text-xs sm:text-sm md:w-auto md:flex-nowrap"
+              className="flex items-center gap-2 text-xs sm:text-sm"
               aria-label="Навигация"
             >
               {user.role === "ADMIN" ? (
-                <Link href="/admin" className={secondaryNavClass}>
+                <Link href="/admin" className={desktopNavClass}>
                   Админ
                 </Link>
               ) : user.role === "COMPANY" ? (
-                <Link href="/company" className={secondaryNavClass}>
+                <Link href="/company" className={desktopNavClass}>
                   Кабинет
                 </Link>
               ) : (
-                <Link href="/profile" className={secondaryNavClass}>
+                <Link href="/profile" className={desktopNavClass}>
                   Профиль
                 </Link>
               )}
+
               <LogoutButton />
             </nav>
           )}
         </div>
+
+        <details className="group md:hidden">
+          <summary
+            className="flex h-11 w-11 list-none items-center justify-center rounded-xl border bg-background transition hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background [&::-webkit-details-marker]:hidden"
+            aria-label="Открыть меню"
+          >
+            <span className="sr-only">Открыть меню</span>
+            <span className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-5 rounded-full bg-foreground" />
+              <span className="block h-0.5 w-5 rounded-full bg-foreground" />
+              <span className="block h-0.5 w-5 rounded-full bg-foreground" />
+            </span>
+          </summary>
+
+          <div className="absolute inset-x-0 top-full border-b bg-background/95 px-4 pb-4 pt-3 shadow-lg backdrop-blur sm:px-6">
+            <nav
+              className="mx-auto grid max-w-7xl gap-2"
+              aria-label="Мобильная навигация"
+            >
+              <Link href="/charts" className={mobileNavClass}>
+                Чарты Clarify
+              </Link>
+
+              <Link href="/explore" className={mobileNavClass}>
+                Найти места
+              </Link>
+
+              {!user ? (
+                <>
+                  <Link href="/login" className={mobileNavClass}>
+                    Войти
+                  </Link>
+
+                  <Link
+                    href="/signup"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+                  >
+                    Регистрация
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {user.role === "ADMIN" ? (
+                    <Link href="/admin" className={mobileNavClass}>
+                      Админ
+                    </Link>
+                  ) : user.role === "COMPANY" ? (
+                    <Link href="/company" className={mobileNavClass}>
+                      Кабинет
+                    </Link>
+                  ) : (
+                    <Link href="/profile" className={mobileNavClass}>
+                      Профиль
+                    </Link>
+                  )}
+
+                  <LogoutButton className="h-11 w-full text-sm" />
+                </>
+              )}
+            </nav>
+          </div>
+        </details>
       </div>
     </header>
   );
