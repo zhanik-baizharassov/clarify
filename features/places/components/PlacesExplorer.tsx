@@ -15,7 +15,6 @@ type Category = {
   id: string;
   name: string;
   slug: string;
-  parentId: string | null;
 };
 
 type PlaceCard = {
@@ -202,9 +201,7 @@ export default function PlacesExplorer({
             <div className="lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">KZ</span>
-                <span>
-                  Отзывы только от верифицированных пользователей
-                </span>
+                <span>Отзывы только от верифицированных пользователей</span>
               </div>
 
               <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">

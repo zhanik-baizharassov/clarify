@@ -39,14 +39,7 @@ type CategoryOption = {
 type CategoryAdminItem = {
   id: string;
   name: string;
-  slug: string;
-  parentId: string | null;
   isActive: boolean;
-  sortOrder: number;
-  _count: {
-    children: number;
-    places: number;
-  };
 };
 
 type TagAdminItem = {
@@ -121,7 +114,7 @@ function getWorkspaceMeta(section: Exclude<AdminSection, null>) {
     case "categories":
       return {
         title: "Категории",
-        desc: "Создание категорий, настройка иерархии, активности и порядка отображения.",
+        desc: "Создание категорий, управление активностью и алфавитный список.",
       };
     case "tags":
       return {
@@ -170,22 +163,33 @@ export default async function AdminPage({
       ? requestedSection
       : null;
 
-  const [usersCount, companiesCount, pendingClaimsCount, unclaimedPlacesCount] =
-    await Promise.all([
-      prisma.user.count({ where: { role: "USER" } }),
-      prisma.company.count(),
-      prisma.claim.count({ where: { status: "PENDING" } }),
-      prisma.place.count({ where: { companyId: null } }),
-    ]);
+  const [
+    usersCount,
+    companiesCount,
+    pendingClaimsCount,
+    unclaimedPlacesCount,
+    categoriesCount,
+  ] = await Promise.all([
+    prisma.user.count({ where: { role: "USER" } }),
+    prisma.company.count(),
+    prisma.claim.count({ where: { status: "PENDING" } }),
+    prisma.place.count({ where: { companyId: null } }),
+    prisma.category.count(),
+  ]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
   const companiesTotalPages = Math.max(
     1,
     Math.ceil(companiesCount / PAGE_SIZE),
   );
+  const categoriesTotalPages = Math.max(
+    1,
+    Math.ceil(categoriesCount / PAGE_SIZE),
+  );
 
   const usersPage = clampPage(requestedPage, usersTotalPages);
   const companiesPage = clampPage(requestedPage, companiesTotalPages);
+  const categoriesPage = clampPage(requestedPage, categoriesTotalPages);
 
   const [
     createPlaceCategories,
@@ -199,27 +203,20 @@ export default async function AdminPage({
     activeSection === "create-place"
       ? prisma.category.findMany({
           where: { isActive: true },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          orderBy: [{ name: "asc" }],
           select: { id: true, name: true },
         })
       : Promise.resolve([] as CategoryOption[]),
 
     activeSection === "categories"
       ? prisma.category.findMany({
-          orderBy: [{ parentId: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+          orderBy: [{ name: "asc" }],
+          skip: (categoriesPage - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
           select: {
             id: true,
             name: true,
-            slug: true,
-            parentId: true,
             isActive: true,
-            sortOrder: true,
-            _count: {
-              select: {
-                children: true,
-                places: true,
-              },
-            },
           },
         })
       : Promise.resolve([] as CategoryAdminItem[]),
@@ -408,7 +405,7 @@ export default async function AdminPage({
           <AdminMenuCard
             icon={<FolderTree className="h-4 w-4" />}
             title="Категории"
-            desc="Создание категорий, настройка иерархии, активности и порядка отображения."
+            desc="Создание категорий, управление активностью и алфавитный список."
             href={buildAdminHref("categories")}
             active={activeSection === "categories"}
           />
@@ -463,11 +460,19 @@ export default async function AdminPage({
               <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Всего категорий:{" "}
                 <span className="ml-1 font-medium text-foreground">
-                  {adminCategories.length}
+                  {categoriesCount}
                 </span>
               </div>
 
               <CategoryManagementPanel categories={adminCategories} />
+
+              <Pagination
+                section="categories"
+                page={categoriesPage}
+                totalPages={categoriesTotalPages}
+                totalItems={categoriesCount}
+                pageSize={PAGE_SIZE}
+              />
             </div>
           ) : null}
 
@@ -892,7 +897,7 @@ function Pagination({
   totalItems,
   pageSize,
 }: {
-  section: "users" | "companies";
+  section: "users" | "companies" | "categories";
   page: number;
   totalPages: number;
   totalItems: number;

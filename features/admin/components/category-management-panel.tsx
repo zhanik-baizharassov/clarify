@@ -1,19 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CategoryItem = {
   id: string;
   name: string;
-  slug: string;
-  parentId: string | null;
   isActive: boolean;
-  sortOrder: number;
-  _count: {
-    children: number;
-    places: number;
-  };
 };
 
 export default function CategoryManagementPanel({
@@ -31,6 +24,13 @@ export default function CategoryManagementPanel({
   async function handleCreate() {
     if (loading) return;
 
+    const cleanName = name.trim();
+    if (!cleanName) {
+      setMsg("Введите название категории");
+      setMsgTone("error");
+      return;
+    }
+
     setLoading(true);
     setMsg(null);
     setMsgTone(null);
@@ -40,9 +40,7 @@ export default function CategoryManagementPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          parentId: null,
-          sortOrder: 0,
+          name: cleanName,
         }),
       });
 
@@ -69,10 +67,11 @@ export default function CategoryManagementPanel({
       <div className="rounded-2xl border bg-background p-5">
         <div className="text-base font-semibold">Новая категория</div>
         <div className="mt-1 text-sm text-muted-foreground">
-          Slug создаётся автоматически и дальше остаётся стабильным.
+          Категории создаются как простой плоский список и дальше показываются в
+          алфавитном порядке.
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-1">
+        <div className="mt-4 grid gap-3">
           <label className="grid gap-1">
             <span className="text-xs text-muted-foreground">Название</span>
             <input
@@ -107,14 +106,10 @@ export default function CategoryManagementPanel({
         </button>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {categories.length ? (
           categories.map((category) => (
-            <CategoryRow
-              key={category.id}
-              category={category}
-              categories={categories}
-            />
+            <CategoryRow key={category.id} category={category} />
           ))
         ) : (
           <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
@@ -128,42 +123,27 @@ export default function CategoryManagementPanel({
 
 function CategoryRow({
   category,
-  categories,
 }: {
   category: CategoryItem;
-  categories: CategoryItem[];
 }) {
   const router = useRouter();
 
-  const parentOptions = useMemo(
-    () => categories.filter((item) => item.id !== category.id && item.isActive),
-    [categories, category.id],
-  );
-
-  const [name, setName] = useState(category.name);
-  const [parentId, setParentId] = useState(category.parentId ?? "");
-  const [sortOrder, setSortOrder] = useState(String(category.sortOrder));
   const [isActive, setIsActive] = useState(category.isActive);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [msgTone, setMsgTone] = useState<"success" | "error" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
-  async function handleSave() {
-    if (loading) return;
+  async function updateStatus(nextIsActive: boolean) {
+    if (loading || nextIsActive === isActive) return;
 
     setLoading(true);
-    setMsg(null);
-    setMsgTone(null);
+    setErr(null);
 
     try {
       const res = await fetch(`/api/admin/categories/${category.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          parentId: parentId || null,
-          isActive,
-          sortOrder,
+          isActive: nextIsActive,
         }),
       });
 
@@ -173,111 +153,58 @@ function CategoryRow({
         throw new Error(data?.error ?? "Не удалось обновить категорию");
       }
 
-      setMsg("Категория обновлена");
-      setMsgTone("success");
+      setIsActive(nextIsActive);
       router.refresh();
-    } catch (err: any) {
-      setMsg(err?.message ?? "Ошибка");
-      setMsgTone("error");
+    } catch (e: any) {
+      setErr(e?.message ?? "Ошибка");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="rounded-2xl border bg-background p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-base font-semibold">{category.name}</div>
-            <span
-              className={[
-                "rounded-full border px-2.5 py-1 text-[11px]",
-                isActive
-                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700"
-                  : "border-destructive/30 bg-destructive/10 text-destructive",
-              ].join(" ")}
-            >
-              {isActive ? "Активна" : "Отключена"}
-            </span>
-          </div>
+    <div className="rounded-2xl border bg-background p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="inline-flex min-h-11 items-center rounded-xl border bg-muted/20 px-4 text-sm font-medium">
+          {category.name}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => updateStatus(true)}
+            disabled={loading || isActive}
+            className={[
+              "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
+              isActive
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 opacity-60"
+                : "bg-background hover:bg-muted/40",
+              loading ? "opacity-60" : "",
+            ].join(" ")}
+          >
+            Активировать
+          </button>
+
+          <button
+            type="button"
+            onClick={() => updateStatus(false)}
+            disabled={loading || !isActive}
+            className={[
+              "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
+              !isActive
+                ? "border-destructive/30 bg-destructive/10 text-destructive opacity-60"
+                : "bg-background hover:bg-muted/40",
+              loading ? "opacity-60" : "",
+            ].join(" ")}
+          >
+            Деактивировать
+          </button>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <label className="grid gap-1 md:col-span-2">
-          <span className="text-xs text-muted-foreground">Название</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={loading}
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </label>
-
-        <label className="grid gap-1">
-          <span className="text-xs text-muted-foreground">Родитель</span>
-          <select
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-            disabled={loading}
-            className="h-11 rounded-xl border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark]"
-          >
-            <option value="">Без родителя</option>
-            {parentOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="grid gap-1">
-          <span className="text-xs text-muted-foreground">Порядок</span>
-          <input
-            type="number"
-            min={0}
-            max={10000}
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            disabled={loading}
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </label>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            disabled={loading}
-            className="h-4 w-4 rounded border"
-          />
-          Активна
-        </label>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={loading}
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-        >
-          {loading ? "Сохраняем..." : "Сохранить"}
-        </button>
-      </div>
-
-      {msg ? (
-        <div
-          className={[
-            "mt-4 rounded-xl border p-3 text-sm",
-            msgTone === "success"
-              ? "border-primary/30 bg-primary/5 text-primary"
-              : "border-destructive/30 bg-destructive/5 text-destructive",
-          ].join(" ")}
-        >
-          {msg}
+      {err ? (
+        <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {err}
         </div>
       ) : null}
     </div>

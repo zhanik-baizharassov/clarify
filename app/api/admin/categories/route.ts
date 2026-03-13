@@ -14,20 +14,8 @@ const CreateCategorySchema = z
       .trim()
       .min(2, "Название категории: минимум 2 символа")
       .max(80, "Название категории слишком длинное"),
-    parentId: z.string().trim().nullable().optional(),
-    sortOrder: z.coerce
-      .number()
-      .int("Порядок должен быть целым числом")
-      .min(0, "Порядок не может быть отрицательным")
-      .max(10000, "Порядок слишком большой")
-      .default(0),
   })
   .strict();
-
-function normalizeParentId(value?: string | null) {
-  const clean = (value ?? "").trim();
-  return clean || null;
-}
 
 async function requireAdmin() {
   const user = await getSessionUser();
@@ -79,31 +67,6 @@ export async function POST(req: Request) {
     if (!admin.ok) return admin.response;
 
     const input = CreateCategorySchema.parse(await req.json());
-    const parentId = normalizeParentId(input.parentId);
-
-    if (parentId) {
-      const parent = await prisma.category.findUnique({
-        where: { id: parentId },
-        select: {
-          id: true,
-          isActive: true,
-        },
-      });
-
-      if (!parent) {
-        return NextResponse.json(
-          { error: "Родительская категория не найдена" },
-          { status: 400 },
-        );
-      }
-
-      if (!parent.isActive) {
-        return NextResponse.json(
-          { error: "Нельзя привязать категорию к отключённому родителю" },
-          { status: 400 },
-        );
-      }
-    }
 
     const slug = await makeUniqueCategorySlug(input.name);
 
@@ -111,17 +74,13 @@ export async function POST(req: Request) {
       data: {
         name: input.name.trim(),
         slug,
-        parentId,
         isActive: true,
-        sortOrder: input.sortOrder,
       },
       select: {
         id: true,
         name: true,
         slug: true,
-        parentId: true,
         isActive: true,
-        sortOrder: true,
       },
     });
 

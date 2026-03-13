@@ -20,40 +20,6 @@ const QuerySchema = z.object({
   sort: SortSchema.default("rating_desc"),
 });
 
-const activeCategoryIdsCache = new Map<string, string[]>();
-
-async function collectActiveCategoryIds(rootId: string) {
-  const cached = activeCategoryIdsCache.get(rootId);
-  if (cached) return cached;
-
-  const seen = new Set<string>();
-  const queue: string[] = [rootId];
-  seen.add(rootId);
-
-  while (queue.length) {
-    const batch = queue.splice(0, 50);
-
-    const children = await prisma.category.findMany({
-      where: {
-        parentId: { in: batch },
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      if (!seen.has(child.id)) {
-        seen.add(child.id);
-        queue.push(child.id);
-      }
-    }
-  }
-
-  const result = Array.from(seen);
-  activeCategoryIdsCache.set(rootId, result);
-  return result;
-}
-
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -137,8 +103,7 @@ export async function GET(req: Request) {
     }
 
     if (baseCategoryId) {
-      const ids = await collectActiveCategoryIds(baseCategoryId);
-      and.push({ categoryId: { in: ids } });
+      and.push({ categoryId: baseCategoryId });
     }
 
     const where: Prisma.PlaceWhereInput | undefined = and.length
