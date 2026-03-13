@@ -15,6 +15,8 @@ import CreateCatalogPlaceForm from "@/features/admin/components/create-catalog-p
 import ClaimReviewActions from "@/features/admin/components/claim-review-actions";
 import UserModerationActions from "@/features/admin/components/user-moderation-actions";
 import CompanyModerationActions from "@/features/admin/components/company-moderation-actions";
+import CategoryManagementPanel from "@/features/admin/components/category-management-panel";
+import TagManagementPanel from "@/features/admin/components/tag-management-panel";
 
 export const runtime = "nodejs";
 
@@ -24,11 +26,37 @@ type AdminSection =
   | "create-place"
   | "claims"
   | "unclaimed-places"
+  | "categories"
+  | "tags"
   | null;
 
 type CategoryOption = {
   id: string;
   name: string;
+};
+
+type CategoryAdminItem = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  _count: {
+    children: number;
+    places: number;
+  };
+};
+
+type TagAdminItem = {
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  sortOrder: number;
+  _count: {
+    reviewTags: number;
+  };
 };
 
 const PAGE_SIZE = 10;
@@ -93,7 +121,9 @@ export default async function AdminPage({
     requestedSection === "companies" ||
     requestedSection === "create-place" ||
     requestedSection === "claims" ||
-    requestedSection === "unclaimed-places"
+    requestedSection === "unclaimed-places" ||
+    requestedSection === "categories" ||
+    requestedSection === "tags"
       ? requestedSection
       : null;
 
@@ -119,120 +149,165 @@ export default async function AdminPage({
   const usersPage = clampPage(requestedPage, usersTotalPages);
   const companiesPage = clampPage(requestedPage, companiesTotalPages);
 
-  const [categories, recentUnclaimedPlaces, pendingClaims, usersList, companiesList] =
-    await Promise.all([
-      activeSection === "create-place"
-        ? prisma.category.findMany({
-            where: { isActive: true },
-            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-            select: { id: true, name: true },
-          })
-        : Promise.resolve([] as CategoryOption[]),
+  const [
+    createPlaceCategories,
+    adminCategories,
+    adminTags,
+    recentUnclaimedPlaces,
+    pendingClaims,
+    usersList,
+    companiesList,
+  ] = await Promise.all([
+    activeSection === "create-place"
+      ? prisma.category.findMany({
+          where: { isActive: true },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([] as CategoryOption[]),
 
-      activeSection === "unclaimed-places"
-        ? prisma.place.findMany({
-            where: { companyId: null },
-            orderBy: { createdAt: "desc" },
-            take: 8,
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              city: true,
-              address: true,
-              createdAt: true,
-              category: { select: { name: true } },
-            },
-          })
-        : Promise.resolve([]),
-
-      activeSection === "claims"
-        ? prisma.claim.findMany({
-            where: { status: "PENDING" },
-            orderBy: { createdAt: "desc" },
-            take: 20,
-            select: {
-              id: true,
-              createdAt: true,
-              place: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  city: true,
-                  address: true,
-                },
+    activeSection === "categories"
+      ? prisma.category.findMany({
+          orderBy: [{ parentId: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            parentId: true,
+            isActive: true,
+            sortOrder: true,
+            _count: {
+              select: {
+                children: true,
+                places: true,
               },
-              company: {
-                select: {
-                  id: true,
-                  name: true,
-                  bin: true,
-                  owner: {
-                    select: {
-                      email: true,
-                    },
+            },
+          },
+        })
+      : Promise.resolve([] as CategoryAdminItem[]),
+
+    activeSection === "tags"
+      ? prisma.tag.findMany({
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+            sortOrder: true,
+            _count: {
+              select: {
+                reviewTags: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([] as TagAdminItem[]),
+
+    activeSection === "unclaimed-places"
+      ? prisma.place.findMany({
+          where: { companyId: null },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            city: true,
+            address: true,
+            createdAt: true,
+            category: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+
+    activeSection === "claims"
+      ? prisma.claim.findMany({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            createdAt: true,
+            place: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                city: true,
+                address: true,
+              },
+            },
+            company: {
+              select: {
+                id: true,
+                name: true,
+                bin: true,
+                owner: {
+                  select: {
+                    email: true,
                   },
                 },
               },
             },
-          })
-        : Promise.resolve([]),
+          },
+        })
+      : Promise.resolve([]),
 
-      activeSection === "users"
-        ? prisma.user.findMany({
-            where: { role: "USER" },
-            orderBy: { createdAt: "desc" },
-            skip: (usersPage - 1) * PAGE_SIZE,
-            take: PAGE_SIZE,
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-              nickname: true,
-              firstName: true,
-              lastName: true,
-              createdAt: true,
-              blockedUntil: true,
-              blockReason: true,
-              _count: {
-                select: {
-                  reviews: true,
-                },
+    activeSection === "users"
+      ? prisma.user.findMany({
+          where: { role: "USER" },
+          orderBy: { createdAt: "desc" },
+          skip: (usersPage - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            nickname: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            blockedUntil: true,
+            blockReason: true,
+            _count: {
+              select: {
+                reviews: true,
               },
             },
-          })
-        : Promise.resolve([]),
+          },
+        })
+      : Promise.resolve([]),
 
-      activeSection === "companies"
-        ? prisma.company.findMany({
-            orderBy: { createdAt: "desc" },
-            skip: (companiesPage - 1) * PAGE_SIZE,
-            take: PAGE_SIZE,
-            select: {
-              id: true,
-              name: true,
-              bin: true,
-              address: true,
-              createdAt: true,
-              blockedUntil: true,
-              blockReason: true,
-              owner: {
-                select: {
-                  email: true,
-                  phone: true,
-                },
-              },
-              _count: {
-                select: {
-                  places: true,
-                  claims: true,
-                },
+    activeSection === "companies"
+      ? prisma.company.findMany({
+          orderBy: { createdAt: "desc" },
+          skip: (companiesPage - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+          select: {
+            id: true,
+            name: true,
+            bin: true,
+            address: true,
+            createdAt: true,
+            blockedUntil: true,
+            blockReason: true,
+            owner: {
+              select: {
+                email: true,
+                phone: true,
               },
             },
-          })
-        : Promise.resolve([]),
-    ]);
+            _count: {
+              select: {
+                places: true,
+                claims: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <main className="mx-auto max-w-7xl p-6">
@@ -292,7 +367,19 @@ export default async function AdminPage({
         />
       </section>
 
-      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <AdminActionCard
+          title="Категории"
+          desc="Управление деревом категорий, активностью и порядком отображения."
+          href={buildAdminHref("categories")}
+          active={activeSection === "categories"}
+        />
+        <AdminActionCard
+          title="Теги"
+          desc="Управление тегами отзывов, их активностью и порядком."
+          href={buildAdminHref("tags")}
+          active={activeSection === "tags"}
+        />
         <AdminActionCard
           title="Создать карточку места"
           desc="Откройте форму создания каталожной карточки без привязки к компании."
@@ -327,6 +414,52 @@ export default async function AdminPage({
               блок выше, чтобы открыть только конкретный раздел админки.
             </p>
           </div>
+        </section>
+      ) : null}
+
+      {activeSection === "categories" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Категории</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь можно создавать категории, задавать родителя, управлять
+                активностью и порядком отображения.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего категорий:{" "}
+              <span className="font-medium text-foreground">
+                {adminCategories.length}
+              </span>
+            </div>
+          </div>
+
+          <CategoryManagementPanel categories={adminCategories} />
+        </section>
+      ) : null}
+
+      {activeSection === "tags" ? (
+        <section className="mt-8 rounded-3xl border bg-background p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Теги</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Здесь можно создавать теги отзывов, отключать их и менять порядок
+                отображения.
+              </p>
+            </div>
+
+            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              Всего тегов:{" "}
+              <span className="font-medium text-foreground">
+                {adminTags.length}
+              </span>
+            </div>
+          </div>
+
+          <TagManagementPanel tags={adminTags} />
         </section>
       ) : null}
 
@@ -571,14 +704,14 @@ export default async function AdminPage({
             </div>
 
             <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Категорий:{" "}
+              Активных категорий:{" "}
               <span className="font-medium text-foreground">
-                {categories.length}
+                {createPlaceCategories.length}
               </span>
             </div>
           </div>
 
-          <CreateCatalogPlaceForm categories={categories} />
+          <CreateCatalogPlaceForm categories={createPlaceCategories} />
         </section>
       ) : null}
 
@@ -785,7 +918,11 @@ function AdminStatCard({
   );
 
   if (href) {
-    return <Link href={href} scroll={false}>{content}</Link>;
+    return (
+      <Link href={href} scroll={false}>
+        {content}
+      </Link>
+    );
   }
 
   return content;
