@@ -238,18 +238,9 @@ export default async function AdminPage({
     <main className="mx-auto max-w-7xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Только для администратора
-          </div>
-
           <h1 className="mt-4 text-3xl font-semibold tracking-tight">
             Админ-панель Clarify
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">
-            Здесь начинается управление платформой: пользователи, компании,
-            карточки мест, отзывы и claim-заявки.
-          </p>
         </div>
 
         <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
@@ -634,6 +625,7 @@ export default async function AdminPage({
                           <Link
                             href={`/place/${claim.place.slug}`}
                             className="text-lg font-semibold hover:underline"
+                            scroll={false}
                           >
                             {claim.place.name}
                           </Link>
@@ -715,6 +707,7 @@ export default async function AdminPage({
                         <Link
                           href={`/place/${place.slug}`}
                           className="text-lg font-semibold hover:underline"
+                          scroll={false}
                         >
                           {place.name}
                         </Link>
@@ -792,7 +785,7 @@ function AdminStatCard({
   );
 
   if (href) {
-    return <Link href={href}>{content}</Link>;
+    return <Link href={href} scroll={false}>{content}</Link>;
   }
 
   return content;
@@ -829,6 +822,7 @@ function AdminActionCard({
     return (
       <Link
         href={href}
+        scroll={false}
         className={[
           "rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
           active ? "border-primary bg-primary/5" : "",
@@ -878,6 +872,7 @@ function Pagination({
         {page > 1 ? (
           <Link
             href={buildAdminHref(section, page - 1)}
+            scroll={false}
             className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
           >
             Назад
@@ -891,6 +886,7 @@ function Pagination({
         {pages.map((item) => (
           <Link
             key={item}
+            scroll={false}
             href={buildAdminHref(section, item)}
             className={[
               "inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-medium transition",
@@ -905,6 +901,7 @@ function Pagination({
 
         {page < totalPages ? (
           <Link
+            scroll={false}
             href={buildAdminHref(section, page + 1)}
             className="inline-flex h-10 items-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
           >
