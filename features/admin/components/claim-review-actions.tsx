@@ -3,17 +3,30 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+type ClaimAction = "APPROVE" | "REJECT";
+
+function getConfirmText(action: ClaimAction) {
+  if (action === "APPROVE") {
+    return "Подтвердить заявку? Карточка будет привязана к этой компании, а остальные pending-заявки на это место будут автоматически отклонены.";
+  }
+
+  return "Отклонить заявку?";
+}
+
 export default function ClaimReviewActions({
   claimId,
 }: {
   claimId: string;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState<"APPROVE" | "REJECT" | null>(null);
+  const [loading, setLoading] = useState<ClaimAction | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  async function handleAction(action: "APPROVE" | "REJECT") {
+  async function handleAction(action: ClaimAction) {
     if (loading) return;
+
+    const confirmed = window.confirm(getConfirmText(action));
+    if (!confirmed) return;
 
     setErr(null);
     setLoading(action);
@@ -41,8 +54,10 @@ export default function ClaimReviewActions({
   return (
     <div className="grid gap-3 rounded-2xl border bg-background p-4">
       <div className="text-sm font-medium">Решение по заявке</div>
+
       <div className="text-sm text-muted-foreground">
-        При одобрении карточка будет привязана к компании, а остальные pending-заявки на это место автоматически отклонятся.
+        При одобрении карточка будет привязана к компании, а остальные pending-заявки
+        на это место автоматически отклонятся.
       </div>
 
       {err ? (
@@ -65,7 +80,7 @@ export default function ClaimReviewActions({
           type="button"
           disabled={!!loading}
           onClick={() => handleAction("REJECT")}
-          className="inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30 disabled:opacity-50"
+          className="inline-flex h-11 items-center justify-center rounded-xl border border-destructive/30 px-4 text-sm font-medium text-destructive transition hover:bg-destructive/5 disabled:opacity-50"
         >
           {loading === "REJECT" ? "Отклонение..." : "Отклонить"}
         </button>

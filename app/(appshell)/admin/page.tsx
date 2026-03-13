@@ -27,6 +27,11 @@ type AdminSection =
   | "unclaimed-places"
   | null;
 
+type CategoryOption = {
+  id: string;
+  name: string;
+};
+
 const PAGE_SIZE = 10;
 
 function getSingleSearchParam(value?: string | string[]) {
@@ -57,6 +62,10 @@ function getUserLabel(user: {
 }) {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
   return user.nickname || fullName || user.email;
+}
+
+function isBlockActive(date?: Date | null) {
+  return Boolean(date && date > new Date());
 }
 
 export default async function AdminPage({
@@ -96,7 +105,6 @@ export default async function AdminPage({
     reviewsCount,
     pendingClaimsCount,
     unclaimedPlacesCount,
-    categories,
   ] = await Promise.all([
     prisma.user.count({ where: { role: "USER" } }),
     prisma.company.count(),
@@ -104,10 +112,6 @@ export default async function AdminPage({
     prisma.review.count(),
     prisma.claim.count({ where: { status: "PENDING" } }),
     prisma.place.count({ where: { companyId: null } }),
-    prisma.category.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
   ]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
@@ -116,8 +120,15 @@ export default async function AdminPage({
   const usersPage = clampPage(requestedPage, usersTotalPages);
   const companiesPage = clampPage(requestedPage, companiesTotalPages);
 
-  const [recentUnclaimedPlaces, pendingClaims, usersList, companiesList] =
+  const [categories, recentUnclaimedPlaces, pendingClaims, usersList, companiesList] =
     await Promise.all([
+      activeSection === "create-place"
+        ? prisma.category.findMany({
+            orderBy: { name: "asc" },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([] as CategoryOption[]),
+
       activeSection === "unclaimed-places"
         ? prisma.place.findMany({
             where: { companyId: null },
@@ -349,8 +360,7 @@ export default async function AdminPage({
             <>
               <div className="mt-6 grid gap-4">
                 {usersList.map((item) => {
-                  const isBlocked =
-                    item.blockedUntil && item.blockedUntil > new Date();
+                  const isBlocked = isBlockActive(item.blockedUntil);
 
                   return (
                     <div
@@ -451,7 +461,9 @@ export default async function AdminPage({
 
             <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
               Всего компаний:{" "}
-              <span className="font-medium text-foreground">{companiesCount}</span>
+              <span className="font-medium text-foreground">
+                {companiesCount}
+              </span>
             </div>
           </div>
 
@@ -459,8 +471,7 @@ export default async function AdminPage({
             <>
               <div className="mt-6 grid gap-4">
                 {companiesList.map((item) => {
-                  const isBlocked =
-                    item.blockedUntil && item.blockedUntil > new Date();
+                  const isBlocked = isBlockActive(item.blockedUntil);
 
                   return (
                     <div
@@ -759,7 +770,9 @@ function AdminStatCard({
     <div
       className={[
         "min-w-[240px] flex-1 rounded-2xl border bg-background p-5",
-        href ? "transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20" : "",
+        href
+          ? "transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20"
+          : "",
         active ? "border-primary bg-primary/5" : "",
       ].join(" ")}
     >
