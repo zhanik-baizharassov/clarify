@@ -9,6 +9,36 @@ function getDefaultDateTimeLocal(hoursAhead = 24) {
   return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 }
 
+function toDateTimeLocalValue(raw: string) {
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    return getDefaultDateTimeLocal();
+  }
+
+  const tzOffset = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+}
+
+function toUtcIsoFromDateTimeLocal(value: string) {
+  if (!value) {
+    throw new Error("Укажите дату и время блокировки");
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Некорректная дата блокировки");
+  }
+
+  return date.toISOString();
+}
+
+function isBlockActive(blockedUntil?: string | null) {
+  if (!blockedUntil) return false;
+
+  const ts = new Date(blockedUntil).getTime();
+  return Number.isFinite(ts) && ts > Date.now();
+}
+
 export default function UserModerationActions({
   userId,
   blockedUntil,
@@ -18,33 +48,40 @@ export default function UserModerationActions({
 }) {
   const router = useRouter();
 
-  const [datetime, setDatetime] = useState(getDefaultDateTimeLocal());
+  const [datetime, setDatetime] = useState(
+    blockedUntil && isBlockActive(blockedUntil)
+      ? toDateTimeLocalValue(blockedUntil)
+      : getDefaultDateTimeLocal(),
+  );
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const isBlocked = Boolean(blockedUntil);
+  const isBlocked = isBlockActive(blockedUntil);
 
   async function runAction(action: "block" | "unblock") {
     setLoading(true);
     setMsg(null);
 
     try {
+      const payload =
+        action === "block"
+          ? {
+              action,
+              blockedUntil: toUtcIsoFromDateTimeLocal(datetime),
+              reason: reason.trim() || undefined,
+            }
+          : { action };
+
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          action === "block"
-            ? {
-                action,
-                blockedUntil: datetime,
-                reason: reason.trim() || undefined,
-              }
-            : { action },
-        ),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось выполнить действие");
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось выполнить действие");
+      }
 
       setMsg(
         action === "block"

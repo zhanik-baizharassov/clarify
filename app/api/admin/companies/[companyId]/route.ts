@@ -30,15 +30,26 @@ function parseBlockedUntil(raw?: string) {
   return date;
 }
 
+function isValidationMessage(message: string) {
+  return (
+    message.includes("дата") ||
+    message.includes("Дата") ||
+    message.includes("Причина") ||
+    message.includes("Укажите")
+  );
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ companyId: string }> },
 ) {
   try {
     const admin = await getSessionUser();
+
     if (!admin) {
       return NextResponse.json({ error: "Нужна авторизация" }, { status: 401 });
     }
+
     if (admin.role !== "ADMIN") {
       return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
     }
@@ -62,18 +73,22 @@ export async function PATCH(
     });
 
     if (!target) {
-      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Компания не найдена" },
+        { status: 404 },
+      );
     }
 
     if (input.action === "block") {
       const blockedUntil = parseBlockedUntil(input.blockedUntil);
+      const blockReason = input.reason?.trim() || null;
 
       await prisma.$transaction([
         prisma.company.update({
           where: { id: companyId },
           data: {
             blockedUntil,
-            blockReason: input.reason?.trim() || null,
+            blockReason,
           },
         }),
         prisma.session.deleteMany({
@@ -99,15 +114,8 @@ export async function PATCH(
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err instanceof Error && err.message) {
-      if (
-        err.message.includes("дата") ||
-        err.message.includes("Дата") ||
-        err.message.includes("Причина") ||
-        err.message.includes("Укажите")
-      ) {
-        return NextResponse.json({ error: err.message }, { status: 400 });
-      }
+    if (err instanceof Error && isValidationMessage(err.message)) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
     console.error("PATCH /api/admin/companies/[companyId] failed:", err);
