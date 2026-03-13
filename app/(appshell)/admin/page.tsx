@@ -6,8 +6,6 @@ import {
   FileCheck2,
   FolderTree,
   LayoutDashboard,
-  MapPinned,
-  MessageCircle,
   PlusSquare,
   Tags,
   UserRound,
@@ -100,40 +98,40 @@ function isBlockActive(date?: Date | null) {
 
 function getWorkspaceMeta(section: Exclude<AdminSection, null>) {
   switch (section) {
-    case "categories":
-      return {
-        title: "Категории",
-        desc: "Создание, иерархия, активность и порядок отображения категорий.",
-      };
-    case "tags":
-      return {
-        title: "Теги",
-        desc: "Управление тегами отзывов, их активностью и порядком.",
-      };
-    case "create-place":
-      return {
-        title: "Создать карточку места",
-        desc: "Новая каталожная карточка без привязки к компании.",
-      };
-    case "claims":
-      return {
-        title: "Claim-заявки",
-        desc: "Ручная проверка заявок компаний на управление карточками.",
-      };
-    case "unclaimed-places":
-      return {
-        title: "Карточки без владельца",
-        desc: "Места, у которых пока нет привязанной компании.",
-      };
     case "users":
       return {
         title: "Пользователи",
-        desc: "Просмотр пользовательских аккаунтов и временная блокировка.",
+        desc: "Просмотр пользовательских аккаунтов, временная блокировка и снятие блокировки.",
       };
     case "companies":
       return {
         title: "Компании",
-        desc: "Просмотр компаний и временная блокировка бизнес-аккаунтов.",
+        desc: "Просмотр компаний, их данных и управление временной блокировкой.",
+      };
+    case "claims":
+      return {
+        title: "Claim-заявки",
+        desc: "Проверка заявок компаний на получение управления карточками мест.",
+      };
+    case "unclaimed-places":
+      return {
+        title: "Карточки без владельца",
+        desc: "Просмотр мест, которые ещё не привязаны к компании.",
+      };
+    case "categories":
+      return {
+        title: "Категории",
+        desc: "Создание категорий, настройка иерархии, активности и порядка отображения.",
+      };
+    case "tags":
+      return {
+        title: "Теги",
+        desc: "Создание тегов отзывов, управление активностью и порядком показа.",
+      };
+    case "create-place":
+      return {
+        title: "Создать карточку компании",
+        desc: "Создание каталожной карточки места/бизнеса без привязки к company account.",
       };
   }
 }
@@ -170,21 +168,13 @@ export default async function AdminPage({
       ? requestedSection
       : null;
 
-  const [
-    usersCount,
-    companiesCount,
-    placesCount,
-    reviewsCount,
-    pendingClaimsCount,
-    unclaimedPlacesCount,
-  ] = await Promise.all([
-    prisma.user.count({ where: { role: "USER" } }),
-    prisma.company.count(),
-    prisma.place.count(),
-    prisma.review.count(),
-    prisma.claim.count({ where: { status: "PENDING" } }),
-    prisma.place.count({ where: { companyId: null } }),
-  ]);
+  const [usersCount, companiesCount, pendingClaimsCount, unclaimedPlacesCount] =
+    await Promise.all([
+      prisma.user.count({ where: { role: "USER" } }),
+      prisma.company.count(),
+      prisma.claim.count({ where: { status: "PENDING" } }),
+      prisma.place.count({ where: { companyId: null } }),
+    ]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
   const companiesTotalPages = Math.max(1, Math.ceil(companiesCount / PAGE_SIZE));
@@ -362,7 +352,7 @@ export default async function AdminPage({
             Админ-панель Clarify
           </h1>
           <p className="text-sm text-muted-foreground">
-            Обзор платформы и быстрый доступ к основным инструментам.
+            Единое меню разделов для управления платформой.
           </p>
         </div>
 
@@ -372,131 +362,76 @@ export default async function AdminPage({
         </div>
       </div>
 
-      <section className="mt-5 rounded-3xl border bg-background/70 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold">Обзор</div>
-            <div className="text-xs text-muted-foreground">
-              Ключевые метрики платформы
-            </div>
-          </div>
-
-          {activeSection ? (
-            <div className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-              Открыт раздел:{" "}
-              <span className="font-medium">{workspaceMeta?.title}</span>
-            </div>
-          ) : null}
+      <section className="mt-6 rounded-3xl border bg-background/70 p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold">Меню</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Выберите нужный раздел. Внутри каждого раздела откроется рабочая область.
+          </p>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <AdminStatCard
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <AdminMenuCard
             icon={<UserRound className="h-4 w-4" />}
-            label="Пользователи"
-            value={usersCount}
-            note="Аккаунты"
+            title="Пользователи"
+            desc="Просмотр пользователей, история аккаунтов и временная блокировка."
             href={buildAdminHref("users")}
             active={activeSection === "users"}
           />
-          <AdminStatCard
+          <AdminMenuCard
             icon={<Building2 className="h-4 w-4" />}
-            label="Компании"
-            value={companiesCount}
-            note="Бизнес-аккаунты"
+            title="Компании"
+            desc="Просмотр компаний, их данных и управление блокировкой бизнес-аккаунтов."
             href={buildAdminHref("companies")}
             active={activeSection === "companies"}
           />
-          <AdminStatCard
-            icon={<MapPinned className="h-4 w-4" />}
-            label="Карточки"
-            value={placesCount}
-            note="Всего мест"
-          />
-          <AdminStatCard
-            icon={<MessageCircle className="h-4 w-4" />}
-            label="Отзывы"
-            value={reviewsCount}
-            note="На платформе"
-          />
-          <AdminStatCard
+          <AdminMenuCard
             icon={<FileCheck2 className="h-4 w-4" />}
-            label="Claim-заявки"
-            value={pendingClaimsCount}
-            note="Ожидают"
+            title="Claim-заявки"
+            desc="Проверка и одобрение заявок компаний на управление карточками."
             href={buildAdminHref("claims")}
             active={activeSection === "claims"}
           />
-          <AdminStatCard
+          <AdminMenuCard
             icon={<LayoutDashboard className="h-4 w-4" />}
-            label="Без владельца"
-            value={unclaimedPlacesCount}
-            note="Без компании"
+            title="Карточки без владельца"
+            desc="Просмотр мест, которые ещё не привязаны к компании и ждут владельца."
             href={buildAdminHref("unclaimed-places")}
             active={activeSection === "unclaimed-places"}
           />
-        </div>
-      </section>
-
-      <section className="mt-4 rounded-3xl border bg-background/70 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold">Инструменты</div>
-            <div className="text-xs text-muted-foreground">
-              Рабочие разделы панели
-            </div>
-          </div>
-
-          {!activeSection ? (
-            <div className="text-xs text-muted-foreground">
-              Выбери инструмент, чтобы открыть рабочую область ниже.
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <AdminActionCard
+          <AdminMenuCard
             icon={<FolderTree className="h-4 w-4" />}
             title="Категории"
-            desc="Дерево категорий и активность"
+            desc="Создание категорий, настройка иерархии, активности и порядка отображения."
             href={buildAdminHref("categories")}
             active={activeSection === "categories"}
           />
-          <AdminActionCard
+          <AdminMenuCard
             icon={<Tags className="h-4 w-4" />}
             title="Теги"
-            desc="Теги отзывов и порядок"
+            desc="Создание тегов отзывов, управление активностью и порядком показа."
             href={buildAdminHref("tags")}
             active={activeSection === "tags"}
           />
-          <AdminActionCard
+          <AdminMenuCard
             icon={<PlusSquare className="h-4 w-4" />}
-            title="Создать карточку"
-            desc="Новая карточка места"
+            title="Создать карточку компании"
+            desc="Создание каталожной карточки места или бизнеса без привязки к company account."
             href={buildAdminHref("create-place")}
             active={activeSection === "create-place"}
           />
-          <AdminActionCard
-            icon={<LayoutDashboard className="h-4 w-4" />}
-            title="Карточки без владельца"
-            desc="Непривязанные места"
-            href={buildAdminHref("unclaimed-places")}
-            active={activeSection === "unclaimed-places"}
-          />
-          <AdminActionCard
-            icon={<FileCheck2 className="h-4 w-4" />}
-            title="Claim-заявки"
-            desc="Проверка заявок компаний"
-            href={buildAdminHref("claims")}
-            active={activeSection === "claims"}
-          />
-          <AdminActionCard
-            icon={<MessageCircle className="h-4 w-4" />}
-            title="Модерация отзывов"
-            desc="Раздел будет следующим"
-            badge="Скоро"
-          />
         </div>
       </section>
+
+      {!activeSection ? (
+        <section className="mt-4 rounded-3xl border bg-background p-6">
+          <h2 className="text-xl font-semibold">Выберите раздел</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Все инструменты админки собраны в меню выше. После выбора откроется
+            рабочая область нужного раздела.
+          </p>
+        </section>
+      ) : null}
 
       {activeSection ? (
         <section className="mt-4 rounded-3xl border bg-background p-5 sm:p-6">
@@ -519,19 +454,33 @@ export default async function AdminPage({
 
           {activeSection === "categories" ? (
             <div className="mt-6">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+                Всего категорий:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {adminCategories.length}
+                </span>
+              </div>
+
               <CategoryManagementPanel categories={adminCategories} />
             </div>
           ) : null}
 
           {activeSection === "tags" ? (
             <div className="mt-6">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+                Всего тегов:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {adminTags.length}
+                </span>
+              </div>
+
               <TagManagementPanel tags={adminTags} />
             </div>
           ) : null}
 
           {activeSection === "users" ? (
             <div className="mt-6">
-              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Всего пользователей:{" "}
                 <span className="ml-1 font-medium text-foreground">
                   {usersCount}
@@ -632,7 +581,7 @@ export default async function AdminPage({
 
           {activeSection === "companies" ? (
             <div className="mt-6">
-              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Всего компаний:{" "}
                 <span className="ml-1 font-medium text-foreground">
                   {companiesCount}
@@ -739,7 +688,7 @@ export default async function AdminPage({
 
           {activeSection === "create-place" ? (
             <div className="mt-6">
-              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Активных категорий:{" "}
                 <span className="ml-1 font-medium text-foreground">
                   {createPlaceCategories.length}
@@ -752,7 +701,7 @@ export default async function AdminPage({
 
           {activeSection === "claims" ? (
             <div className="mt-6">
-              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Ожидают проверки:{" "}
                 <span className="ml-1 font-medium text-foreground">
                   {pendingClaimsCount}
@@ -827,7 +776,7 @@ export default async function AdminPage({
 
           {activeSection === "unclaimed-places" ? (
             <div className="mt-6">
-              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+              <div className="mb-4 inline-flex rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                 Всего без владельца:{" "}
                 <span className="ml-1 font-medium text-foreground">
                   {unclaimedPlacesCount}
@@ -885,115 +834,40 @@ export default async function AdminPage({
   );
 }
 
-function AdminStatCard({
-  icon,
-  label,
-  value,
-  note,
-  href,
-  active,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: number;
-  note: string;
-  href?: string;
-  active?: boolean;
-}) {
-  const content = (
-    <div
-      className={[
-        "h-full rounded-2xl border bg-background p-4",
-        "flex flex-col justify-between gap-3",
-        href
-          ? "transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20"
-          : "",
-        active ? "border-primary bg-primary/5" : "",
-      ].join(" ")}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs text-muted-foreground">{label}</div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight">
-            {value}
-          </div>
-        </div>
-
-        <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border bg-muted/20 text-primary">
-          {icon}
-        </div>
-      </div>
-
-      <div className="text-xs text-muted-foreground">{note}</div>
-    </div>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} scroll={false} className="block h-full">
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
-}
-
-function AdminActionCard({
+function AdminMenuCard({
   icon,
   title,
   desc,
   href,
-  badge,
   active,
 }: {
   icon: ReactNode;
   title: string;
   desc: string;
-  href?: string;
-  badge?: string;
+  href: string;
   active?: boolean;
 }) {
-  const content = (
-    <div className="flex h-full flex-col justify-between gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border bg-muted/20 text-primary">
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      className={[
+        "block min-h-[132px] rounded-2xl border bg-background p-5 transition",
+        "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
+        active ? "border-primary bg-primary/5" : "",
+      ].join(" ")}
+    >
+      <div className="flex h-full flex-col justify-between gap-4">
+        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border bg-muted/20 text-primary">
           {icon}
         </div>
 
-        {badge ? (
-          <span className="rounded-full border bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
-            {badge}
-          </span>
-        ) : null}
+        <div>
+          <div className="text-base font-semibold">{title}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
+        </div>
       </div>
-
-      <div>
-        <div className="text-base font-semibold">{title}</div>
-        <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
-      </div>
-    </div>
-  );
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        scroll={false}
-        className={[
-          "block min-h-[124px] rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
-          active ? "border-primary bg-primary/5" : "",
-        ].join(" ")}
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <div className="min-h-[124px] rounded-2xl border bg-background p-5">
-      {content}
-    </div>
+    </Link>
   );
 }
 
