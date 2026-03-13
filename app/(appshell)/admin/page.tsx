@@ -864,19 +864,19 @@ function AdminMenuCard({
       href={href}
       scroll={false}
       className={[
-        "block min-h-[112px] rounded-2xl border bg-background p-4 transition",
+        "block h-full min-h-[168px] rounded-2xl border bg-background p-5 transition",
         "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
         active ? "border-primary bg-primary/5" : "",
       ].join(" ")}
     >
-      <div className="flex h-full flex-col justify-between gap-3">
-        <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/20 text-primary">
+      <div className="flex h-full flex-col items-start">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-muted/20 text-primary">
           {icon}
         </div>
 
-        <div>
-          <div className="text-[15px] font-semibold leading-tight">{title}</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
+        <div className="mt-5 flex flex-col items-start">
+          <div className="text-[18px] font-semibold leading-tight">{title}</div>
+          <div className="mt-2 text-sm leading-7 text-muted-foreground">
             {desc}
           </div>
         </div>
