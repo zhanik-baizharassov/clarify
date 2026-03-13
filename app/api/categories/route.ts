@@ -1,13 +1,25 @@
-// app/api/categories/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
-      orderBy: [{ parentId: "asc" }, { name: "asc" }],
+      where: { isActive: true },
+      orderBy: [
+        { parentId: "asc" },
+        { sortOrder: "asc" },
+        { name: "asc" },
+      ],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        parentId: true,
+        sortOrder: true,
+      },
     });
 
     return NextResponse.json({ items: categories }, { status: 200 });

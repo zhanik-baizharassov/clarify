@@ -12,64 +12,177 @@ const prisma = new PrismaClient({ adapter });
 const s = (v: string) => slugify(v, { lower: true, strict: true });
 
 async function main() {
-  // Категории верхнего уровня
-  const roots = [
-    { name: "Еда и напитки", slug: "food" },
-    { name: "Магазины", slug: "shops" },
-    { name: "Сервисы и услуги", slug: "services" },
+  const rootCategories = [
+    { name: "Еда и напитки", slug: "food", sortOrder: 10 },
+    { name: "Магазины", slug: "shops", sortOrder: 20 },
+    { name: "Сервисы и услуги", slug: "services", sortOrder: 30 },
   ];
 
-  for (const r of roots) {
+  for (const category of rootCategories) {
     await prisma.category.upsert({
-      where: { slug: r.slug },
-      update: {},
-      create: { name: r.name, slug: r.slug },
+      where: { slug: category.slug },
+      update: {
+        name: category.name,
+        parentId: null,
+        isActive: true,
+        sortOrder: category.sortOrder,
+      },
+      create: {
+        name: category.name,
+        slug: category.slug,
+        parentId: null,
+        isActive: true,
+        sortOrder: category.sortOrder,
+      },
     });
   }
 
-  const food = await prisma.category.findUnique({ where: { slug: "food" } });
-  const shops = await prisma.category.findUnique({ where: { slug: "shops" } });
-  const services = await prisma.category.findUnique({
-    where: { slug: "services" },
+  const parentMap = new Map<string, string>();
+
+  const existingRoots = await prisma.category.findMany({
+    where: {
+      slug: { in: rootCategories.map((item) => item.slug) },
+    },
+    select: {
+      id: true,
+      slug: true,
+    },
   });
 
-  const children = [
-    // Еда
-    { parentId: food!.id, name: "Кафе", slug: "cafe" },
-    { parentId: food!.id, name: "Рестораны", slug: "restaurants" },
-    { parentId: food!.id, name: "Доставка еды", slug: "food-delivery" },
-    { parentId: food!.id, name: "Фастфуд", slug: "fast-food" },
-    { parentId: food!.id, name: "Кофейни", slug: "coffee" },
-    { parentId: food!.id, name: "Пекарни и кондитерские", slug: "bakery" },
+  for (const item of existingRoots) {
+    parentMap.set(item.slug, item.id);
+  }
 
-    // Магазины
-    { parentId: shops!.id, name: "Продуктовые магазины", slug: "grocery" }, // было "Продукты"
-    { parentId: shops!.id, name: "Одежда и обувь", slug: "clothes" }, // было "Одежда"
-    { parentId: shops!.id, name: "Техника и электроника", slug: "electronics" }, // было "Техника"
-    { parentId: shops!.id, name: "Цветочные магазины", slug: "flowers" },
-    { parentId: shops!.id, name: "Аптеки", slug: "pharmacy" },
-    { parentId: shops!.id, name: "Зоомагазины", slug: "pets" },
-    { parentId: shops!.id, name: "Косметика и парфюм", slug: "cosmetics" },
-    { parentId: shops!.id, name: "Детские товары", slug: "kids" },
+  const childCategories = [
+    { parentSlug: "food", name: "Кафе", slug: "cafe", sortOrder: 10 },
+    {
+      parentSlug: "food",
+      name: "Рестораны",
+      slug: "restaurants",
+      sortOrder: 20,
+    },
+    {
+      parentSlug: "food",
+      name: "Доставка еды",
+      slug: "food-delivery",
+      sortOrder: 30,
+    },
+    { parentSlug: "food", name: "Фастфуд", slug: "fast-food", sortOrder: 40 },
+    { parentSlug: "food", name: "Кофейни", slug: "coffee", sortOrder: 50 },
+    {
+      parentSlug: "food",
+      name: "Пекарни и кондитерские",
+      slug: "bakery",
+      sortOrder: 60,
+    },
 
-    // Сервисы
-    { parentId: services!.id, name: "Ремонт телефонов", slug: "phone-repair" },
-    { parentId: services!.id, name: "Ремонт компьютеров", slug: "pc-repair" },
-    { parentId: services!.id, name: "Салоны красоты", slug: "beauty" },
-    { parentId: services!.id, name: "SPA центры", slug: "spa" },
-    { parentId: services!.id, name: "Фитнес клубы", slug: "fitness" },
-    { parentId: services!.id, name: "Автосервисы", slug: "auto-repair" },
+    {
+      parentSlug: "shops",
+      name: "Продуктовые магазины",
+      slug: "grocery",
+      sortOrder: 10,
+    },
+    {
+      parentSlug: "shops",
+      name: "Одежда и обувь",
+      slug: "clothes",
+      sortOrder: 20,
+    },
+    {
+      parentSlug: "shops",
+      name: "Техника и электроника",
+      slug: "electronics",
+      sortOrder: 30,
+    },
+    {
+      parentSlug: "shops",
+      name: "Цветочные магазины",
+      slug: "flowers",
+      sortOrder: 40,
+    },
+    { parentSlug: "shops", name: "Аптеки", slug: "pharmacy", sortOrder: 50 },
+    {
+      parentSlug: "shops",
+      name: "Зоомагазины",
+      slug: "pets",
+      sortOrder: 60,
+    },
+    {
+      parentSlug: "shops",
+      name: "Косметика и парфюм",
+      slug: "cosmetics",
+      sortOrder: 70,
+    },
+    {
+      parentSlug: "shops",
+      name: "Детские товары",
+      slug: "kids",
+      sortOrder: 80,
+    },
+
+    {
+      parentSlug: "services",
+      name: "Ремонт телефонов",
+      slug: "phone-repair",
+      sortOrder: 10,
+    },
+    {
+      parentSlug: "services",
+      name: "Ремонт компьютеров",
+      slug: "pc-repair",
+      sortOrder: 20,
+    },
+    {
+      parentSlug: "services",
+      name: "Салоны красоты",
+      slug: "beauty",
+      sortOrder: 30,
+    },
+    {
+      parentSlug: "services",
+      name: "SPA центры",
+      slug: "spa",
+      sortOrder: 40,
+    },
+    {
+      parentSlug: "services",
+      name: "Фитнес клубы",
+      slug: "fitness",
+      sortOrder: 50,
+    },
+    {
+      parentSlug: "services",
+      name: "Автосервисы",
+      slug: "auto-repair",
+      sortOrder: 60,
+    },
   ];
 
-  for (const c of children) {
+  for (const category of childCategories) {
+    const parentId = parentMap.get(category.parentSlug);
+
+    if (!parentId) {
+      throw new Error(`Не найден parent category: ${category.parentSlug}`);
+    }
+
     await prisma.category.upsert({
-      where: { slug: c.slug },
-      update: { parentId: c.parentId, name: c.name },
-      create: c,
+      where: { slug: category.slug },
+      update: {
+        name: category.name,
+        parentId,
+        isActive: true,
+        sortOrder: category.sortOrder,
+      },
+      create: {
+        name: category.name,
+        slug: category.slug,
+        parentId,
+        isActive: true,
+        sortOrder: category.sortOrder,
+      },
     });
   }
 
-  // Теги причин (универсальные)
   const tags = [
     "долго",
     "грубо",
@@ -83,67 +196,29 @@ async function main() {
     "обман",
     "хороший персонал",
     "плохой персонал",
-  ].map((name) => ({ name, slug: s(name) }));
+  ].map((name, index) => ({
+    name,
+    slug: s(name),
+    sortOrder: (index + 1) * 10,
+  }));
 
-  for (const t of tags) {
+  for (const tag of tags) {
     await prisma.tag.upsert({
-      where: { slug: t.slug },
-      update: { name: t.name },
-      create: t,
+      where: { slug: tag.slug },
+      update: {
+        name: tag.name,
+        isActive: true,
+        sortOrder: tag.sortOrder,
+      },
+      create: {
+        name: tag.name,
+        slug: tag.slug,
+        isActive: true,
+        sortOrder: tag.sortOrder,
+      },
     });
   }
-  // --- ТЕСТОВЫЕ МЕСТА (Place) ---
-  const cafeCat = await prisma.category.findUnique({ where: { slug: "cafe" } });
-  const phoneRepairCat = await prisma.category.findUnique({
-    where: { slug: "phone-repair" },
-  });
-  const groceryCat = await prisma.category.findUnique({
-    where: { slug: "grocery" },
-  });
 
-  if (!cafeCat || !phoneRepairCat || !groceryCat) {
-    throw new Error("Не найдены нужные категории (cafe/phone-repair/grocery).");
-  }
-
-  await prisma.place.upsert({
-    where: { slug: "coffee-hub-almaty" },
-    update: {},
-    create: {
-      name: "Coffee Hub",
-      slug: "coffee-hub-almaty",
-      categoryId: cafeCat.id,
-      city: "Алматы",
-      address: "ул. Абая, 10",
-      description: "Тестовая карточка кофейни.",
-      phone: "+7 777 000 00 00",
-    },
-  });
-
-  await prisma.place.upsert({
-    where: { slug: "fix-phone-almaty" },
-    update: {},
-    create: {
-      name: "FixPhone",
-      slug: "fix-phone-almaty",
-      categoryId: phoneRepairCat.id,
-      city: "Алматы",
-      address: "ул. Толе би, 55",
-      description: "Тестовая карточка ремонта телефонов.",
-    },
-  });
-
-  await prisma.place.upsert({
-    where: { slug: "freshmart-almaty" },
-    update: {},
-    create: {
-      name: "FreshMart",
-      slug: "freshmart-almaty",
-      categoryId: groceryCat.id,
-      city: "Алматы",
-      address: "пр. Достык, 100",
-      description: "Тестовый продуктовый магазин.",
-    },
-  });
   console.log("Seed OK");
 }
 

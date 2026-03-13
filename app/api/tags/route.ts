@@ -7,13 +7,22 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const tags = await prisma.tag.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, slug: true },
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        sortOrder: true,
+      },
     });
 
-    return NextResponse.json({ items: tags });
+    return NextResponse.json({ items: tags }, { status: 200 });
   } catch (err) {
     console.error("GET /api/tags failed:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
