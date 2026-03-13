@@ -11,8 +11,6 @@ const Schema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, "Код должен быть из 6 цифр"),
 });
 
-const LEGACY_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
 function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
   res.cookies.set("session", token, {
     httpOnly: true,
@@ -21,41 +19,6 @@ function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
     path: "/",
     expires: expiresAt,
   });
-}
-
-async function getLegacyPendingMeta(userId: string, fallbackCreatedAt: Date) {
-  const verification = await prisma.emailVerification.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
-  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
-  const ageMs = Date.now() - activityAt.getTime();
-
-  return {
-    expired: ageMs >= LEGACY_PENDING_TTL_MS,
-  };
-}
-
-async function cleanupPendingUser(userId: string) {
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-}
-
-async function cleanupIfExpiredPendingUser(candidate: {
-  id: string;
-  emailVerifiedAt: Date | null;
-  createdAt: Date;
-} | null) {
-  if (!candidate || candidate.emailVerifiedAt) return false;
-
-  const pendingMeta = await getLegacyPendingMeta(candidate.id, candidate.createdAt);
-  if (!pendingMeta.expired) return false;
-
-  await cleanupPendingUser(candidate.id);
-  return true;
 }
 
 export async function POST(req: Request) {
@@ -115,35 +78,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Неверный код" }, { status: 400 });
       }
 
-      let existingEmailUser = await prisma.user.findUnique({
+      const existingEmailUser = await prisma.user.findUnique({
         where: { email },
-        select: {
-          id: true,
-          emailVerifiedAt: true,
-          createdAt: true,
-        },
+        select: { id: true },
       });
-
-      if (await cleanupIfExpiredPendingUser(existingEmailUser)) {
-        existingEmailUser = null;
-      }
 
       if (existingEmailUser) {
         return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
       }
 
-      let phoneOwner = await prisma.user.findUnique({
+      const phoneOwner = await prisma.user.findUnique({
         where: { phone: pendingCompany.phone },
-        select: {
-          id: true,
-          emailVerifiedAt: true,
-          createdAt: true,
-        },
+        select: { id: true },
       });
-
-      if (await cleanupIfExpiredPendingUser(phoneOwner)) {
-        phoneOwner = null;
-      }
 
       if (phoneOwner) {
         return NextResponse.json(
@@ -152,24 +99,12 @@ export async function POST(req: Request) {
         );
       }
 
-      let binOwner = await prisma.company.findUnique({
+      const binOwner = await prisma.company.findUnique({
         where: { bin: pendingCompany.bin },
-        select: {
-          owner: {
-            select: {
-              id: true,
-              emailVerifiedAt: true,
-              createdAt: true,
-            },
-          },
-        },
+        select: { id: true },
       });
 
-      if (binOwner?.owner && (await cleanupIfExpiredPendingUser(binOwner.owner))) {
-        binOwner = null;
-      }
-
-      if (binOwner?.owner) {
+      if (binOwner) {
         return NextResponse.json(
           { error: "Компания с таким БИН уже зарегистрирована" },
           { status: 409 },
@@ -220,7 +155,6 @@ export async function POST(req: Request) {
         id: true,
         emailVerifiedAt: true,
         blockedUntil: true,
-        role: true,
       },
     });
 
@@ -239,23 +173,6 @@ export async function POST(req: Request) {
         },
         { status: 423 },
       );
-    }
-
-    if (user.role === "COMPANY") {
-      const company = await prisma.company.findUnique({
-        where: { ownerId: user.id },
-        select: { blockedUntil: true },
-      });
-
-      if (company?.blockedUntil && company.blockedUntil > now) {
-        return NextResponse.json(
-          {
-            error: "Компания заблокирована модерацией Clarify",
-            code: "COMPANY_BLOCKED",
-          },
-          { status: 423 },
-        );
-      }
     }
 
     if (user.emailVerifiedAt) {

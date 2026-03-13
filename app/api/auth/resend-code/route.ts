@@ -16,7 +16,7 @@ const BodySchema = z.object({
 });
 
 const COOLDOWN_SEC = 60;
-const LEGACY_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const USER_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
 const COMPANY_PENDING_TTL_MIN = 30;
 
@@ -44,7 +44,7 @@ async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
     : 0;
 
   return {
-    expired: ageMs >= LEGACY_PENDING_TTL_MS,
+    expired: ageMs >= USER_PENDING_TTL_MS,
     cooldownLeftSec: Math.max(0, cooldownLeftSec),
   };
 }
@@ -127,7 +127,6 @@ export async function POST(req: Request) {
         createdAt: true,
         emailVerifiedAt: true,
         blockedUntil: true,
-        role: true,
       },
     });
 
@@ -146,23 +145,6 @@ export async function POST(req: Request) {
         },
         { status: 423 },
       );
-    }
-
-    if (user.role === "COMPANY") {
-      const company = await prisma.company.findUnique({
-        where: { ownerId: user.id },
-        select: { blockedUntil: true },
-      });
-
-      if (company?.blockedUntil && company.blockedUntil > now) {
-        return NextResponse.json(
-          {
-            error: "Компания заблокирована модерацией Clarify",
-            code: "COMPANY_BLOCKED",
-          },
-          { status: 423 },
-        );
-      }
     }
 
     if (user.emailVerifiedAt) {
