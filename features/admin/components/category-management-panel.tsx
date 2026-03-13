@@ -23,14 +23,7 @@ export default function CategoryManagementPanel({
 }) {
   const router = useRouter();
 
-  const activeParentOptions = useMemo(
-    () => categories.filter((item) => item.isActive),
-    [categories],
-  );
-
   const [name, setName] = useState("");
-  const [parentId, setParentId] = useState("");
-  const [sortOrder, setSortOrder] = useState("0");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgTone, setMsgTone] = useState<"success" | "error" | null>(null);
@@ -48,8 +41,8 @@ export default function CategoryManagementPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          parentId: parentId || null,
-          sortOrder,
+          parentId: null,
+          sortOrder: 0,
         }),
       });
 
@@ -60,8 +53,6 @@ export default function CategoryManagementPanel({
       }
 
       setName("");
-      setParentId("");
-      setSortOrder("0");
       setMsg("Категория создана");
       setMsgTone("success");
       router.refresh();
@@ -81,44 +72,12 @@ export default function CategoryManagementPanel({
           Slug создаётся автоматически и дальше остаётся стабильным.
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid gap-3 md:grid-cols-1">
           <label className="grid gap-1">
             <span className="text-xs text-muted-foreground">Название</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-xs text-muted-foreground">
-              Родитель (необязательно)
-            </span>
-            <select
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark]"
-            >
-              <option value="">Без родителя</option>
-              {activeParentOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-xs text-muted-foreground">Порядок</span>
-            <input
-              type="number"
-              min={0}
-              max={10000}
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
               disabled={loading}
               className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
@@ -177,15 +136,9 @@ function CategoryRow({
   const router = useRouter();
 
   const parentOptions = useMemo(
-    () =>
-      categories.filter(
-        (item) => item.id !== category.id && item.isActive,
-      ),
+    () => categories.filter((item) => item.id !== category.id && item.isActive),
     [categories, category.id],
   );
-
-  const parentName =
-    categories.find((item) => item.id === category.parentId)?.name ?? null;
 
   const [name, setName] = useState(category.name);
   const [parentId, setParentId] = useState(category.parentId ?? "");
@@ -247,15 +200,6 @@ function CategoryRow({
             >
               {isActive ? "Активна" : "Отключена"}
             </span>
-          </div>
-
-          <div className="mt-1 text-xs text-muted-foreground">
-            slug: {category.slug}
-          </div>
-
-          <div className="mt-2 text-sm text-muted-foreground">
-            Родитель: {parentName ?? "нет"} • Дочерних: {category._count.children} •
-            Мест: {category._count.places}
           </div>
         </div>
       </div>
