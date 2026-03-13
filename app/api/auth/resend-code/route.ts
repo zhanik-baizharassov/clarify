@@ -16,7 +16,16 @@ const BodySchema = z.object({
 });
 
 const COOLDOWN_SEC = 60;
-const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const LEGACY_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
+const COMPANY_PENDING_TTL_MIN = 30;
+
+function getCooldownLeftSec(lastSentAt: Date) {
+  return Math.max(
+    0,
+    Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
+  );
+}
 
 async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const verification = await prisma.emailVerification.findFirst({
@@ -28,11 +37,14 @@ async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const activityAt = verification?.createdAt ?? fallbackCreatedAt;
   const ageMs = Date.now() - activityAt.getTime();
   const cooldownLeftSec = verification
-    ? Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) / 1000)
+    ? Math.ceil(
+        (COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) /
+          1000,
+      )
     : 0;
 
   return {
-    expired: ageMs >= PENDING_TTL_MS,
+    expired: ageMs >= LEGACY_PENDING_TTL_MS,
     cooldownLeftSec: Math.max(0, cooldownLeftSec),
   };
 }
@@ -47,6 +59,66 @@ export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json().catch(() => ({})));
     const email = body.email.trim().toLowerCase();
+    const now = new Date();
+
+    const pendingCompany = await prisma.pendingCompanySignup.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        expiresAt: true,
+        lastSentAt: true,
+      },
+    });
+
+    if (pendingCompany) {
+      if (pendingCompany.expiresAt < now) {
+        await prisma.pendingCompanySignup.delete({
+          where: { id: pendingCompany.id },
+        });
+
+        return NextResponse.json(
+          {
+            error: "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново.",
+            code: "PENDING_REGISTRATION_EXPIRED",
+          },
+          { status: 410 },
+        );
+      }
+
+      const cooldownLeftSec = getCooldownLeftSec(pendingCompany.lastSentAt);
+
+      if (cooldownLeftSec > 0) {
+        return NextResponse.json(
+          {
+            error: `Подождите ${cooldownLeftSec}с и попробуйте снова`,
+            retryAfterSec: cooldownLeftSec,
+          },
+          { status: 429 },
+        );
+      }
+
+      const code = generate6DigitCode();
+
+      await prisma.pendingCompanySignup.update({
+        where: { id: pendingCompany.id },
+        data: {
+          codeHash: hashCode(code),
+          expiresAt: new Date(Date.now() + COMPANY_PENDING_TTL_MS),
+          attempts: 0,
+          lastSentAt: now,
+        },
+      });
+
+      await sendEmailVerificationCode(email, code, {
+        ttlMinutes: COMPANY_PENDING_TTL_MIN,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        cooldownSec: COOLDOWN_SEC,
+        ttlMinutes: COMPANY_PENDING_TTL_MIN,
+      });
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -65,8 +137,6 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
-
-    const now = new Date();
 
     if (user.blockedUntil && user.blockedUntil > now) {
       return NextResponse.json(

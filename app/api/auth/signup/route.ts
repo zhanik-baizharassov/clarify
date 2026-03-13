@@ -52,6 +52,14 @@ function isP2002(e: any) {
   return e?.code === "P2002";
 }
 
+async function cleanupExpiredPendingCompanySignups() {
+  await prisma.pendingCompanySignup.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+}
+
 async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const verification = await prisma.emailVerification.findFirst({
     where: { userId },
@@ -62,7 +70,10 @@ async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const activityAt = verification?.createdAt ?? fallbackCreatedAt;
   const ageMs = Date.now() - activityAt.getTime();
   const cooldownLeftSec = verification
-    ? Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) / 1000)
+    ? Math.ceil(
+        (COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) /
+          1000,
+      )
     : 0;
 
   return {
@@ -103,6 +114,32 @@ export async function POST(req: Request) {
     assertNoProfanity(raw.lastName, "Фамилия");
     assertNoProfanity(nickname, "Никнейм");
     assertNoProfanity(email, "Email");
+
+    await cleanupExpiredPendingCompanySignups();
+
+    const pendingCompanyByEmail = await prisma.pendingCompanySignup.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (pendingCompanyByEmail) {
+      return NextResponse.json(
+        { error: "Этот email уже используется для бизнес-регистрации" },
+        { status: 409 },
+      );
+    }
+
+    const pendingCompanyByPhone = await prisma.pendingCompanySignup.findUnique({
+      where: { phone },
+      select: { id: true },
+    });
+
+    if (pendingCompanyByPhone) {
+      return NextResponse.json(
+        { error: "Телефон уже занят" },
+        { status: 409 },
+      );
+    }
 
     let existsEmail = await prisma.user.findUnique({
       where: { email },
@@ -179,7 +216,8 @@ export async function POST(req: Request) {
           needsEmailVerification: true,
           email,
           cooldownSec: pendingMeta.cooldownLeftSec,
-          notice: "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
+          notice:
+            "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
         });
       }
 

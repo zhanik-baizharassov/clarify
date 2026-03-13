@@ -77,6 +77,14 @@ export default function BusinessSignupPage() {
     setTimeout(() => focusOtp(0), 0);
   }
 
+  function resetVerifyStep(message?: string) {
+    setStep("form");
+    setPendingEmail("");
+    setCooldownSec(0);
+    setOtp(Array(OTP_LEN).fill(""));
+    setErr(message ?? null);
+  }
+
   async function submitCompanySignup(payload: CompanySignupPayload) {
     setLoading(true);
     setErr(null);
@@ -175,7 +183,18 @@ export default function BusinessSignupPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Не удалось подтвердить email");
+
+      if (res.status === 410) {
+        resetVerifyStep(
+          data?.error ??
+            "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново.",
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось подтвердить email");
+      }
 
       router.push(next);
       router.refresh();
@@ -204,12 +223,9 @@ export default function BusinessSignupPage() {
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 410) {
-        setStep("form");
-        setPendingEmail("");
-        setCooldownSec(0);
-        setOtp(Array(OTP_LEN).fill(""));
-        setErr(
-          data?.error ?? "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+        resetVerifyStep(
+          data?.error ??
+            "Срок подтверждения аккаунта истёк. Заполните форму заново.",
         );
         return;
       }
@@ -434,7 +450,7 @@ export default function BusinessSignupPage() {
 
           {formDisabled ? (
             <div className="text-xs text-muted-foreground">
-              Данные зафиксированы — подтвердите email кодом ниже.
+              Регистрация сохранена как неподтверждённая — завершите её кодом из письма.
             </div>
           ) : null}
         </form>
@@ -493,11 +509,7 @@ export default function BusinessSignupPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setStep("form");
-                  setPendingEmail("");
-                  setCooldownSec(0);
-                  setOtp(Array(OTP_LEN).fill(""));
-                  setErr(null);
+                  resetVerifyStep();
                 }}
                 disabled={verifyLoading}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"

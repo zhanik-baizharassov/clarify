@@ -16,7 +16,9 @@ export const runtime = "nodejs";
 
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const COOLDOWN_SEC = 60;
-const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const LEGACY_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
+const COMPANY_PENDING_TTL_MIN = 30;
 
 const Schema = z.object({
   companyName: z.string().trim().min(2).max(120),
@@ -49,6 +51,21 @@ function isP2002(e: any) {
   return e?.code === "P2002";
 }
 
+function getCooldownLeftSec(lastSentAt: Date) {
+  return Math.max(
+    0,
+    Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
+  );
+}
+
+async function cleanupExpiredPendingCompanySignups() {
+  await prisma.pendingCompanySignup.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+}
+
 async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const verification = await prisma.emailVerification.findFirst({
     where: { userId },
@@ -59,11 +76,14 @@ async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const activityAt = verification?.createdAt ?? fallbackCreatedAt;
   const ageMs = Date.now() - activityAt.getTime();
   const cooldownLeftSec = verification
-    ? Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) / 1000)
+    ? Math.ceil(
+        (COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) /
+          1000,
+      )
     : 0;
 
   return {
-    expired: ageMs >= PENDING_TTL_MS,
+    expired: ageMs >= LEGACY_PENDING_TTL_MS,
     cooldownLeftSec: Math.max(0, cooldownLeftSec),
   };
 }
@@ -104,6 +124,8 @@ export async function POST(req: Request) {
       city,
       address: input.address,
     });
+
+    await cleanupExpiredPendingCompanySignups();
 
     let existsEmail = await prisma.user.findUnique({
       where: { email },
@@ -203,7 +225,8 @@ export async function POST(req: Request) {
           needsEmailVerification: true,
           email,
           cooldownSec: pendingMeta.cooldownLeftSec,
-          notice: "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
+          notice:
+            "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
         });
       }
 
@@ -265,45 +288,106 @@ export async function POST(req: Request) {
       }
     }
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
-    const code = generate6DigitCode();
-    const codeHash = hashCode(code);
-    const expiresAt = new Date(Date.now() + codeTtlMs());
-
-    const created = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email,
-          phone,
-          passwordHash,
-          role: "COMPANY",
-          emailVerifiedAt: null,
-        },
-        select: { id: true, email: true },
-      });
-
-      await tx.company.create({
-        data: {
-          name: input.companyName,
-          bin: input.bin,
-          address: normalizedAddress,
-          ownerId: user.id,
-        },
-      });
-
-      await tx.emailVerification.create({
-        data: { userId: user.id, email: user.email, codeHash, expiresAt },
-      });
-
-      return user;
+    const pendingPhoneOwner = await prisma.pendingCompanySignup.findUnique({
+      where: { phone },
+      select: { email: true },
     });
 
-    await sendEmailVerificationCode(created.email, code);
+    if (pendingPhoneOwner && pendingPhoneOwner.email !== email) {
+      return NextResponse.json(
+        { error: "Телефон уже занят" },
+        { status: 409 },
+      );
+    }
+
+    const pendingBinOwner = await prisma.pendingCompanySignup.findUnique({
+      where: { bin: input.bin },
+      select: { email: true },
+    });
+
+    if (pendingBinOwner && pendingBinOwner.email !== email) {
+      return NextResponse.json(
+        { error: "Компания с таким БИН уже зарегистрирована" },
+        { status: 409 },
+      );
+    }
+
+    const existingPending = await prisma.pendingCompanySignup.findUnique({
+      where: { email },
+      select: { id: true, lastSentAt: true },
+    });
+
+    const passwordHash = await bcrypt.hash(input.password, 10);
+
+    if (existingPending) {
+      const cooldownLeftSec = getCooldownLeftSec(existingPending.lastSentAt);
+
+      await prisma.pendingCompanySignup.update({
+        where: { email },
+        data: {
+          companyName: input.companyName,
+          bin: input.bin,
+          city,
+          phone,
+          address: normalizedAddress,
+          passwordHash,
+        },
+      });
+
+      if (cooldownLeftSec > 0) {
+        return NextResponse.json({
+          ok: true,
+          needsEmailVerification: true,
+          email,
+          cooldownSec: cooldownLeftSec,
+          notice:
+            "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
+        });
+      }
+    }
+
+    const code = generate6DigitCode();
+    const codeHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + COMPANY_PENDING_TTL_MS);
+    const now = new Date();
+
+    await prisma.pendingCompanySignup.upsert({
+      where: { email },
+      update: {
+        companyName: input.companyName,
+        bin: input.bin,
+        city,
+        phone,
+        address: normalizedAddress,
+        passwordHash,
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+      },
+      create: {
+        companyName: input.companyName,
+        bin: input.bin,
+        city,
+        phone,
+        email,
+        address: normalizedAddress,
+        passwordHash,
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+      },
+    });
+
+    await sendEmailVerificationCode(email, code, {
+      ttlMinutes: COMPANY_PENDING_TTL_MIN,
+    });
 
     return NextResponse.json({
       ok: true,
       needsEmailVerification: true,
-      email: created.email,
+      email,
       cooldownSec: COOLDOWN_SEC,
     });
   } catch (err: any) {

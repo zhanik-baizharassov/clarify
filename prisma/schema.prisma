@@ -95,6 +95,25 @@ model Company {
   @@index([ownerId])
 }
 
+model PendingCompanySignup {
+  id           String   @id @default(cuid())
+  companyName  String
+  bin          String   @unique
+  city         String
+  phone        String   @unique
+  email        String   @unique
+  address      String
+  passwordHash String
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  lastSentAt   DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model Category {
   id        String   @id @default(cuid())
   name      String
