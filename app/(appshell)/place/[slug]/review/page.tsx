@@ -35,7 +35,15 @@ export default async function AddReviewPage({
   const place = await prisma.place.findUnique({ where: { slug } });
   if (!place) return notFound();
 
-  const tags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
+  const tags = await prisma.tag.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  });
 
   return (
     <main className="mx-auto max-w-4xl p-6">

@@ -49,10 +49,17 @@ export async function POST(req: Request) {
 
       const tags = uniqTagSlugs.length
         ? await tx.tag.findMany({
-            where: { slug: { in: uniqTagSlugs } },
-            select: { id: true },
+            where: {
+              slug: { in: uniqTagSlugs },
+              isActive: true,
+            },
+            select: { id: true, slug: true },
           })
         : [];
+
+      if (uniqTagSlugs.length && tags.length !== uniqTagSlugs.length) {
+        throw new Error("INVALID_TAGS");
+      }
 
       const review = await tx.review.create({
         data: {
@@ -95,6 +102,13 @@ export async function POST(req: Request) {
   } catch (err: any) {
     if (err?.message === "PLACE_NOT_FOUND") {
       return NextResponse.json({ error: "Место не найдено" }, { status: 404 });
+    }
+
+    if (err?.message === "INVALID_TAGS") {
+      return NextResponse.json(
+        { error: "Один или несколько тегов недоступны" },
+        { status: 400 },
+      );
     }
 
     if (

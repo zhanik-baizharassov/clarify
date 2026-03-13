@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   MapPinned,
   MessageCircle,
-  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import { prisma } from "@/server/db/prisma";
@@ -124,7 +123,8 @@ export default async function AdminPage({
     await Promise.all([
       activeSection === "create-place"
         ? prisma.category.findMany({
-            orderBy: { name: "asc" },
+            where: { isActive: true },
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
             select: { id: true, name: true },
           })
         : Promise.resolve([] as CategoryOption[]),

@@ -1,4 +1,3 @@
-// app/api/places/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
@@ -6,7 +5,12 @@ import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
-const SortSchema = z.enum(["rating_desc", "reviews_desc", "new_desc", "name_asc"]);
+const SortSchema = z.enum([
+  "rating_desc",
+  "reviews_desc",
+  "new_desc",
+  "name_asc",
+]);
 
 const QuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
@@ -16,10 +20,10 @@ const QuerySchema = z.object({
   sort: SortSchema.default("rating_desc"),
 });
 
-const categoryIdsCache = new Map<string, string[]>();
+const activeCategoryIdsCache = new Map<string, string[]>();
 
-async function collectCategoryIds(rootId: string) {
-  const cached = categoryIdsCache.get(rootId);
+async function collectActiveCategoryIds(rootId: string) {
+  const cached = activeCategoryIdsCache.get(rootId);
   if (cached) return cached;
 
   const seen = new Set<string>();
@@ -30,20 +34,23 @@ async function collectCategoryIds(rootId: string) {
     const batch = queue.splice(0, 50);
 
     const children = await prisma.category.findMany({
-      where: { parentId: { in: batch } },
+      where: {
+        parentId: { in: batch },
+        isActive: true,
+      },
       select: { id: true },
     });
 
-    for (const c of children) {
-      if (!seen.has(c.id)) {
-        seen.add(c.id);
-        queue.push(c.id);
+    for (const child of children) {
+      if (!seen.has(child.id)) {
+        seen.add(child.id);
+        queue.push(child.id);
       }
     }
   }
 
   const result = Array.from(seen);
-  categoryIdsCache.set(rootId, result);
+  activeCategoryIdsCache.set(rootId, result);
   return result;
 }
 
@@ -60,7 +67,8 @@ export async function GET(req: Request) {
     });
 
     if (!parsed.success) {
-      const msg = parsed.error.issues?.[0]?.message ?? "Неверные параметры запроса";
+      const msg =
+        parsed.error.issues?.[0]?.message ?? "Неверные параметры запроса";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
@@ -69,23 +77,47 @@ export async function GET(req: Request) {
     let baseCategoryId: string | undefined;
 
     if (categoryId) {
-      const cat = await prisma.category.findUnique({
+      const category = await prisma.category.findUnique({
         where: { id: categoryId },
-        select: { id: true },
+        select: { id: true, isActive: true },
       });
-      if (!cat) {
-        return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+
+      if (!category) {
+        return NextResponse.json(
+          { error: "Категория не найдена" },
+          { status: 400 },
+        );
       }
-      baseCategoryId = cat.id;
+
+      if (!category.isActive) {
+        return NextResponse.json(
+          { error: "Эта категория недоступна" },
+          { status: 400 },
+        );
+      }
+
+      baseCategoryId = category.id;
     } else if (categorySlug) {
-      const cat = await prisma.category.findUnique({
+      const category = await prisma.category.findUnique({
         where: { slug: categorySlug },
-        select: { id: true },
+        select: { id: true, isActive: true },
       });
-      if (!cat) {
-        return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+
+      if (!category) {
+        return NextResponse.json(
+          { error: "Категория не найдена" },
+          { status: 400 },
+        );
       }
-      baseCategoryId = cat.id;
+
+      if (!category.isActive) {
+        return NextResponse.json(
+          { error: "Эта категория недоступна" },
+          { status: 400 },
+        );
+      }
+
+      baseCategoryId = category.id;
     }
 
     const and: Prisma.PlaceWhereInput[] = [];
@@ -105,11 +137,13 @@ export async function GET(req: Request) {
     }
 
     if (baseCategoryId) {
-      const ids = await collectCategoryIds(baseCategoryId);
+      const ids = await collectActiveCategoryIds(baseCategoryId);
       and.push({ categoryId: { in: ids } });
     }
 
-    const where: Prisma.PlaceWhereInput | undefined = and.length ? { AND: and } : undefined;
+    const where: Prisma.PlaceWhereInput | undefined = and.length
+      ? { AND: and }
+      : undefined;
 
     const orderBy: Prisma.PlaceOrderByWithRelationInput[] =
       sort === "reviews_desc"

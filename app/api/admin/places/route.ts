@@ -162,12 +162,19 @@ export async function POST(req: Request) {
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
 
     if (!category) {
       return NextResponse.json(
         { error: "Категория не найдена" },
+        { status: 400 },
+      );
+    }
+
+    if (!category.isActive) {
+      return NextResponse.json(
+        { error: "Эта категория отключена и недоступна для новых карточек" },
         { status: 400 },
       );
     }
