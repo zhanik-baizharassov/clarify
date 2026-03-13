@@ -151,7 +151,9 @@ export default async function AdminPage({
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedSection = getSingleSearchParam(resolvedSearchParams.section);
-  const requestedPageRaw = Number(getSingleSearchParam(resolvedSearchParams.page));
+  const requestedPageRaw = Number(
+    getSingleSearchParam(resolvedSearchParams.page),
+  );
   const requestedPage =
     Number.isFinite(requestedPageRaw) && requestedPageRaw > 0
       ? Math.floor(requestedPageRaw)
@@ -177,7 +179,10 @@ export default async function AdminPage({
     ]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
-  const companiesTotalPages = Math.max(1, Math.ceil(companiesCount / PAGE_SIZE));
+  const companiesTotalPages = Math.max(
+    1,
+    Math.ceil(companiesCount / PAGE_SIZE),
+  );
 
   const usersPage = clampPage(requestedPage, usersTotalPages);
   const companiesPage = clampPage(requestedPage, companiesTotalPages);
@@ -362,15 +367,16 @@ export default async function AdminPage({
         </div>
       </div>
 
-      <section className="mt-6 rounded-3xl border bg-background/70 p-5">
+      <section className="mt-5 rounded-3xl border bg-background/70 p-4 sm:p-5">
         <div className="mb-4">
           <h2 className="text-base font-semibold">Меню</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Выберите нужный раздел. Внутри каждого раздела откроется рабочая область.
+            Выберите нужный раздел. Внутри каждого раздела откроется рабочая
+            область.
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <AdminMenuCard
             icon={<UserRound className="h-4 w-4" />}
             title="Пользователи"
@@ -619,9 +625,15 @@ export default async function AdminPage({
                               </div>
 
                               <div className="mt-2 text-sm text-muted-foreground">
-                                {item.bin ? `БИН: ${item.bin}` : "БИН не указан"}
-                                {item.owner.email ? ` • ${item.owner.email}` : ""}
-                                {item.owner.phone ? ` • ${item.owner.phone}` : ""}
+                                {item.bin
+                                  ? `БИН: ${item.bin}`
+                                  : "БИН не указан"}
+                                {item.owner.email
+                                  ? ` • ${item.owner.email}`
+                                  : ""}
+                                {item.owner.phone
+                                  ? ` • ${item.owner.phone}`
+                                  : ""}
                               </div>
 
                               <div className="mt-2 text-sm text-muted-foreground">
@@ -852,19 +864,21 @@ function AdminMenuCard({
       href={href}
       scroll={false}
       className={[
-        "block min-h-[132px] rounded-2xl border bg-background p-5 transition",
+        "block min-h-[112px] rounded-2xl border bg-background p-4 transition",
         "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
         active ? "border-primary bg-primary/5" : "",
       ].join(" ")}
     >
-      <div className="flex h-full flex-col justify-between gap-4">
-        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border bg-muted/20 text-primary">
+      <div className="flex h-full flex-col justify-between gap-3">
+        <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/20 text-primary">
           {icon}
         </div>
 
         <div>
-          <div className="text-base font-semibold">{title}</div>
-          <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
+          <div className="text-[15px] font-semibold leading-tight">{title}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">
+            {desc}
+          </div>
         </div>
       </div>
     </Link>
