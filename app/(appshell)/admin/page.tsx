@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 import {
   Building2,
   FileCheck2,
+  FolderTree,
   LayoutDashboard,
   MapPinned,
   MessageCircle,
+  PlusSquare,
+  Tags,
   UserRound,
 } from "lucide-react";
 import { prisma } from "@/server/db/prisma";
@@ -93,6 +96,46 @@ function getUserLabel(user: {
 
 function isBlockActive(date?: Date | null) {
   return Boolean(date && date > new Date());
+}
+
+function getWorkspaceMeta(section: Exclude<AdminSection, null>) {
+  switch (section) {
+    case "categories":
+      return {
+        title: "Категории",
+        desc: "Создание, иерархия, активность и порядок отображения категорий.",
+      };
+    case "tags":
+      return {
+        title: "Теги",
+        desc: "Управление тегами отзывов, их активностью и порядком.",
+      };
+    case "create-place":
+      return {
+        title: "Создать карточку места",
+        desc: "Новая каталожная карточка без привязки к компании.",
+      };
+    case "claims":
+      return {
+        title: "Claim-заявки",
+        desc: "Ручная проверка заявок компаний на управление карточками.",
+      };
+    case "unclaimed-places":
+      return {
+        title: "Карточки без владельца",
+        desc: "Места, у которых пока нет привязанной компании.",
+      };
+    case "users":
+      return {
+        title: "Пользователи",
+        desc: "Просмотр пользовательских аккаунтов и временная блокировка.",
+      };
+    case "companies":
+      return {
+        title: "Компании",
+        desc: "Просмотр компаний и временная блокировка бизнес-аккаунтов.",
+      };
+  }
 }
 
 export default async function AdminPage({
@@ -309,568 +352,533 @@ export default async function AdminPage({
       : Promise.resolve([]),
   ]);
 
+  const workspaceMeta = activeSection ? getWorkspaceMeta(activeSection) : null;
+
   return (
-    <main className="mx-auto max-w-7xl p-6">
+    <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Админ-панель Clarify
           </h1>
+          <p className="text-sm text-muted-foreground">
+            Обзор платформы и быстрый доступ к основным инструментам.
+          </p>
         </div>
 
-        <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+        <div className="rounded-full border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
           Администратор:{" "}
           <span className="font-medium text-foreground">{user.email}</span>
         </div>
       </div>
 
-      <section className="mt-8 flex flex-wrap gap-4">
-        <AdminStatCard
-          icon={<UserRound className="h-5 w-5" />}
-          label="Пользователи"
-          value={usersCount}
-          note="Пользовательские аккаунты"
-          href={buildAdminHref("users")}
-          active={activeSection === "users"}
-        />
-        <AdminStatCard
-          icon={<Building2 className="h-5 w-5" />}
-          label="Компании"
-          value={companiesCount}
-          note="Зарегистрированные компании"
-          href={buildAdminHref("companies")}
-          active={activeSection === "companies"}
-        />
-        <AdminStatCard
-          icon={<MapPinned className="h-5 w-5" />}
-          label="Карточки"
-          value={placesCount}
-          note="Всего мест в каталоге"
-        />
-        <AdminStatCard
-          icon={<MessageCircle className="h-5 w-5" />}
-          label="Отзывы"
-          value={reviewsCount}
-          note="Все отзывы платформы"
-        />
-        <AdminStatCard
-          icon={<FileCheck2 className="h-5 w-5" />}
-          label="Claim-заявки"
-          value={pendingClaimsCount}
-          note="Ожидают проверки"
-        />
-        <AdminStatCard
-          icon={<LayoutDashboard className="h-5 w-5" />}
-          label="Без владельца"
-          value={unclaimedPlacesCount}
-          note="Карточки без компании"
-        />
+      <section className="mt-5 rounded-3xl border bg-background/70 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Обзор</div>
+            <div className="text-xs text-muted-foreground">
+              Ключевые метрики платформы
+            </div>
+          </div>
+
+          {activeSection ? (
+            <div className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+              Открыт раздел:{" "}
+              <span className="font-medium">{workspaceMeta?.title}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <AdminStatCard
+            icon={<UserRound className="h-4 w-4" />}
+            label="Пользователи"
+            value={usersCount}
+            note="Аккаунты"
+            href={buildAdminHref("users")}
+            active={activeSection === "users"}
+          />
+          <AdminStatCard
+            icon={<Building2 className="h-4 w-4" />}
+            label="Компании"
+            value={companiesCount}
+            note="Бизнес-аккаунты"
+            href={buildAdminHref("companies")}
+            active={activeSection === "companies"}
+          />
+          <AdminStatCard
+            icon={<MapPinned className="h-4 w-4" />}
+            label="Карточки"
+            value={placesCount}
+            note="Всего мест"
+          />
+          <AdminStatCard
+            icon={<MessageCircle className="h-4 w-4" />}
+            label="Отзывы"
+            value={reviewsCount}
+            note="На платформе"
+          />
+          <AdminStatCard
+            icon={<FileCheck2 className="h-4 w-4" />}
+            label="Claim-заявки"
+            value={pendingClaimsCount}
+            note="Ожидают"
+            href={buildAdminHref("claims")}
+            active={activeSection === "claims"}
+          />
+          <AdminStatCard
+            icon={<LayoutDashboard className="h-4 w-4" />}
+            label="Без владельца"
+            value={unclaimedPlacesCount}
+            note="Без компании"
+            href={buildAdminHref("unclaimed-places")}
+            active={activeSection === "unclaimed-places"}
+          />
+        </div>
       </section>
 
-      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <AdminActionCard
-          title="Категории"
-          desc="Управление деревом категорий, активностью и порядком отображения."
-          href={buildAdminHref("categories")}
-          active={activeSection === "categories"}
-        />
-        <AdminActionCard
-          title="Теги"
-          desc="Управление тегами отзывов, их активностью и порядком."
-          href={buildAdminHref("tags")}
-          active={activeSection === "tags"}
-        />
-        <AdminActionCard
-          title="Создать карточку места"
-          desc="Откройте форму создания каталожной карточки без привязки к компании."
-          href={buildAdminHref("create-place")}
-          active={activeSection === "create-place"}
-        />
-        <AdminActionCard
-          title="Карточки без владельца"
-          desc="Откройте список мест, которые ещё не привязаны к company account."
-          href={buildAdminHref("unclaimed-places")}
-          active={activeSection === "unclaimed-places"}
-        />
-        <AdminActionCard
-          title="Claim-заявки"
-          desc="Откройте заявки компаний и вручную передавайте карточки владельцам."
-          href={buildAdminHref("claims")}
-          active={activeSection === "claims"}
-        />
-        <AdminActionCard
-          title="Модерация отзывов"
-          desc="Следующим этапом здесь появится ручная проверка и управление отзывами."
-          badge="Скоро"
-        />
+      <section className="mt-4 rounded-3xl border bg-background/70 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Инструменты</div>
+            <div className="text-xs text-muted-foreground">
+              Рабочие разделы панели
+            </div>
+          </div>
+
+          {!activeSection ? (
+            <div className="text-xs text-muted-foreground">
+              Выбери инструмент, чтобы открыть рабочую область ниже.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <AdminActionCard
+            icon={<FolderTree className="h-4 w-4" />}
+            title="Категории"
+            desc="Дерево категорий и активность"
+            href={buildAdminHref("categories")}
+            active={activeSection === "categories"}
+          />
+          <AdminActionCard
+            icon={<Tags className="h-4 w-4" />}
+            title="Теги"
+            desc="Теги отзывов и порядок"
+            href={buildAdminHref("tags")}
+            active={activeSection === "tags"}
+          />
+          <AdminActionCard
+            icon={<PlusSquare className="h-4 w-4" />}
+            title="Создать карточку"
+            desc="Новая карточка места"
+            href={buildAdminHref("create-place")}
+            active={activeSection === "create-place"}
+          />
+          <AdminActionCard
+            icon={<LayoutDashboard className="h-4 w-4" />}
+            title="Карточки без владельца"
+            desc="Непривязанные места"
+            href={buildAdminHref("unclaimed-places")}
+            active={activeSection === "unclaimed-places"}
+          />
+          <AdminActionCard
+            icon={<FileCheck2 className="h-4 w-4" />}
+            title="Claim-заявки"
+            desc="Проверка заявок компаний"
+            href={buildAdminHref("claims")}
+            active={activeSection === "claims"}
+          />
+          <AdminActionCard
+            icon={<MessageCircle className="h-4 w-4" />}
+            title="Модерация отзывов"
+            desc="Раздел будет следующим"
+            badge="Скоро"
+          />
+        </div>
       </section>
 
-      {!activeSection ? (
-        <section className="mt-8 rounded-3xl border bg-background p-6">
-          <div className="max-w-2xl">
-            <h2 className="text-xl font-semibold">Выберите раздел</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Нажмите на карточку пользователей, компаний или на нужный рабочий
-              блок выше, чтобы открыть только конкретный раздел админки.
-            </p>
-          </div>
-        </section>
-      ) : null}
-
-      {activeSection === "categories" ? (
-        <section className="mt-8 rounded-3xl border bg-background p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      {activeSection ? (
+        <section className="mt-4 rounded-3xl border bg-background p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
             <div>
-              <h2 className="text-xl font-semibold">Категории</h2>
+              <h2 className="text-xl font-semibold">{workspaceMeta?.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Здесь можно создавать категории, задавать родителя, управлять
-                активностью и порядком отображения.
+                {workspaceMeta?.desc}
               </p>
             </div>
 
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Всего категорий:{" "}
-              <span className="font-medium text-foreground">
-                {adminCategories.length}
-              </span>
-            </div>
+            <Link
+              href="/admin"
+              scroll={false}
+              className="inline-flex h-10 items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
+            >
+              Закрыть раздел
+            </Link>
           </div>
 
-          <CategoryManagementPanel categories={adminCategories} />
-        </section>
-      ) : null}
-
-      {activeSection === "tags" ? (
-        <section className="mt-8 rounded-3xl border bg-background p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Теги</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Здесь можно создавать теги отзывов, отключать их и менять порядок
-                отображения.
-              </p>
+          {activeSection === "categories" ? (
+            <div className="mt-6">
+              <CategoryManagementPanel categories={adminCategories} />
             </div>
+          ) : null}
 
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Всего тегов:{" "}
-              <span className="font-medium text-foreground">
-                {adminTags.length}
-              </span>
+          {activeSection === "tags" ? (
+            <div className="mt-6">
+              <TagManagementPanel tags={adminTags} />
             </div>
-          </div>
+          ) : null}
 
-          <TagManagementPanel tags={adminTags} />
-        </section>
-      ) : null}
-
-      {activeSection === "users" ? (
-        <section className="mt-8 rounded-3xl border bg-background p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Пользователи</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Здесь можно просматривать пользовательские аккаунты, временно
-                блокировать их и снимать блокировку.
-              </p>
-            </div>
-
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Всего пользователей:{" "}
-              <span className="font-medium text-foreground">{usersCount}</span>
-            </div>
-          </div>
-
-          {usersList.length > 0 ? (
-            <>
-              <div className="mt-6 grid gap-4">
-                {usersList.map((item) => {
-                  const isBlocked = isBlockActive(item.blockedUntil);
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-muted/10 p-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-lg font-semibold">
-                              {getUserLabel(item)}
-                            </div>
-
-                            <span
-                              className={[
-                                "rounded-full border px-2.5 py-1 text-[11px]",
-                                isBlocked
-                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
-                              ].join(" ")}
-                            >
-                              {isBlocked ? "Заблокирован" : "Активен"}
-                            </span>
-                          </div>
-
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            {item.email}
-                            {item.phone ? ` • ${item.phone}` : ""}
-                          </div>
-
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            Отзывов: {item._count.reviews}
-                          </div>
-
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Создан: {formatDate(item.createdAt)}
-                          </div>
-
-                          {isBlocked && item.blockedUntil ? (
-                            <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
-                              До:{" "}
-                              <span className="font-medium text-foreground">
-                                {formatDate(item.blockedUntil)}
-                              </span>
-                              {item.blockReason ? (
-                                <>
-                                  <br />
-                                  Причина:{" "}
-                                  <span className="font-medium text-foreground">
-                                    {item.blockReason}
-                                  </span>
-                                </>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="w-full max-w-[340px]">
-                          <UserModerationActions
-                            userId={item.id}
-                            blockedUntil={
-                              item.blockedUntil?.toISOString() ?? null
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+          {activeSection === "users" ? (
+            <div className="mt-6">
+              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+                Всего пользователей:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {usersCount}
+                </span>
               </div>
 
-              <Pagination
-                section="users"
-                page={usersPage}
-                totalPages={usersTotalPages}
-                totalItems={usersCount}
-                pageSize={PAGE_SIZE}
-              />
-            </>
-          ) : (
-            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-              Пользователей пока нет.
-            </div>
-          )}
-        </section>
-      ) : null}
+              {usersList.length > 0 ? (
+                <>
+                  <div className="grid gap-4">
+                    {usersList.map((item) => {
+                      const isBlocked = isBlockActive(item.blockedUntil);
 
-      {activeSection === "companies" ? (
-        <section className="mt-8 rounded-3xl border bg-background p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Компании</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Здесь можно просматривать зарегистрированные компании, временно
-                блокировать их и снимать блокировку.
-              </p>
-            </div>
-
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Всего компаний:{" "}
-              <span className="font-medium text-foreground">
-                {companiesCount}
-              </span>
-            </div>
-          </div>
-
-          {companiesList.length > 0 ? (
-            <>
-              <div className="mt-6 grid gap-4">
-                {companiesList.map((item) => {
-                  const isBlocked = isBlockActive(item.blockedUntil);
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border bg-muted/10 p-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-lg font-semibold">{item.name}</div>
-
-                            <span
-                              className={[
-                                "rounded-full border px-2.5 py-1 text-[11px]",
-                                isBlocked
-                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
-                              ].join(" ")}
-                            >
-                              {isBlocked ? "Заблокирована" : "Активна"}
-                            </span>
-                          </div>
-
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            {item.bin ? `БИН: ${item.bin}` : "БИН не указан"}
-                            {item.owner.email ? ` • ${item.owner.email}` : ""}
-                            {item.owner.phone ? ` • ${item.owner.phone}` : ""}
-                          </div>
-
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            Филиалов: {item._count.places} • Claim-заявок:{" "}
-                            {item._count.claims}
-                          </div>
-
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            {item.address ?? "Адрес не указан"}
-                          </div>
-
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Создана: {formatDate(item.createdAt)}
-                          </div>
-
-                          {isBlocked && item.blockedUntil ? (
-                            <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
-                              До:{" "}
-                              <span className="font-medium text-foreground">
-                                {formatDate(item.blockedUntil)}
-                              </span>
-                              {item.blockReason ? (
-                                <>
-                                  <br />
-                                  Причина:{" "}
-                                  <span className="font-medium text-foreground">
-                                    {item.blockReason}
-                                  </span>
-                                </>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="w-full max-w-[340px]">
-                          <CompanyModerationActions
-                            companyId={item.id}
-                            blockedUntil={
-                              item.blockedUntil?.toISOString() ?? null
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <Pagination
-                section="companies"
-                page={companiesPage}
-                totalPages={companiesTotalPages}
-                totalItems={companiesCount}
-                pageSize={PAGE_SIZE}
-              />
-            </>
-          ) : (
-            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-              Компаний пока нет.
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {activeSection === "create-place" ? (
-        <section
-          id="create-place"
-          className="mt-8 rounded-3xl border bg-background p-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">
-                Создать каталожную карточку места
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Это карточка без привязки к компании. Позже владелец бизнеса сможет
-                заявить права на неё через claim-flow.
-              </p>
-            </div>
-
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Активных категорий:{" "}
-              <span className="font-medium text-foreground">
-                {createPlaceCategories.length}
-              </span>
-            </div>
-          </div>
-
-          <CreateCatalogPlaceForm categories={createPlaceCategories} />
-        </section>
-      ) : null}
-
-      {activeSection === "claims" ? (
-        <section
-          id="claims"
-          className="mt-8 rounded-3xl border bg-background p-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Claim-заявки</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Здесь администратор принимает решение, какой компании передать
-                управление карточкой места.
-              </p>
-            </div>
-
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Ожидают проверки:{" "}
-              <span className="font-medium text-foreground">
-                {pendingClaimsCount}
-              </span>
-            </div>
-          </div>
-
-          {pendingClaims.length ? (
-            <div className="mt-6 grid gap-4">
-              {pendingClaims.map((claim) => (
-                <div
-                  key={claim.id}
-                  className="rounded-2xl border bg-muted/10 p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-muted-foreground">
-                        Заявка от {formatDate(claim.createdAt)}
-                      </div>
-
-                      <div className="mt-3">
-                        <div className="text-sm text-muted-foreground">
-                          Карточка места
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/place/${claim.place.slug}`}
-                            className="text-lg font-semibold hover:underline"
-                            scroll={false}
-                          >
-                            {claim.place.name}
-                          </Link>
-                          <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                            {claim.place.city}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-sm text-muted-foreground">
-                          {claim.place.address ?? "Адрес не указан"}
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="text-sm text-muted-foreground">
-                          Компания-заявитель
-                        </div>
-                        <div className="mt-1 text-base font-medium">
-                          {claim.company.name}
-                        </div>
-                        <div className="mt-1 text-sm text-muted-foreground">
-                          {claim.company.bin
-                            ? `БИН: ${claim.company.bin}`
-                            : "БИН не указан"}
-                          {claim.company.owner.email
-                            ? ` • ${claim.company.owner.email}`
-                            : ""}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="w-full max-w-[320px]">
-                      <ClaimReviewActions claimId={claim.id} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-              Сейчас нет заявок, ожидающих проверки.
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {activeSection === "unclaimed-places" ? (
-        <section
-          id="unclaimed-places"
-          className="mt-8 rounded-3xl border bg-background p-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">
-                Последние карточки без владельца
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Это места, у которых пока нет привязанной компании и официального кабинета.
-              </p>
-            </div>
-
-            <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              Всего без владельца:{" "}
-              <span className="font-medium text-foreground">
-                {unclaimedPlacesCount}
-              </span>
-            </div>
-          </div>
-
-          {recentUnclaimedPlaces.length ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-2">
-              {recentUnclaimedPlaces.map((place) => (
-                <div
-                  key={place.id}
-                  className="rounded-2xl border bg-muted/10 p-5 transition hover:border-primary/35 hover:bg-muted/20"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/place/${place.slug}`}
-                          className="text-lg font-semibold hover:underline"
-                          scroll={false}
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border bg-muted/10 p-5"
                         >
-                          {place.name}
-                        </Link>
-                        <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                          {place.category.name}
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-lg font-semibold">
+                                  {getUserLabel(item)}
+                                </div>
+
+                                <span
+                                  className={[
+                                    "rounded-full border px-2.5 py-1 text-[11px]",
+                                    isBlocked
+                                      ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                                  ].join(" ")}
+                                >
+                                  {isBlocked ? "Заблокирован" : "Активен"}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                {item.email}
+                                {item.phone ? ` • ${item.phone}` : ""}
+                              </div>
+
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                Отзывов: {item._count.reviews}
+                              </div>
+
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Создан: {formatDate(item.createdAt)}
+                              </div>
+
+                              {isBlocked && item.blockedUntil ? (
+                                <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                                  До:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {formatDate(item.blockedUntil)}
+                                  </span>
+                                  {item.blockReason ? (
+                                    <>
+                                      <br />
+                                      Причина:{" "}
+                                      <span className="font-medium text-foreground">
+                                        {item.blockReason}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="w-full max-w-[340px]">
+                              <UserModerationActions
+                                userId={item.id}
+                                blockedUntil={
+                                  item.blockedUntil?.toISOString() ?? null
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Pagination
+                    section="users"
+                    page={usersPage}
+                    totalPages={usersTotalPages}
+                    totalItems={usersCount}
+                    pageSize={PAGE_SIZE}
+                  />
+                </>
+              ) : (
+                <div className="rounded-2xl border p-6 text-sm text-muted-foreground">
+                  Пользователей пока нет.
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "companies" ? (
+            <div className="mt-6">
+              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+                Всего компаний:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {companiesCount}
+                </span>
+              </div>
+
+              {companiesList.length > 0 ? (
+                <>
+                  <div className="grid gap-4">
+                    {companiesList.map((item) => {
+                      const isBlocked = isBlockActive(item.blockedUntil);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border bg-muted/10 p-5"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-lg font-semibold">
+                                  {item.name}
+                                </div>
+
+                                <span
+                                  className={[
+                                    "rounded-full border px-2.5 py-1 text-[11px]",
+                                    isBlocked
+                                      ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                                  ].join(" ")}
+                                >
+                                  {isBlocked ? "Заблокирована" : "Активна"}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                {item.bin ? `БИН: ${item.bin}` : "БИН не указан"}
+                                {item.owner.email ? ` • ${item.owner.email}` : ""}
+                                {item.owner.phone ? ` • ${item.owner.phone}` : ""}
+                              </div>
+
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                Филиалов: {item._count.places} • Claim-заявок:{" "}
+                                {item._count.claims}
+                              </div>
+
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                {item.address ?? "Адрес не указан"}
+                              </div>
+
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Создана: {formatDate(item.createdAt)}
+                              </div>
+
+                              {isBlocked && item.blockedUntil ? (
+                                <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                                  До:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {formatDate(item.blockedUntil)}
+                                  </span>
+                                  {item.blockReason ? (
+                                    <>
+                                      <br />
+                                      Причина:{" "}
+                                      <span className="font-medium text-foreground">
+                                        {item.blockReason}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="w-full max-w-[340px]">
+                              <CompanyModerationActions
+                                companyId={item.id}
+                                blockedUntil={
+                                  item.blockedUntil?.toISOString() ?? null
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Pagination
+                    section="companies"
+                    page={companiesPage}
+                    totalPages={companiesTotalPages}
+                    totalItems={companiesCount}
+                    pageSize={PAGE_SIZE}
+                  />
+                </>
+              ) : (
+                <div className="rounded-2xl border p-6 text-sm text-muted-foreground">
+                  Компаний пока нет.
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "create-place" ? (
+            <div className="mt-6">
+              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+                Активных категорий:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {createPlaceCategories.length}
+                </span>
+              </div>
+
+              <CreateCatalogPlaceForm categories={createPlaceCategories} />
+            </div>
+          ) : null}
+
+          {activeSection === "claims" ? (
+            <div className="mt-6">
+              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+                Ожидают проверки:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {pendingClaimsCount}
+                </span>
+              </div>
+
+              {pendingClaims.length ? (
+                <div className="grid gap-4">
+                  {pendingClaims.map((claim) => (
+                    <div
+                      key={claim.id}
+                      className="rounded-2xl border bg-muted/10 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-muted-foreground">
+                            Заявка от {formatDate(claim.createdAt)}
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="text-sm text-muted-foreground">
+                              Карточка места
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <Link
+                                href={`/place/${claim.place.slug}`}
+                                className="text-lg font-semibold hover:underline"
+                              >
+                                {claim.place.name}
+                              </Link>
+                              <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                                {claim.place.city}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {claim.place.address ?? "Адрес не указан"}
+                            </div>
+                          </div>
+
+                          <div className="mt-4">
+                            <div className="text-sm text-muted-foreground">
+                              Компания-заявитель
+                            </div>
+                            <div className="mt-1 text-base font-medium">
+                              {claim.company.name}
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {claim.company.bin
+                                ? `БИН: ${claim.company.bin}`
+                                : "БИН не указан"}
+                              {claim.company.owner.email
+                                ? ` • ${claim.company.owner.email}`
+                                : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="w-full max-w-[320px]">
+                          <ClaimReviewActions claimId={claim.id} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border p-6 text-sm text-muted-foreground">
+                  Сейчас нет заявок, ожидающих проверки.
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "unclaimed-places" ? (
+            <div className="mt-6">
+              <div className="mb-4 rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground inline-flex">
+                Всего без владельца:{" "}
+                <span className="ml-1 font-medium text-foreground">
+                  {unclaimedPlacesCount}
+                </span>
+              </div>
+
+              {recentUnclaimedPlaces.length ? (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {recentUnclaimedPlaces.map((place) => (
+                    <div
+                      key={place.id}
+                      className="rounded-2xl border bg-muted/10 p-5 transition hover:border-primary/35 hover:bg-muted/20"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/place/${place.slug}`}
+                              className="text-lg font-semibold hover:underline"
+                            >
+                              {place.name}
+                            </Link>
+                            <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                              {place.category.name}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {place.city}
+                            {place.address ? ` • ${place.address}` : ""}
+                          </div>
+
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Создано: {formatDate(place.createdAt)}
+                          </div>
+                        </div>
+
+                        <span className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                          Без компании
                         </span>
                       </div>
-
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        {place.city}
-                        {place.address ? ` • ${place.address}` : ""}
-                      </div>
-
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        Создано: {formatDate(place.createdAt)}
-                      </div>
                     </div>
-
-                    <span className="rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-                      Без компании
-                    </span>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="rounded-2xl border p-6 text-sm text-muted-foreground">
+                  Пока нет карточек без владельца.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="mt-6 rounded-2xl border p-6 text-sm text-muted-foreground">
-              Пока нет карточек без владельца.
-            </div>
-          )}
+          ) : null}
         </section>
       ) : null}
     </main>
@@ -895,7 +903,8 @@ function AdminStatCard({
   const content = (
     <div
       className={[
-        "min-w-[240px] flex-1 rounded-2xl border bg-background p-5",
+        "h-full rounded-2xl border bg-background p-4",
+        "flex flex-col justify-between gap-3",
         href
           ? "transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20"
           : "",
@@ -903,23 +912,25 @@ function AdminStatCard({
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">{label}</div>
-          <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-semibold tracking-tight">
+            {value}
+          </div>
         </div>
 
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-muted/20 text-primary">
+        <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border bg-muted/20 text-primary">
           {icon}
         </div>
       </div>
 
-      <div className="mt-3 text-sm text-muted-foreground">{note}</div>
+      <div className="text-xs text-muted-foreground">{note}</div>
     </div>
   );
 
   if (href) {
     return (
-      <Link href={href} scroll={false}>
+      <Link href={href} scroll={false} className="block h-full">
         {content}
       </Link>
     );
@@ -929,12 +940,14 @@ function AdminStatCard({
 }
 
 function AdminActionCard({
+  icon,
   title,
   desc,
   href,
   badge,
   active,
 }: {
+  icon: ReactNode;
   title: string;
   desc: string;
   href?: string;
@@ -942,17 +955,24 @@ function AdminActionCard({
   active?: boolean;
 }) {
   const content = (
-    <>
+    <div className="flex h-full flex-col justify-between gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="text-base font-semibold">{title}</div>
+        <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border bg-muted/20 text-primary">
+          {icon}
+        </div>
+
         {badge ? (
           <span className="rounded-full border bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
             {badge}
           </span>
         ) : null}
       </div>
-      <div className="mt-2 text-sm text-muted-foreground">{desc}</div>
-    </>
+
+      <div>
+        <div className="text-base font-semibold">{title}</div>
+        <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
+      </div>
+    </div>
   );
 
   if (href) {
@@ -961,7 +981,7 @@ function AdminActionCard({
         href={href}
         scroll={false}
         className={[
-          "rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
+          "block min-h-[124px] rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/20",
           active ? "border-primary bg-primary/5" : "",
         ].join(" ")}
       >
@@ -970,7 +990,11 @@ function AdminActionCard({
     );
   }
 
-  return <div className="rounded-2xl border bg-background p-5">{content}</div>;
+  return (
+    <div className="min-h-[124px] rounded-2xl border bg-background p-5">
+      {content}
+    </div>
+  );
 }
 
 function Pagination({

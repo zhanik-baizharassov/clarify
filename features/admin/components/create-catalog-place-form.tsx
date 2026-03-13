@@ -172,193 +172,213 @@ export default function CreateCatalogPlaceForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-2xl border p-5">
+    <form onSubmit={onSubmit} className="grid gap-6">
       <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
         Эта форма создаёт{" "}
         <span className="font-medium text-foreground">каталожную карточку</span>{" "}
-        без привязки к компании. Позже такую карточку можно будет передать
-        бизнесу через claim-flow.
+        без привязки к компании. Позже её можно будет передать бизнесу через
+        claim-flow.
       </div>
 
-      <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Название места</span>
-        <input
-          disabled={loading}
-          className="h-11 rounded-xl border px-3 disabled:opacity-60"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-
-      <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Категория</span>
-        <select
-          disabled={loading || !categories.length}
-          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-        >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Город (только KZ)</span>
-        <select
-          disabled={loading}
-          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        >
-          {KZ_CITIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">Адрес</span>
-        <KzAddressSuggestInput
-          city={city}
-          value={address}
-          onChange={setAddress}
-          disabled={loading}
-          placeholder="Начните вводить адрес и выберите подсказку 2GIS"
-        />
-        <span className="text-xs text-muted-foreground">
-          Лучше выбирать адрес из подсказок, чтобы карточка точнее прошла проверку.
-        </span>
-      </label>
-
-      <label className="grid gap-1">
-        <span className="text-xs text-muted-foreground">
-          Телефон (+7XXXXXXXXXX)
-        </span>
-        <input
-          disabled={loading}
-          className="h-11 rounded-xl border px-3 disabled:opacity-60"
-          placeholder="+7XXXXXXXXXX"
-          value={phone}
-          onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
-          inputMode="tel"
-          autoComplete="tel"
-        />
-      </label>
-
-      <div className="grid gap-4 rounded-xl border p-4">
-        <div className="text-xs text-muted-foreground">Время работы</div>
-
-        <div className="grid gap-3 rounded-xl border p-4">
-          <div className="text-sm font-medium">Будние дни</div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1">
-              <span className="text-xs text-muted-foreground">С</span>
-              <select
-                disabled={loading}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-                value={weekdayOpenTime}
-                onChange={(e) => setWeekdayOpenTime(e.target.value)}
-              >
-                {timeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="grid gap-1">
-              <span className="text-xs text-muted-foreground">До</span>
-              <select
-                disabled={loading}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-                value={weekdayCloseTime}
-                onChange={(e) => setWeekdayCloseTime(e.target.value)}
-              >
-                {timeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+      <section className="rounded-2xl border bg-background p-5">
+        <div className="mb-4">
+          <div className="text-base font-semibold">Основные данные</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Название, категория, город, адрес и телефон.
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-xl border p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm font-medium">Выходные дни</div>
-
-            <button
-              type="button"
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <label className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Название места</span>
+            <input
               disabled={loading}
-              onClick={() => setWeekendClosed((prev) => !prev)}
-              className={[
-                "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
-                weekendClosed
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "hover:bg-muted/30",
-                loading ? "opacity-60" : "",
-              ].join(" ")}
+              className="h-11 rounded-xl border px-3 disabled:opacity-60"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Категория</span>
+            <select
+              disabled={loading || !categories.length}
+              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
             >
-              {weekendClosed ? "По выходным не работаем" : "Указать время выходных"}
-            </button>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Город (только KZ)</span>
+            <select
+              disabled={loading}
+              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            >
+              {KZ_CITIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 md:col-span-2 xl:col-span-2">
+            <span className="text-xs text-muted-foreground">Адрес</span>
+            <KzAddressSuggestInput
+              city={city}
+              value={address}
+              onChange={setAddress}
+              disabled={loading}
+              placeholder="Начните вводить адрес и выберите подсказку 2GIS"
+            />
+            <span className="text-xs text-muted-foreground">
+              Лучше выбирать адрес из подсказок, чтобы карточка точнее прошла проверку.
+            </span>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs text-muted-foreground">
+              Телефон (+7XXXXXXXXXX)
+            </span>
+            <input
+              disabled={loading}
+              className="h-11 rounded-xl border px-3 disabled:opacity-60"
+              placeholder="+7XXXXXXXXXX"
+              value={phone}
+              onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
+              inputMode="tel"
+              autoComplete="tel"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border bg-background p-5">
+        <div className="mb-4">
+          <div className="text-base font-semibold">Время работы</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Укажи график для будней и выходных.
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1">
-              <span className="text-xs text-muted-foreground">С</span>
-              <select
-                disabled={loading || weekendClosed}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-                value={weekendOpenTime}
-                onChange={(e) => setWeekendOpenTime(e.target.value)}
-              >
-                {timeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="grid gap-1">
-              <span className="text-xs text-muted-foreground">До</span>
-              <select
-                disabled={loading || weekendClosed}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
-                value={weekendCloseTime}
-                onChange={(e) => setWeekendCloseTime(e.target.value)}
-              >
-                {timeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {weekendClosed ? (
-            <div className="text-xs text-muted-foreground">
-              Для выходных установлен режим:{" "}
-              <span className="font-medium text-foreground">выходной</span>
-            </div>
-          ) : null}
         </div>
 
-        <div className="text-xs text-muted-foreground">
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border p-4">
+            <div className="mb-3 text-sm font-medium">Будние дни</div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1">
+                <span className="text-xs text-muted-foreground">С</span>
+                <select
+                  disabled={loading}
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  value={weekdayOpenTime}
+                  onChange={(e) => setWeekdayOpenTime(e.target.value)}
+                >
+                  {timeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs text-muted-foreground">До</span>
+                <select
+                  disabled={loading}
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  value={weekdayCloseTime}
+                  onChange={(e) => setWeekdayCloseTime(e.target.value)}
+                >
+                  {timeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-medium">Выходные дни</div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setWeekendClosed((prev) => !prev)}
+                className={[
+                  "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
+                  weekendClosed
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "hover:bg-muted/30",
+                  loading ? "opacity-60" : "",
+                ].join(" ")}
+              >
+                {weekendClosed
+                  ? "По выходным не работаем"
+                  : "Указать время выходных"}
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1">
+                <span className="text-xs text-muted-foreground">С</span>
+                <select
+                  disabled={loading || weekendClosed}
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  value={weekendOpenTime}
+                  onChange={(e) => setWeekendOpenTime(e.target.value)}
+                >
+                  {timeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs text-muted-foreground">До</span>
+                <select
+                  disabled={loading || weekendClosed}
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  value={weekendCloseTime}
+                  onChange={(e) => setWeekendCloseTime(e.target.value)}
+                >
+                  {timeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {weekendClosed ? (
+              <div className="mt-3 text-xs text-muted-foreground">
+                Для выходных установлен режим:{" "}
+                <span className="font-medium text-foreground">выходной</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
           Итог:{" "}
           <span className="font-medium text-foreground">{workHoursSummary}</span>
         </div>
-      </div>
+      </section>
 
       {err ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -372,12 +392,18 @@ export default function CreateCatalogPlaceForm({
         </div>
       ) : null}
 
-      <button
-        disabled={loading || !categories.length}
-        className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
-      >
-        {loading ? "Создание..." : "Создать карточку"}
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-background p-4">
+        <div className="text-sm text-muted-foreground">
+          После создания карточка сразу появится в каталоге.
+        </div>
+
+        <button
+          disabled={loading || !categories.length}
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Создание..." : "Создать карточку"}
+        </button>
+      </div>
     </form>
   );
 }
