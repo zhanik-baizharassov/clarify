@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { normalizeKzPhone } from "@/shared/kz/kz";
 import {
@@ -48,8 +52,29 @@ const Schema = z.object({
     .refine((v) => /\d/.test(v), "Пароль: нужна хотя бы 1 цифра"),
 });
 
-function isP2002(e: any) {
-  return e?.code === "P2002";
+function isP2002(e: unknown) {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code?: unknown }).code === "P2002"
+  );
+}
+
+function getPrismaTarget(err: unknown) {
+  if (typeof err !== "object" || err === null) return "";
+
+  const meta = "meta" in err ? (err as { meta?: unknown }).meta : undefined;
+  if (typeof meta !== "object" || meta === null) return "";
+
+  const target =
+    "target" in meta ? (meta as { target?: unknown }).target : undefined;
+
+  if (Array.isArray(target)) {
+    return target.map((item) => String(item)).join(",");
+  }
+
+  return typeof target === "string" ? target : "";
 }
 
 async function cleanupExpiredPendingCompanySignups() {
@@ -104,11 +129,50 @@ async function cleanupIfExpiredPendingUser(candidate: {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:signup:ip",
+        key: ip,
+        limit: 5,
+        windowSec: 10 * 60,
+        errorMessage: "Слишком много попыток регистрации. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const raw = Schema.parse(await req.json());
 
     const email = raw.email.trim().toLowerCase();
     const nickname = raw.nickname.trim();
     const phone = normalizeKzPhone(raw.phone, "Телефон");
+
+    const identityRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:signup:email",
+        key: email,
+        limit: 3,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток регистрации для этого email. Попробуйте позже.",
+      },
+      {
+        scope: "auth:signup:phone",
+        key: phone,
+        limit: 3,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток регистрации для этого телефона. Попробуйте позже.",
+      },
+    ]);
+
+    if (identityRateLimit) {
+      return identityRateLimit;
+    }
 
     assertNoProfanity(raw.firstName, "Имя");
     assertNoProfanity(raw.lastName, "Фамилия");
@@ -302,11 +366,9 @@ export async function POST(req: Request) {
         email: user.email,
         cooldownSec: COOLDOWN_SEC,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (isP2002(e)) {
-        const target = Array.isArray(e?.meta?.target)
-          ? e.meta.target.join(",")
-          : String(e?.meta?.target ?? "");
+        const target = getPrismaTarget(e);
 
         if (target.includes("email")) {
           return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
@@ -326,7 +388,7 @@ export async function POST(req: Request) {
 
       throw e;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof Error && err.message) {
       if (err.message.includes("номер") || err.message.includes("Телефон")) {
         return NextResponse.json({ error: err.message }, { status: 400 });
@@ -339,12 +401,12 @@ export async function POST(req: Request) {
       }
     }
 
-    if (err?.name === "ZodError") {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные формы";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
+    if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 

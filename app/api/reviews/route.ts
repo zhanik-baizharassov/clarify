@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
 
@@ -16,6 +20,23 @@ const CreateReviewSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "reviews:create:ip",
+        key: ip,
+        limit: 20,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток отправки отзывов. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const input = CreateReviewSchema.parse(await req.json());
     const trimmedText = input.text.trim();
 
@@ -29,6 +50,21 @@ export async function POST(req: Request) {
         { error: "Компания не может оставлять отзывы" },
         { status: 403 },
       );
+    }
+
+    const userRateLimit = await enforceRateLimits([
+      {
+        scope: "reviews:create:user",
+        key: user.id,
+        limit: 5,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток отправки отзывов с этого аккаунта. Попробуйте позже.",
+      },
+    ]);
+
+    if (userRateLimit) {
+      return userRateLimit;
     }
 
     assertNoProfanity(trimmedText, "Отзыв");
@@ -99,12 +135,12 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(created, { status: 201 });
-  } catch (err: any) {
-    if (err?.message === "PLACE_NOT_FOUND") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "PLACE_NOT_FOUND") {
       return NextResponse.json({ error: "Место не найдено" }, { status: 404 });
     }
 
-    if (err?.message === "INVALID_TAGS") {
+    if (err instanceof Error && err.message === "INVALID_TAGS") {
       return NextResponse.json(
         { error: "Один или несколько тегов недоступны" },
         { status: 400 },
@@ -121,12 +157,12 @@ export async function POST(req: Request) {
       );
     }
 
-    if (err?.name === "ZodError") {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные формы";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
+    if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 

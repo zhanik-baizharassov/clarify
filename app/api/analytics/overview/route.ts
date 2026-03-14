@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
+import {enforceRateLimits,getRequestIp,} from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,23 @@ function truncateText(text: string, max = 120) {
 
 export async function GET(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "analytics:overview:ip",
+        key: ip,
+        limit: 30,
+        windowSec: 5 * 60,
+        errorMessage:
+          "Слишком много запросов к аналитике. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const { searchParams } = new URL(req.url);
     const selectedCity = searchParams.get("city")?.trim() || null;
 

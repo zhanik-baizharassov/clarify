@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { generate6DigitCode, hashCode } from "@/server/email/verification";
@@ -43,8 +47,29 @@ const Schema = z.object({
     .refine((v) => /\d/.test(v), "Пароль: нужна хотя бы 1 цифра"),
 });
 
-function isP2002(e: any) {
-  return e?.code === "P2002";
+function isP2002(e: unknown) {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code?: unknown }).code === "P2002"
+  );
+}
+
+function getPrismaTarget(err: unknown) {
+  if (typeof err !== "object" || err === null) return "";
+
+  const meta = "meta" in err ? (err as { meta?: unknown }).meta : undefined;
+  if (typeof meta !== "object" || meta === null) return "";
+
+  const target =
+    "target" in meta ? (meta as { target?: unknown }).target : undefined;
+
+  if (Array.isArray(target)) {
+    return target.map((item) => String(item)).join(",");
+  }
+
+  return typeof target === "string" ? target : "";
 }
 
 function getCooldownLeftSec(lastSentAt: Date) {
@@ -99,6 +124,23 @@ async function cleanupIfExpiredPendingUser(candidate: {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:company-signup:ip",
+        key: ip,
+        limit: 5,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток бизнес-регистрации. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const input = Schema.parse(await req.json());
 
     const email = input.email.trim().toLowerCase();
@@ -108,6 +150,37 @@ export async function POST(req: Request) {
 
     const city = assertKzCity(input.city, "Город");
     const phone = normalizeKzPhone(input.phone, "Телефон");
+
+    const identityRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:company-signup:email",
+        key: email,
+        limit: 3,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток бизнес-регистрации для этого email. Попробуйте позже.",
+      },
+      {
+        scope: "auth:company-signup:phone",
+        key: phone,
+        limit: 3,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток бизнес-регистрации для этого телефона. Попробуйте позже.",
+      },
+      {
+        scope: "auth:company-signup:bin",
+        key: input.bin,
+        limit: 3,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток бизнес-регистрации для этого БИН. Попробуйте позже.",
+      },
+    ]);
+
+    if (identityRateLimit) {
+      return identityRateLimit;
+    }
 
     const { normalizedAddress } = await validateKzAddress({
       city,
@@ -279,11 +352,9 @@ export async function POST(req: Request) {
       email,
       cooldownSec: COOLDOWN_SEC,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (isP2002(err)) {
-      const target = Array.isArray(err?.meta?.target)
-        ? err.meta.target.join(",")
-        : String(err?.meta?.target ?? "");
+      const target = getPrismaTarget(err);
 
       if (target.includes("email")) {
         return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
@@ -332,12 +403,12 @@ export async function POST(req: Request) {
       }
     }
 
-    if (err?.name === "ZodError") {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
+    if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 

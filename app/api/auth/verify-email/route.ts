@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { hashCode } from "@/server/email/verification";
 
 export const runtime = "nodejs";
@@ -23,9 +27,42 @@ function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:verify-email:ip",
+        key: ip,
+        limit: 20,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток подтверждения email. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const parsed = Schema.parse(await req.json());
     const email = parsed.email.trim().toLowerCase();
     const code = parsed.code;
+
+    const identityRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:verify-email:email",
+        key: email,
+        limit: 10,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток подтверждения для этого email. Попробуйте позже.",
+      },
+    ]);
+
+    if (identityRateLimit) {
+      return identityRateLimit;
+    }
+
     const now = new Date();
 
     const pendingCompany = await prisma.pendingCompanySignup.findUnique({
@@ -243,8 +280,8 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ ok: true });
     setSessionCookie(res, token, sessionExpiresAt);
     return res;
-  } catch (err: any) {
-    if (err?.name === "ZodError") {
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }

@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
 
@@ -14,6 +18,23 @@ const Schema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "review-replies:create:ip",
+        key: ip,
+        limit: 20,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток отправки ответов компании. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();
@@ -32,6 +53,21 @@ export async function POST(req: Request) {
 
     if (!company) {
       return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+    }
+
+    const companyRateLimit = await enforceRateLimits([
+      {
+        scope: "review-replies:create:company",
+        key: company.id,
+        limit: 10,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток отправки ответов от этой компании. Попробуйте позже.",
+      },
+    ]);
+
+    if (companyRateLimit) {
+      return companyRateLimit;
     }
 
     assertNoProfanity(input.text, "Ответ компании");
@@ -73,7 +109,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(reply, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
@@ -84,12 +120,12 @@ export async function POST(req: Request) {
       );
     }
 
-    if (err?.name === "ZodError") {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
+    if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 

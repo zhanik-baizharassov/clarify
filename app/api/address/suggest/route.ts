@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  consumeRateLimit,
+  createRateLimitResponse,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { assertKzCity } from "@/shared/kz/kz";
 
 export const runtime = "nodejs";
@@ -16,6 +21,23 @@ type SuggestItem = {
 
 export async function GET(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const rateLimit = await consumeRateLimit({
+      scope: "address:suggest:ip",
+      key: ip,
+      limit: 30,
+      windowSec: 60,
+    });
+
+    if (!rateLimit.ok) {
+      return createRateLimitResponse(
+        rateLimit,
+        "Слишком много запросов к подсказкам адреса. Попробуйте позже.",
+        { items: [] },
+      );
+    }
+
     const { searchParams } = new URL(req.url);
 
     const q = norm(searchParams.get("q"));
@@ -128,11 +150,9 @@ export async function GET(req: Request) {
     } finally {
       clearTimeout(timeout);
     }
-  } catch (err: any) {
-    if (err instanceof Error && err.message) {
-      if (err.message.includes("Город")) {
-        return NextResponse.json({ error: err.message }, { status: 400 });
-      }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("Город")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
     return NextResponse.json(

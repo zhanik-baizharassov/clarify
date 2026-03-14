@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 
 export const runtime = "nodejs";
@@ -13,6 +17,12 @@ const Schema = z
   .strict();
 
 const CLAIM_RETRY_COOLDOWN_SEC = 3 * 60 * 60;
+
+type AppRouteError = Error & {
+  status?: number;
+  appErrorCode?: string;
+  extra?: Record<string, unknown>;
+};
 
 function formatDurationFromSeconds(totalSec: number) {
   const hours = Math.floor(totalSec / 3600);
@@ -36,11 +46,7 @@ function createAppError(
   code: string,
   extra?: Record<string, unknown>,
 ) {
-  const err = new Error(message) as Error & {
-    status?: number;
-    appErrorCode?: string;
-    extra?: Record<string, unknown>;
-  };
+  const err = new Error(message) as AppRouteError;
 
   err.status = status;
   err.appErrorCode = code;
@@ -48,8 +54,29 @@ function createAppError(
   return err;
 }
 
+function isAppRouteError(err: unknown): err is AppRouteError {
+  return err instanceof Error;
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "claims:create:ip",
+        key: ip,
+        limit: 20,
+        windowSec: 30 * 60,
+        errorMessage:
+          "Слишком много попыток отправки claim-заявок. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const input = Schema.parse(await req.json());
     const user = await getSessionUser();
 
@@ -74,6 +101,21 @@ export async function POST(req: Request) {
         { error: "Сначала завершите регистрацию компании" },
         { status: 400 },
       );
+    }
+
+    const companyRateLimit = await enforceRateLimits([
+      {
+        scope: "claims:create:company",
+        key: company.id,
+        limit: 6,
+        windowSec: 60 * 60,
+        errorMessage:
+          "Слишком много заявок на права от этой компании. Попробуйте позже.",
+      },
+    ]);
+
+    if (companyRateLimit) {
+      return companyRateLimit;
     }
 
     const claim = await prisma.$transaction(async (tx) => {
@@ -174,19 +216,19 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(claim, { status: 201 });
-  } catch (err: any) {
-    if (err?.appErrorCode) {
+  } catch (err: unknown) {
+    if (isAppRouteError(err) && err.appErrorCode) {
       return NextResponse.json(
         {
           error: err.message ?? "Ошибка",
           code: err.appErrorCode,
-          ...(err?.extra ?? {}),
+          ...(err.extra ?? {}),
         },
         { status: err.status ?? 400 },
       );
     }
 
-    if (err?.name === "ZodError") {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }

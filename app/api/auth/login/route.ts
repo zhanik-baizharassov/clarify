@@ -3,6 +3,10 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -35,8 +39,39 @@ async function cleanupPendingUser(userId: string) {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:login:ip",
+        key: ip,
+        limit: 20,
+        windowSec: 10 * 60,
+        errorMessage: "Слишком много попыток входа. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const input = Schema.parse(await req.json());
     const email = input.email.trim().toLowerCase();
+
+    const identityRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:login:email",
+        key: email,
+        limit: 8,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток входа для этого email. Попробуйте позже.",
+      },
+    ]);
+
+    if (identityRateLimit) {
+      return identityRateLimit;
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -138,8 +173,8 @@ export async function POST(req: Request) {
     });
 
     return res;
-  } catch (err: any) {
-    if (err?.name === "ZodError") {
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }

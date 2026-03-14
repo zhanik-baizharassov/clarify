@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 import {
   generate6DigitCode,
@@ -57,8 +61,41 @@ async function cleanupPendingUser(userId: string) {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:resend-code:ip",
+        key: ip,
+        limit: 10,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много запросов на повторную отправку кода. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
     const body = BodySchema.parse(await req.json().catch(() => ({})));
     const email = body.email.trim().toLowerCase();
+
+    const identityRateLimit = await enforceRateLimits([
+      {
+        scope: "auth:resend-code:email",
+        key: email,
+        limit: 4,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много запросов на повторную отправку для этого email. Попробуйте позже.",
+      },
+    ]);
+
+    if (identityRateLimit) {
+      return identityRateLimit;
+    }
+
     const now = new Date();
 
     const pendingCompany = await prisma.pendingCompanySignup.findUnique({
@@ -209,10 +246,10 @@ export async function POST(req: Request) {
       cooldownSec: COOLDOWN_SEC,
       ttlMinutes,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/auth/resend-code failed:", err);
 
-    const isZod = err?.name === "ZodError";
+    const isZod = err instanceof z.ZodError;
     return NextResponse.json(
       { error: isZod ? "Некорректный email" : "Internal Server Error" },
       { status: isZod ? 400 : 500 },
