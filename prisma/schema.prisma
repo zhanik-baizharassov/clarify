@@ -114,6 +114,24 @@ model PendingCompanySignup {
   @@index([expiresAt])
 }
 
+model PendingUserSignup {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  nickname     String   @unique
+  phone        String   @unique
+  email        String   @unique
+  passwordHash String
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  lastSentAt   DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model Category {
   id        String   @id @default(cuid())
   name      String

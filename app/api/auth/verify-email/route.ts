@@ -6,11 +6,13 @@ import {
   getRequestIp,
 } from "@/server/security/rate-limit";
 import {
-  buildSessionRecord,
-  maybeCleanupExpiredSessions,
+  buildSessionToken,
   setSessionCookie,
 } from "@/server/auth/session-token";
-import crypto from "crypto";
+import {
+  cleanupExpiredPendingSignups,
+  maybeRunMaintenanceCleanup,
+} from "@/server/maintenance/cleanup";
 import { hashCode } from "@/server/email/verification";
 
 export const runtime = "nodejs";
@@ -61,9 +63,10 @@ export async function POST(req: Request) {
       return identityRateLimit;
     }
 
-    await maybeCleanupExpiredSessions();
-
     const now = new Date();
+
+    await maybeRunMaintenanceCleanup(now);
+    await cleanupExpiredPendingSignups(now);
 
     const pendingCompany = await prisma.pendingCompanySignup.findUnique({
       where: { email },
@@ -83,18 +86,7 @@ export async function POST(req: Request) {
     });
 
     if (pendingCompany) {
-      if (pendingCompany.expiresAt < now) {
-        await prisma.pendingCompanySignup.delete({
-          where: { id: pendingCompany.id },
-        });
-
-        return NextResponse.json(
-          { error: GENERIC_VERIFY_ERROR },
-          { status: 400 },
-        );
-      }
-
-      if (pendingCompany.attempts >= 5) {
+      if (pendingCompany.expiresAt < now || pendingCompany.attempts >= 5) {
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
@@ -115,47 +107,29 @@ export async function POST(req: Request) {
         );
       }
 
-      const existingEmailUser = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
+      const [existingEmailUser, phoneOwner, binOwner] = await Promise.all([
+        prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        }),
+        prisma.user.findUnique({
+          where: { phone: pendingCompany.phone },
+          select: { id: true },
+        }),
+        prisma.company.findUnique({
+          where: { bin: pendingCompany.bin },
+          select: { id: true },
+        }),
+      ]);
 
-      if (existingEmailUser) {
+      if (existingEmailUser || phoneOwner || binOwner) {
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
         );
       }
 
-      const phoneOwner = await prisma.user.findUnique({
-        where: { phone: pendingCompany.phone },
-        select: { id: true },
-      });
-
-      if (phoneOwner) {
-        return NextResponse.json(
-          { error: GENERIC_VERIFY_ERROR },
-          { status: 400 },
-        );
-      }
-
-      const binOwner = await prisma.company.findUnique({
-        where: { bin: pendingCompany.bin },
-        select: { id: true },
-      });
-
-      if (binOwner) {
-        return NextResponse.json(
-          { error: GENERIC_VERIFY_ERROR },
-          { status: 400 },
-        );
-      }
-
-      const userId = crypto.randomUUID();
-      // placeholder to satisfy linter? no, not needed
-      void userId;
-
-      const sessionRecord = buildSessionRecord("pending-company", now);
+      const sessionToken = buildSessionToken(now);
 
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -185,14 +159,110 @@ export async function POST(req: Request) {
         await tx.session.create({
           data: {
             userId: user.id,
-            tokenHash: sessionRecord.tokenHash,
-            expiresAt: sessionRecord.expiresAt,
+            tokenHash: sessionToken.tokenHash,
+            expiresAt: sessionToken.expiresAt,
           },
         });
       });
 
       const res = NextResponse.json({ ok: true });
-      setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
+      setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
+      return res;
+    }
+
+    const pendingUser = await prisma.pendingUserSignup.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        phone: true,
+        email: true,
+        passwordHash: true,
+        codeHash: true,
+        expiresAt: true,
+        attempts: true,
+      },
+    });
+
+    if (pendingUser) {
+      if (pendingUser.expiresAt < now || pendingUser.attempts >= 5) {
+        return NextResponse.json(
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
+        );
+      }
+
+      const ok = hashCode(code) === pendingUser.codeHash;
+
+      if (!ok) {
+        await prisma.pendingUserSignup.update({
+          where: { id: pendingUser.id },
+          data: { attempts: { increment: 1 } },
+        });
+
+        return NextResponse.json(
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
+        );
+      }
+
+      const [existingEmailUser, existingPhoneUser, existingNicknameUser] =
+        await Promise.all([
+          prisma.user.findUnique({
+            where: { email },
+            select: { id: true },
+          }),
+          prisma.user.findUnique({
+            where: { phone: pendingUser.phone },
+            select: { id: true },
+          }),
+          prisma.user.findUnique({
+            where: { nickname: pendingUser.nickname },
+            select: { id: true },
+          }),
+        ]);
+
+      if (existingEmailUser || existingPhoneUser || existingNicknameUser) {
+        return NextResponse.json(
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
+        );
+      }
+
+      const sessionToken = buildSessionToken(now);
+
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            firstName: pendingUser.firstName,
+            lastName: pendingUser.lastName,
+            nickname: pendingUser.nickname,
+            phone: pendingUser.phone,
+            email: pendingUser.email,
+            passwordHash: pendingUser.passwordHash,
+            role: "USER",
+            emailVerifiedAt: now,
+          },
+          select: { id: true },
+        });
+
+        await tx.pendingUserSignup.delete({
+          where: { id: pendingUser.id },
+        });
+
+        await tx.session.create({
+          data: {
+            userId: user.id,
+            tokenHash: sessionToken.tokenHash,
+            expiresAt: sessionToken.expiresAt,
+          },
+        });
+      });
+
+      const res = NextResponse.json({ ok: true });
+      setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
       return res;
     }
 
@@ -235,21 +305,7 @@ export async function POST(req: Request) {
       select: { codeHash: true, expiresAt: true, attempts: true },
     });
 
-    if (!rec) {
-      return NextResponse.json(
-        { error: GENERIC_VERIFY_ERROR },
-        { status: 400 },
-      );
-    }
-
-    if (rec.expiresAt < now) {
-      return NextResponse.json(
-        { error: GENERIC_VERIFY_ERROR },
-        { status: 400 },
-      );
-    }
-
-    if (rec.attempts >= 5) {
+    if (!rec || rec.expiresAt < now || rec.attempts >= 5) {
       return NextResponse.json(
         { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
@@ -270,7 +326,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const sessionRecord = buildSessionRecord(user.id, now);
+    const sessionToken = buildSessionToken(now);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -285,14 +341,14 @@ export async function POST(req: Request) {
       await tx.session.create({
         data: {
           userId: user.id,
-          tokenHash: sessionRecord.tokenHash,
-          expiresAt: sessionRecord.expiresAt,
+          tokenHash: sessionToken.tokenHash,
+          expiresAt: sessionToken.expiresAt,
         },
       });
     });
 
     const res = NextResponse.json({ ok: true });
-    setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
+    setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
     return res;
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {

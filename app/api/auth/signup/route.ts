@@ -6,20 +6,21 @@ import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import {
+  cleanupExpiredPendingSignups,
+  maybeRunMaintenanceCleanup,
+} from "@/server/maintenance/cleanup";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { normalizeKzPhone } from "@/shared/kz/kz";
-import {
-  generate6DigitCode,
-  hashCode,
-  codeTtlMs,
-} from "@/server/email/verification";
+import { generate6DigitCode, hashCode } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 
 export const runtime = "nodejs";
 
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const COOLDOWN_SEC = 60;
-const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const USER_PENDING_TTL_MS = 30 * 60 * 1000;
+const USER_PENDING_TTL_MIN = 30;
 const GENERIC_SIGNUP_CONFLICT_ERROR =
   "Не удалось завершить регистрацию с указанными данными.";
 
@@ -79,54 +80,11 @@ function getPrismaTarget(err: unknown) {
   return typeof target === "string" ? target : "";
 }
 
-async function cleanupExpiredPendingCompanySignups() {
-  await prisma.pendingCompanySignup.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-    },
-  });
-}
-
-async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
-  const verification = await prisma.emailVerification.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
-  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
-  const ageMs = Date.now() - activityAt.getTime();
-  const cooldownLeftSec = verification
-    ? Math.ceil(
-        (COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) /
-          1000,
-      )
-    : 0;
-
-  return {
-    expired: ageMs >= PENDING_TTL_MS,
-    cooldownLeftSec: Math.max(0, cooldownLeftSec),
-  };
-}
-
-async function cleanupPendingUser(userId: string) {
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-}
-
-async function cleanupIfExpiredPendingUser(candidate: {
-  id: string;
-  emailVerifiedAt: Date | null;
-  createdAt: Date;
-} | null) {
-  if (!candidate || candidate.emailVerifiedAt) return false;
-
-  const pendingMeta = await getPendingMeta(candidate.id, candidate.createdAt);
-  if (!pendingMeta.expired) return false;
-
-  await cleanupPendingUser(candidate.id);
-  return true;
+function getCooldownLeftSec(lastSentAt: Date) {
+  return Math.max(
+    0,
+    Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
+  );
 }
 
 export async function POST(req: Request) {
@@ -176,162 +134,95 @@ export async function POST(req: Request) {
       return identityRateLimit;
     }
 
+    const now = new Date();
+
+    await maybeRunMaintenanceCleanup(now);
+    await cleanupExpiredPendingSignups(now);
+
     assertNoProfanity(raw.firstName, "Имя");
     assertNoProfanity(raw.lastName, "Фамилия");
     assertNoProfanity(nickname, "Никнейм");
     assertNoProfanity(email, "Email");
 
-    await cleanupExpiredPendingCompanySignups();
+    const [
+      pendingCompanyByEmail,
+      pendingCompanyByPhone,
+      existingUserByEmail,
+      existingUserByPhone,
+      existingUserByNickname,
+      existingPendingByEmail,
+      pendingNicknameOwner,
+      pendingPhoneOwner,
+    ] = await Promise.all([
+      prisma.pendingCompanySignup.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      prisma.pendingCompanySignup.findUnique({
+        where: { phone },
+        select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { phone },
+        select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { nickname },
+        select: { id: true },
+      }),
+      prisma.pendingUserSignup.findUnique({
+        where: { email },
+        select: { id: true, lastSentAt: true },
+      }),
+      prisma.pendingUserSignup.findUnique({
+        where: { nickname },
+        select: { id: true, email: true },
+      }),
+      prisma.pendingUserSignup.findUnique({
+        where: { phone },
+        select: { id: true, email: true },
+      }),
+    ]);
 
-    const pendingCompanyByEmail = await prisma.pendingCompanySignup.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-
-    if (pendingCompanyByEmail) {
+    if (pendingCompanyByEmail || pendingCompanyByPhone) {
       return NextResponse.json(
         { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
 
-    const pendingCompanyByPhone = await prisma.pendingCompanySignup.findUnique({
-      where: { phone },
-      select: { id: true },
-    });
-
-    if (pendingCompanyByPhone) {
+    if (existingUserByEmail || existingUserByPhone) {
       return NextResponse.json(
         { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
 
-    let existsEmail = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, emailVerifiedAt: true, role: true, createdAt: true },
-    });
-
-    if (await cleanupIfExpiredPendingUser(existsEmail)) {
-      existsEmail = null;
-    }
-
-    if (existsEmail?.emailVerifiedAt) {
-      return NextResponse.json(
-        { error: GENERIC_SIGNUP_CONFLICT_ERROR },
-        { status: 409 },
-      );
-    }
-
-    if (existsEmail && !existsEmail.emailVerifiedAt) {
-      if (existsEmail.role !== "USER") {
-        return NextResponse.json(
-          { error: GENERIC_SIGNUP_CONFLICT_ERROR },
-          { status: 409 },
-        );
-      }
-
-      const nicknameOwner = await prisma.user.findFirst({
-        where: {
-          nickname,
-          NOT: { id: existsEmail.id },
-        },
-        select: { id: true, emailVerifiedAt: true, createdAt: true },
-      });
-
-      if (await cleanupIfExpiredPendingUser(nicknameOwner)) {
-        // очищён старый конфликт, идём дальше
-      } else if (nicknameOwner) {
-        return NextResponse.json(
-          { error: "Никнейм уже занят" },
-          { status: 409 },
-        );
-      }
-
-      const phoneOwner = await prisma.user.findFirst({
-        where: {
-          phone,
-          NOT: { id: existsEmail.id },
-        },
-        select: { id: true, emailVerifiedAt: true, createdAt: true },
-      });
-
-      if (await cleanupIfExpiredPendingUser(phoneOwner)) {
-        // очищён старый конфликт, идём дальше
-      } else if (phoneOwner) {
-        return NextResponse.json(
-          { error: GENERIC_SIGNUP_CONFLICT_ERROR },
-          { status: 409 },
-        );
-      }
-
-      const pendingMeta = await getPendingMeta(existsEmail.id, existsEmail.createdAt);
-      const passwordHash = await bcrypt.hash(raw.password, 10);
-
-      await prisma.user.update({
-        where: { id: existsEmail.id },
-        data: {
-          firstName: raw.firstName,
-          lastName: raw.lastName,
-          nickname,
-          phone,
-          passwordHash,
-        },
-      });
-
-      if (pendingMeta.cooldownLeftSec > 0) {
-        return NextResponse.json({
-          ok: true,
-          needsEmailVerification: true,
-          email,
-          cooldownSec: pendingMeta.cooldownLeftSec,
-          notice:
-            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
-        });
-      }
-
-      const code = generate6DigitCode();
-      const codeHash = hashCode(code);
-      const expiresAt = new Date(Date.now() + codeTtlMs());
-
-      await prisma.emailVerification.upsert({
-        where: { userId_email: { userId: existsEmail.id, email } },
-        update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
-        create: { userId: existsEmail.id, email, codeHash, expiresAt },
-      });
-
-      await sendEmailVerificationCode(email, code);
-
-      return NextResponse.json({
-        ok: true,
-        needsEmailVerification: true,
-        email,
-        cooldownSec: COOLDOWN_SEC,
-      });
-    }
-
-    const nicknameOwner = await prisma.user.findUnique({
-      where: { nickname },
-      select: { id: true, emailVerifiedAt: true, createdAt: true },
-    });
-
-    if (await cleanupIfExpiredPendingUser(nicknameOwner)) {
-      // очищён старый конфликт
-    } else if (nicknameOwner) {
+    if (existingUserByNickname) {
       return NextResponse.json(
         { error: "Никнейм уже занят" },
         { status: 409 },
       );
     }
 
-    const phoneOwner = await prisma.user.findUnique({
-      where: { phone },
-      select: { id: true, emailVerifiedAt: true, createdAt: true },
-    });
+    if (
+      pendingNicknameOwner &&
+      pendingNicknameOwner.email.toLowerCase() !== email.toLowerCase()
+    ) {
+      return NextResponse.json(
+        { error: "Никнейм уже занят" },
+        { status: 409 },
+      );
+    }
 
-    if (await cleanupIfExpiredPendingUser(phoneOwner)) {
-      // очищён старый конфликт
-    } else if (phoneOwner) {
+    if (
+      pendingPhoneOwner &&
+      pendingPhoneOwner.email.toLowerCase() !== email.toLowerCase()
+    ) {
       return NextResponse.json(
         { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
@@ -339,37 +230,64 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(raw.password, 10);
+    const cooldownLeftSec = existingPendingByEmail
+      ? getCooldownLeftSec(existingPendingByEmail.lastSentAt)
+      : 0;
+
+    if (existingPendingByEmail) {
+      await prisma.pendingUserSignup.update({
+        where: { email },
+        data: {
+          firstName: raw.firstName,
+          lastName: raw.lastName,
+          nickname,
+          phone,
+          passwordHash,
+        },
+      });
+
+      if (cooldownLeftSec > 0) {
+        return NextResponse.json({
+          ok: true,
+          needsEmailVerification: true,
+          email,
+          cooldownSec: cooldownLeftSec,
+          ttlMinutes: USER_PENDING_TTL_MIN,
+          notice:
+            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
+        });
+      }
+    }
+
+    const code = generate6DigitCode();
+    const expiresAt = new Date(now.getTime() + USER_PENDING_TTL_MS);
 
     try {
-      const user = await prisma.user.create({
-        data: {
+      await prisma.pendingUserSignup.upsert({
+        where: { email },
+        update: {
+          firstName: raw.firstName,
+          lastName: raw.lastName,
+          nickname,
+          phone,
+          passwordHash,
+          codeHash: hashCode(code),
+          expiresAt,
+          attempts: 0,
+          lastSentAt: now,
+        },
+        create: {
           firstName: raw.firstName,
           lastName: raw.lastName,
           nickname,
           phone,
           email,
           passwordHash,
-          role: "USER",
-          emailVerifiedAt: null,
+          codeHash: hashCode(code),
+          expiresAt,
+          attempts: 0,
+          lastSentAt: now,
         },
-        select: { id: true, email: true },
-      });
-
-      const code = generate6DigitCode();
-      const codeHash = hashCode(code);
-      const expiresAt = new Date(Date.now() + codeTtlMs());
-
-      await prisma.emailVerification.create({
-        data: { userId: user.id, email: user.email, codeHash, expiresAt },
-      });
-
-      await sendEmailVerificationCode(user.email, code);
-
-      return NextResponse.json({
-        ok: true,
-        needsEmailVerification: true,
-        email: user.email,
-        cooldownSec: COOLDOWN_SEC,
       });
     } catch (e: unknown) {
       if (isP2002(e)) {
@@ -397,6 +315,18 @@ export async function POST(req: Request) {
 
       throw e;
     }
+
+    await sendEmailVerificationCode(email, code, {
+      ttlMinutes: USER_PENDING_TTL_MIN,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      needsEmailVerification: true,
+      email,
+      cooldownSec: COOLDOWN_SEC,
+      ttlMinutes: USER_PENDING_TTL_MIN,
+    });
   } catch (err: unknown) {
     if (err instanceof Error && err.message) {
       if (err.message.includes("номер") || err.message.includes("Телефон")) {

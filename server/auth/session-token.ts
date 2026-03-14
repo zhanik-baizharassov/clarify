@@ -19,13 +19,12 @@ export function hashSessionToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export function buildSessionRecord(userId: string, now = new Date()) {
+export function buildSessionToken(now = new Date()) {
   const rawToken = generateSessionToken();
   const tokenHash = hashSessionToken(rawToken);
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
 
   return {
-    userId,
     rawToken,
     tokenHash,
     expiresAt,

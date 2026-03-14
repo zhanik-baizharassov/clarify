@@ -7,10 +7,11 @@ import {
   getRequestIp,
 } from "@/server/security/rate-limit";
 import {
-  buildSessionRecord,
+  buildSessionToken,
   maybeCleanupExpiredSessions,
   setSessionCookie,
 } from "@/server/auth/session-token";
+import { maybeRunMaintenanceCleanup } from "@/server/maintenance/cleanup";
 
 export const runtime = "nodejs";
 
@@ -19,27 +20,7 @@ const Schema = z.object({
   password: z.string().min(1, "Введите пароль"),
 });
 
-const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const GENERIC_LOGIN_ERROR = "Не удалось войти. Проверьте введённые данные.";
-
-async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
-  const verification = await prisma.emailVerification.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
-  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
-  const expired = Date.now() - activityAt.getTime() >= PENDING_TTL_MS;
-
-  return { expired };
-}
-
-async function cleanupPendingUser(userId: string) {
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-}
 
 export async function POST(req: Request) {
   try {
@@ -77,13 +58,15 @@ export async function POST(req: Request) {
       return identityRateLimit;
     }
 
-    await maybeCleanupExpiredSessions();
+    const now = new Date();
+
+    await maybeRunMaintenanceCleanup(now);
+    await maybeCleanupExpiredSessions(now);
 
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
         id: true,
-        createdAt: true,
         passwordHash: true,
         emailVerifiedAt: true,
         role: true,
@@ -106,8 +89,6 @@ export async function POST(req: Request) {
         { status: 401 },
       );
     }
-
-    const now = new Date();
 
     if (user.blockedUntil && user.blockedUntil > now) {
       await prisma.session.deleteMany({
@@ -141,15 +122,9 @@ export async function POST(req: Request) {
     }
 
     if (!user.emailVerifiedAt) {
-      const pendingMeta = await getPendingMeta(user.id, user.createdAt);
-
-      if (pendingMeta.expired) {
-        await cleanupPendingUser(user.id);
-      } else {
-        await prisma.session.deleteMany({
-          where: { userId: user.id },
-        });
-      }
+      await prisma.session.deleteMany({
+        where: { userId: user.id },
+      });
 
       return NextResponse.json(
         { error: GENERIC_LOGIN_ERROR },
@@ -157,18 +132,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const sessionRecord = buildSessionRecord(user.id, now);
+    const sessionToken = buildSessionToken(now);
 
     await prisma.session.create({
       data: {
         userId: user.id,
-        tokenHash: sessionRecord.tokenHash,
-        expiresAt: sessionRecord.expiresAt,
+        tokenHash: sessionToken.tokenHash,
+        expiresAt: sessionToken.expiresAt,
       },
     });
 
     const res = NextResponse.json({ ok: true });
-    setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
+    setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
 
     return res;
   } catch (err: unknown) {

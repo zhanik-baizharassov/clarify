@@ -5,6 +5,10 @@ import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import {
+  cleanupExpiredPendingSignups,
+  maybeRunMaintenanceCleanup,
+} from "@/server/maintenance/cleanup";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 import {
   generate6DigitCode,
@@ -20,7 +24,8 @@ const BodySchema = z.object({
 });
 
 const COOLDOWN_SEC = 60;
-const USER_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const USER_PENDING_TTL_MS = 30 * 60 * 1000;
+const USER_PENDING_TTL_MIN = 30;
 const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
 const COMPANY_PENDING_TTL_MIN = 30;
 
@@ -43,34 +48,6 @@ function genericResendResponse(
     cooldownSec,
     ...(typeof ttlMinutes === "number" ? { ttlMinutes } : {}),
     message: GENERIC_RESEND_MESSAGE,
-  });
-}
-
-async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
-  const verification = await prisma.emailVerification.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
-  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
-  const ageMs = Date.now() - activityAt.getTime();
-  const cooldownLeftSec = verification
-    ? Math.ceil(
-        (COOLDOWN_SEC * 1000 - (Date.now() - verification.createdAt.getTime())) /
-          1000,
-      )
-    : 0;
-
-  return {
-    expired: ageMs >= USER_PENDING_TTL_MS,
-    cooldownLeftSec: Math.max(0, cooldownLeftSec),
-  };
-}
-
-async function cleanupPendingUser(userId: string) {
-  await prisma.user.delete({
-    where: { id: userId },
   });
 }
 
@@ -113,24 +90,18 @@ export async function POST(req: Request) {
 
     const now = new Date();
 
+    await maybeRunMaintenanceCleanup(now);
+    await cleanupExpiredPendingSignups(now);
+
     const pendingCompany = await prisma.pendingCompanySignup.findUnique({
       where: { email },
       select: {
         id: true,
-        expiresAt: true,
         lastSentAt: true,
       },
     });
 
     if (pendingCompany) {
-      if (pendingCompany.expiresAt < now) {
-        await prisma.pendingCompanySignup.delete({
-          where: { id: pendingCompany.id },
-        });
-
-        return genericResendResponse();
-      }
-
       const cooldownLeftSec = getCooldownLeftSec(pendingCompany.lastSentAt);
 
       if (cooldownLeftSec > 0) {
@@ -143,7 +114,7 @@ export async function POST(req: Request) {
         where: { id: pendingCompany.id },
         data: {
           codeHash: hashCode(code),
-          expiresAt: new Date(Date.now() + COMPANY_PENDING_TTL_MS),
+          expiresAt: new Date(now.getTime() + COMPANY_PENDING_TTL_MS),
           attempts: 0,
           lastSentAt: now,
         },
@@ -156,11 +127,44 @@ export async function POST(req: Request) {
       return genericResendResponse(COOLDOWN_SEC, COMPANY_PENDING_TTL_MIN);
     }
 
+    const pendingUser = await prisma.pendingUserSignup.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        lastSentAt: true,
+      },
+    });
+
+    if (pendingUser) {
+      const cooldownLeftSec = getCooldownLeftSec(pendingUser.lastSentAt);
+
+      if (cooldownLeftSec > 0) {
+        return genericResendResponse(cooldownLeftSec, USER_PENDING_TTL_MIN);
+      }
+
+      const code = generate6DigitCode();
+
+      await prisma.pendingUserSignup.update({
+        where: { id: pendingUser.id },
+        data: {
+          codeHash: hashCode(code),
+          expiresAt: new Date(now.getTime() + USER_PENDING_TTL_MS),
+          attempts: 0,
+          lastSentAt: now,
+        },
+      });
+
+      await sendEmailVerificationCode(email, code, {
+        ttlMinutes: USER_PENDING_TTL_MIN,
+      });
+
+      return genericResendResponse(COOLDOWN_SEC, USER_PENDING_TTL_MIN);
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
         id: true,
-        createdAt: true,
         emailVerifiedAt: true,
         blockedUntil: true,
       },
@@ -178,15 +182,17 @@ export async function POST(req: Request) {
       return genericResendResponse();
     }
 
-    const pendingMeta = await getPendingMeta(user.id, user.createdAt);
+    const existingVerification = await prisma.emailVerification.findUnique({
+      where: { userId_email: { userId: user.id, email } },
+      select: { createdAt: true },
+    });
 
-    if (pendingMeta.expired) {
-      await cleanupPendingUser(user.id);
-      return genericResendResponse();
-    }
+    if (existingVerification) {
+      const cooldownLeftSec = getCooldownLeftSec(existingVerification.createdAt);
 
-    if (pendingMeta.cooldownLeftSec > 0) {
-      return genericResendResponse(pendingMeta.cooldownLeftSec);
+      if (cooldownLeftSec > 0) {
+        return genericResendResponse(cooldownLeftSec);
+      }
     }
 
     const code = generate6DigitCode();
@@ -199,14 +205,14 @@ export async function POST(req: Request) {
         userId: user.id,
         email,
         codeHash: hashCode(code),
-        expiresAt: new Date(Date.now() + ttlMs),
+        expiresAt: new Date(now.getTime() + ttlMs),
         attempts: 0,
       },
       update: {
         codeHash: hashCode(code),
-        expiresAt: new Date(Date.now() + ttlMs),
+        expiresAt: new Date(now.getTime() + ttlMs),
         attempts: 0,
-        createdAt: new Date(),
+        createdAt: now,
       },
     });
 

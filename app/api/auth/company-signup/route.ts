@@ -6,6 +6,10 @@ import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import {
+  cleanupExpiredPendingSignups,
+  maybeRunMaintenanceCleanup,
+} from "@/server/maintenance/cleanup";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { generate6DigitCode, hashCode } from "@/server/email/verification";
@@ -16,7 +20,6 @@ export const runtime = "nodejs";
 
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const COOLDOWN_SEC = 60;
-const USER_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
 const COMPANY_PENDING_TTL_MIN = 30;
 const GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR =
@@ -81,49 +84,6 @@ function getCooldownLeftSec(lastSentAt: Date) {
   );
 }
 
-async function cleanupExpiredPendingCompanySignups() {
-  await prisma.pendingCompanySignup.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-    },
-  });
-}
-
-async function getUserPendingMeta(userId: string, fallbackCreatedAt: Date) {
-  const verification = await prisma.emailVerification.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
-  const activityAt = verification?.createdAt ?? fallbackCreatedAt;
-  const ageMs = Date.now() - activityAt.getTime();
-
-  return {
-    expired: ageMs >= USER_PENDING_TTL_MS,
-  };
-}
-
-async function cleanupPendingUser(userId: string) {
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-}
-
-async function cleanupIfExpiredPendingUser(candidate: {
-  id: string;
-  emailVerifiedAt: Date | null;
-  createdAt: Date;
-} | null) {
-  if (!candidate || candidate.emailVerifiedAt) return false;
-
-  const pendingMeta = await getUserPendingMeta(candidate.id, candidate.createdAt);
-  if (!pendingMeta.expired) return false;
-
-  await cleanupPendingUser(candidate.id);
-  return true;
-}
-
 export async function POST(req: Request) {
   try {
     const ip = getRequestIp(req);
@@ -184,77 +144,56 @@ export async function POST(req: Request) {
       return identityRateLimit;
     }
 
+    const now = new Date();
+
+    await maybeRunMaintenanceCleanup(now);
+    await cleanupExpiredPendingSignups(now);
+
     const { normalizedAddress } = await validateKzAddress({
       city,
       address: input.address,
     });
 
-    await cleanupExpiredPendingCompanySignups();
+    const [
+      existsEmail,
+      phoneOwner,
+      binOwner,
+      pendingPhoneOwner,
+      pendingBinOwner,
+      existingPending,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { phone },
+        select: { id: true },
+      }),
+      prisma.company.findUnique({
+        where: { bin: input.bin },
+        select: { id: true },
+      }),
+      prisma.pendingCompanySignup.findUnique({
+        where: { phone },
+        select: { email: true },
+      }),
+      prisma.pendingCompanySignup.findUnique({
+        where: { bin: input.bin },
+        select: { email: true },
+      }),
+      prisma.pendingCompanySignup.findUnique({
+        where: { email },
+        select: { id: true, lastSentAt: true },
+      }),
+    ]);
 
-    let existsEmail = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        emailVerifiedAt: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-
-    if (await cleanupIfExpiredPendingUser(existsEmail)) {
-      existsEmail = null;
-    }
-
-    if (existsEmail?.emailVerifiedAt) {
+    if (existsEmail || phoneOwner || binOwner) {
       return NextResponse.json(
         { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
-
-    if (existsEmail && !existsEmail.emailVerifiedAt) {
-      return NextResponse.json(
-        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
-        { status: 409 },
-      );
-    }
-
-    let phoneOwner = await prisma.user.findUnique({
-      where: { phone },
-      select: {
-        id: true,
-        emailVerifiedAt: true,
-        createdAt: true,
-      },
-    });
-
-    if (await cleanupIfExpiredPendingUser(phoneOwner)) {
-      phoneOwner = null;
-    }
-
-    if (phoneOwner) {
-      return NextResponse.json(
-        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
-        { status: 409 },
-      );
-    }
-
-    const binOwner = await prisma.company.findUnique({
-      where: { bin: input.bin },
-      select: { id: true },
-    });
-
-    if (binOwner) {
-      return NextResponse.json(
-        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
-        { status: 409 },
-      );
-    }
-
-    const pendingPhoneOwner = await prisma.pendingCompanySignup.findUnique({
-      where: { phone },
-      select: { email: true },
-    });
 
     if (pendingPhoneOwner && pendingPhoneOwner.email !== email) {
       return NextResponse.json(
@@ -263,22 +202,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const pendingBinOwner = await prisma.pendingCompanySignup.findUnique({
-      where: { bin: input.bin },
-      select: { email: true },
-    });
-
     if (pendingBinOwner && pendingBinOwner.email !== email) {
       return NextResponse.json(
         { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
-
-    const existingPending = await prisma.pendingCompanySignup.findUnique({
-      where: { email },
-      select: { id: true, lastSentAt: true },
-    });
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
@@ -303,6 +232,7 @@ export async function POST(req: Request) {
           needsEmailVerification: true,
           email,
           cooldownSec: cooldownLeftSec,
+          ttlMinutes: COMPANY_PENDING_TTL_MIN,
           notice:
             "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
         });
@@ -310,38 +240,60 @@ export async function POST(req: Request) {
     }
 
     const code = generate6DigitCode();
-    const codeHash = hashCode(code);
-    const expiresAt = new Date(Date.now() + COMPANY_PENDING_TTL_MS);
-    const now = new Date();
+    const expiresAt = new Date(now.getTime() + COMPANY_PENDING_TTL_MS);
 
-    await prisma.pendingCompanySignup.upsert({
-      where: { email },
-      update: {
-        companyName: input.companyName,
-        bin: input.bin,
-        city,
-        phone,
-        address: normalizedAddress,
-        passwordHash,
-        codeHash,
-        expiresAt,
-        attempts: 0,
-        lastSentAt: now,
-      },
-      create: {
-        companyName: input.companyName,
-        bin: input.bin,
-        city,
-        phone,
-        email,
-        address: normalizedAddress,
-        passwordHash,
-        codeHash,
-        expiresAt,
-        attempts: 0,
-        lastSentAt: now,
-      },
-    });
+    try {
+      await prisma.pendingCompanySignup.upsert({
+        where: { email },
+        update: {
+          companyName: input.companyName,
+          bin: input.bin,
+          city,
+          phone,
+          address: normalizedAddress,
+          passwordHash,
+          codeHash: hashCode(code),
+          expiresAt,
+          attempts: 0,
+          lastSentAt: now,
+        },
+        create: {
+          companyName: input.companyName,
+          bin: input.bin,
+          city,
+          phone,
+          email,
+          address: normalizedAddress,
+          passwordHash,
+          codeHash: hashCode(code),
+          expiresAt,
+          attempts: 0,
+          lastSentAt: now,
+        },
+      });
+    } catch (err: unknown) {
+      if (isP2002(err)) {
+        const target = getPrismaTarget(err);
+
+        if (
+          target.includes("email") ||
+          target.includes("phone") ||
+          target.includes("bin")
+        ) {
+          return NextResponse.json(
+            { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
+            { status: 409 },
+          );
+        }
+
+        return NextResponse.json(
+          { error: "Уникальное значение уже занято" },
+          { status: 409 },
+        );
+      }
+
+      throw err;
+    }
 
     await sendEmailVerificationCode(email, code, {
       ttlMinutes: COMPANY_PENDING_TTL_MIN,
@@ -352,28 +304,9 @@ export async function POST(req: Request) {
       needsEmailVerification: true,
       email,
       cooldownSec: COOLDOWN_SEC,
+      ttlMinutes: COMPANY_PENDING_TTL_MIN,
     });
   } catch (err: unknown) {
-    if (isP2002(err)) {
-      const target = getPrismaTarget(err);
-
-      if (
-        target.includes("email") ||
-        target.includes("phone") ||
-        target.includes("bin")
-      ) {
-        return NextResponse.json(
-          { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
-          { status: 409 },
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Уникальное значение уже занято" },
-        { status: 409 },
-      );
-    }
-
     if (err instanceof Error && err.message) {
       if (
         err.message.includes("номер") ||
