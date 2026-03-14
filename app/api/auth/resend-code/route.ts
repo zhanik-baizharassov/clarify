@@ -24,11 +24,26 @@ const USER_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
 const COMPANY_PENDING_TTL_MIN = 30;
 
+const GENERIC_RESEND_MESSAGE =
+  "Если для этого email доступно подтверждение, новый код будет отправлен, когда это разрешено.";
+
 function getCooldownLeftSec(lastSentAt: Date) {
   return Math.max(
     0,
     Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
   );
+}
+
+function genericResendResponse(
+  cooldownSec = COOLDOWN_SEC,
+  ttlMinutes?: number,
+) {
+  return NextResponse.json({
+    ok: true,
+    cooldownSec,
+    ...(typeof ttlMinutes === "number" ? { ttlMinutes } : {}),
+    message: GENERIC_RESEND_MESSAGE,
+  });
 }
 
 async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
@@ -113,25 +128,13 @@ export async function POST(req: Request) {
           where: { id: pendingCompany.id },
         });
 
-        return NextResponse.json(
-          {
-            error: "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново.",
-            code: "PENDING_REGISTRATION_EXPIRED",
-          },
-          { status: 410 },
-        );
+        return genericResendResponse();
       }
 
       const cooldownLeftSec = getCooldownLeftSec(pendingCompany.lastSentAt);
 
       if (cooldownLeftSec > 0) {
-        return NextResponse.json(
-          {
-            error: `Подождите ${cooldownLeftSec}с и попробуйте снова`,
-            retryAfterSec: cooldownLeftSec,
-          },
-          { status: 429 },
-        );
+        return genericResendResponse(cooldownLeftSec, COMPANY_PENDING_TTL_MIN);
       }
 
       const code = generate6DigitCode();
@@ -150,11 +153,7 @@ export async function POST(req: Request) {
         ttlMinutes: COMPANY_PENDING_TTL_MIN,
       });
 
-      return NextResponse.json({
-        ok: true,
-        cooldownSec: COOLDOWN_SEC,
-        ttlMinutes: COMPANY_PENDING_TTL_MIN,
-      });
+      return genericResendResponse(COOLDOWN_SEC, COMPANY_PENDING_TTL_MIN);
     }
 
     const user = await prisma.user.findUnique({
@@ -168,54 +167,26 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Аккаунт с таким email не найден" },
-        { status: 404 },
-      );
+      return genericResendResponse();
     }
 
     if (user.blockedUntil && user.blockedUntil > now) {
-      return NextResponse.json(
-        {
-          error: "Аккаунт заблокирован модерацией Clarify",
-          code: "ACCOUNT_BLOCKED",
-        },
-        { status: 423 },
-      );
+      return genericResendResponse();
     }
 
     if (user.emailVerifiedAt) {
-      return NextResponse.json(
-        {
-          error: "Email уже подтверждён. Войдите по паролю.",
-          code: "ALREADY_VERIFIED",
-        },
-        { status: 409 },
-      );
+      return genericResendResponse();
     }
 
     const pendingMeta = await getPendingMeta(user.id, user.createdAt);
 
     if (pendingMeta.expired) {
       await cleanupPendingUser(user.id);
-
-      return NextResponse.json(
-        {
-          error: "Срок подтверждения аккаунта истёк. Заполните форму заново.",
-          code: "PENDING_REGISTRATION_EXPIRED",
-        },
-        { status: 410 },
-      );
+      return genericResendResponse();
     }
 
     if (pendingMeta.cooldownLeftSec > 0) {
-      return NextResponse.json(
-        {
-          error: `Подождите ${pendingMeta.cooldownLeftSec}с и попробуйте снова`,
-          retryAfterSec: pendingMeta.cooldownLeftSec,
-        },
-        { status: 429 },
-      );
+      return genericResendResponse(pendingMeta.cooldownLeftSec);
     }
 
     const code = generate6DigitCode();
@@ -241,11 +212,7 @@ export async function POST(req: Request) {
 
     await sendEmailVerificationCode(email, code, { ttlMinutes });
 
-    return NextResponse.json({
-      ok: true,
-      cooldownSec: COOLDOWN_SEC,
-      ttlMinutes,
-    });
+    return genericResendResponse(COOLDOWN_SEC, ttlMinutes);
   } catch (err: unknown) {
     console.error("POST /api/auth/resend-code failed:", err);
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
+import { clearSessionCookie } from "@/server/auth/session-token";
 import { assertNoProfanity } from "@/server/security/profanity";
 import {
   generate6DigitCode,
@@ -15,13 +16,13 @@ export const runtime = "nodejs";
 
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const allowedAvatarTypes = ["image/jpeg", "image/png", "image/webp"];
-const maxAvatarBytes = 1_000_000; // 1MB
+const maxAvatarBytes = 1_000_000;
+const GENERIC_EMAIL_CHANGE_CONFLICT_ERROR =
+  "Этот email сейчас нельзя использовать. Укажите другой email.";
 
 const Schema = z.object({
   firstName: z.string().trim().min(2).max(50),
-
   lastName: z.string().trim().min(2).max(50),
-
   nickname: z
     .string()
     .trim()
@@ -31,7 +32,6 @@ const Schema = z.object({
       /^[a-zA-Z0-9_]+$/,
       "Никнейм: только латиница, цифры и _ (без пробелов)",
     ),
-
   email: z
     .string()
     .trim()
@@ -46,7 +46,6 @@ const Schema = z.object({
         .map((t) => "." + t)
         .join(", ")}`,
     ),
-
   password: z.string().min(8).max(200).optional(),
   avatarClear: z.boolean().optional(),
 });
@@ -69,7 +68,7 @@ async function readBody(req: Request) {
         : undefined;
 
     const avatarClear = String(fd.get("avatarClear") ?? "") === "1";
-    const avatar = fd.get("avatar"); // File | string | null
+    const avatar = fd.get("avatar");
 
     return {
       firstName,
@@ -86,8 +85,29 @@ async function readBody(req: Request) {
   return { ...json, avatarClear: Boolean(json?.avatarClear), avatar: null };
 }
 
-function isLikelyPrismaUniqueErr(e: any) {
-  return e?.code === "P2002";
+function isLikelyPrismaUniqueErr(e: unknown) {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code?: unknown }).code === "P2002"
+  );
+}
+
+function getPrismaTarget(err: unknown) {
+  if (typeof err !== "object" || err === null) return "";
+
+  const meta = "meta" in err ? (err as { meta?: unknown }).meta : undefined;
+  if (typeof meta !== "object" || meta === null) return "";
+
+  const target =
+    "target" in meta ? (meta as { target?: unknown }).target : undefined;
+
+  if (Array.isArray(target)) {
+    return target.map((item) => String(item)).join(",");
+  }
+
+  return typeof target === "string" ? target : "";
 }
 
 export async function PATCH(req: Request) {
@@ -111,13 +131,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // profanity-check
     assertNoProfanity(input.firstName, "Имя");
     assertNoProfanity(input.lastName, "Фамилия");
     assertNoProfanity(input.nickname, "Никнейм");
 
-    // ✅ пароль — готовим ДО обращения к БД
-    let passwordHash: string | undefined = undefined;
+    let passwordHash: string | undefined;
     if (input.password) {
       if (!/[A-Z]/.test(input.password)) {
         return NextResponse.json(
@@ -141,8 +159,7 @@ export async function PATCH(req: Request) {
       passwordHash = await bcrypt.hash(input.password, 10);
     }
 
-    // ✅ аватар — готовим ДО обращения к БД
-    let newAvatarUrl: string | null | undefined = undefined;
+    let newAvatarUrl: string | null | undefined;
 
     if (body.avatar && typeof body.avatar !== "string") {
       const file = body.avatar as File;
@@ -184,9 +201,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const prevEmail = (current.email ?? "").trim();
-    const nextEmail = input.email.trim();
-    const isEmailChanged = nextEmail.toLowerCase() !== prevEmail.toLowerCase();
+    const prevEmail = (current.email ?? "").trim().toLowerCase();
+    const nextEmail = input.email.trim().toLowerCase();
+    const isEmailChanged = nextEmail !== prevEmail;
 
     const isAvatarChanged =
       Boolean(body.avatar && typeof body.avatar !== "string") ||
@@ -208,7 +225,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // ✅ если меняется только пароль — разрешаем всегда
     if (!isMainChanged && isPasswordChanged) {
       await prisma.user.update({
         where: { id: user.id },
@@ -218,7 +234,6 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 
-    // ✅ основные данные можно менять только 1 раз
     if (current.profileEditCount >= 1) {
       return NextResponse.json(
         {
@@ -229,15 +244,23 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // ✅ если меняем email — заранее проверим, что он не занят другим пользователем
     if (isEmailChanged) {
-      const exists = await prisma.user.findUnique({
-        where: { email: nextEmail },
-        select: { id: true },
-      });
+      const [exists, pendingCompany] = await Promise.all([
+        prisma.user.findUnique({
+          where: { email: nextEmail },
+          select: { id: true },
+        }),
+        prisma.pendingCompanySignup.findUnique({
+          where: { email: nextEmail },
+          select: { id: true },
+        }),
+      ]);
 
-      if (exists && exists.id !== user.id) {
-        return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+      if ((exists && exists.id !== user.id) || pendingCompany) {
+        return NextResponse.json(
+          { error: GENERIC_EMAIL_CHANGE_CONFLICT_ERROR },
+          { status: 409 },
+        );
       }
     }
 
@@ -249,11 +272,9 @@ export async function PATCH(req: Request) {
           lastName: input.lastName,
           nickname: input.nickname,
           email: nextEmail,
-
           ...(isEmailChanged ? { emailVerifiedAt: null } : {}),
           ...(isAvatarChanged ? { avatarUrl: newAvatarUrl ?? null } : {}),
           ...(passwordHash ? { passwordHash } : {}),
-
           profileEditCount: 1,
           profileEditedAt: new Date(),
         },
@@ -268,15 +289,13 @@ export async function PATCH(req: Request) {
           { status: 409 },
         );
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (isLikelyPrismaUniqueErr(e)) {
-        const target = Array.isArray(e?.meta?.target)
-          ? e.meta.target.join(",")
-          : String(e?.meta?.target ?? "");
+        const target = getPrismaTarget(e);
 
         if (target.includes("email")) {
           return NextResponse.json(
-            { error: "Email уже занят" },
+            { error: GENERIC_EMAIL_CHANGE_CONFLICT_ERROR },
             { status: 409 },
           );
         }
@@ -296,7 +315,6 @@ export async function PATCH(req: Request) {
       throw e;
     }
 
-    // ✅ если email поменялся — создаём/обновляем код и отправляем письмо
     if (isEmailChanged) {
       const code = generate6DigitCode();
       const codeHash = hashCode(code);
@@ -310,32 +328,39 @@ export async function PATCH(req: Request) {
 
       await sendEmailVerificationCode(nextEmail, code);
 
-      return NextResponse.json(
+      await prisma.session.deleteMany({
+        where: { userId: user.id },
+      });
+
+      const res = NextResponse.json(
         {
           ok: true,
           needsEmailVerification: true,
           email: nextEmail,
           message:
-            "Email изменён. Мы отправили код подтверждения на новую почту. Подтвердите, чтобы снова войти.",
+            "Email изменён. Мы отправили код подтверждения на новую почту. Подтвердите email и войдите заново.",
         },
         { status: 200 },
       );
+
+      clearSessionCookie(res);
+      return res;
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (err: any) {
-    if (err?.name === "ZodError") {
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
       const issue = err.issues?.[0];
       const path = issue?.path?.join(".") || "field";
       const msg = issue?.message ?? "Неверные данные";
       return NextResponse.json({ error: `${path}: ${msg}` }, { status: 400 });
     }
 
-    if (err?.message?.includes("недопустимые слова")) {
+    if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    if (err instanceof Error && err.message?.startsWith("Mail: env")) {
+    if (err instanceof Error && err.message.startsWith("Mail: env")) {
       return NextResponse.json(
         { error: "Почта не настроена (SMTP env)" },
         { status: 500 },

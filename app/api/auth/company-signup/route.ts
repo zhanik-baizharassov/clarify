@@ -19,6 +19,8 @@ const COOLDOWN_SEC = 60;
 const USER_PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const COMPANY_PENDING_TTL_MS = 30 * 60 * 1000;
 const COMPANY_PENDING_TTL_MIN = 30;
+const GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR =
+  "Не удалось завершить бизнес-регистрацию с указанными данными.";
 
 const Schema = z.object({
   companyName: z.string().trim().min(2).max(120),
@@ -204,18 +206,17 @@ export async function POST(req: Request) {
     }
 
     if (existsEmail?.emailVerifiedAt) {
-      return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+      return NextResponse.json(
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
+        { status: 409 },
+      );
     }
 
     if (existsEmail && !existsEmail.emailVerifiedAt) {
-      if (existsEmail.role === "USER") {
-        return NextResponse.json(
-          { error: "Этот email уже используется как пользовательский аккаунт" },
-          { status: 409 },
-        );
-      }
-
-      return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+      return NextResponse.json(
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
+        { status: 409 },
+      );
     }
 
     let phoneOwner = await prisma.user.findUnique({
@@ -233,7 +234,7 @@ export async function POST(req: Request) {
 
     if (phoneOwner) {
       return NextResponse.json(
-        { error: "Телефон уже занят" },
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -245,7 +246,7 @@ export async function POST(req: Request) {
 
     if (binOwner) {
       return NextResponse.json(
-        { error: "Компания с таким БИН уже зарегистрирована" },
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -257,7 +258,7 @@ export async function POST(req: Request) {
 
     if (pendingPhoneOwner && pendingPhoneOwner.email !== email) {
       return NextResponse.json(
-        { error: "Телефон уже занят" },
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -269,7 +270,7 @@ export async function POST(req: Request) {
 
     if (pendingBinOwner && pendingBinOwner.email !== email) {
       return NextResponse.json(
-        { error: "Компания с таким БИН уже зарегистрирована" },
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -303,7 +304,7 @@ export async function POST(req: Request) {
           email,
           cooldownSec: cooldownLeftSec,
           notice:
-            "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
+            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
         });
       }
     }
@@ -356,20 +357,13 @@ export async function POST(req: Request) {
     if (isP2002(err)) {
       const target = getPrismaTarget(err);
 
-      if (target.includes("email")) {
-        return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
-      }
-
-      if (target.includes("phone")) {
+      if (
+        target.includes("email") ||
+        target.includes("phone") ||
+        target.includes("bin")
+      ) {
         return NextResponse.json(
-          { error: "Телефон уже занят" },
-          { status: 409 },
-        );
-      }
-
-      if (target.includes("bin")) {
-        return NextResponse.json(
-          { error: "Компания с таким БИН уже зарегистрирована" },
+          { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
           { status: 409 },
         );
       }

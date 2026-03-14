@@ -20,6 +20,8 @@ export const runtime = "nodejs";
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const COOLDOWN_SEC = 60;
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const GENERIC_SIGNUP_CONFLICT_ERROR =
+  "Не удалось завершить регистрацию с указанными данными.";
 
 const Schema = z.object({
   firstName: z.string().trim().min(2).max(50),
@@ -188,7 +190,7 @@ export async function POST(req: Request) {
 
     if (pendingCompanyByEmail) {
       return NextResponse.json(
-        { error: "Этот email уже используется для бизнес-регистрации" },
+        { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -200,7 +202,7 @@ export async function POST(req: Request) {
 
     if (pendingCompanyByPhone) {
       return NextResponse.json(
-        { error: "Телефон уже занят" },
+        { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -215,13 +217,16 @@ export async function POST(req: Request) {
     }
 
     if (existsEmail?.emailVerifiedAt) {
-      return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+      return NextResponse.json(
+        { error: GENERIC_SIGNUP_CONFLICT_ERROR },
+        { status: 409 },
+      );
     }
 
     if (existsEmail && !existsEmail.emailVerifiedAt) {
       if (existsEmail.role !== "USER") {
         return NextResponse.json(
-          { error: "Этот email уже используется для другого типа аккаунта" },
+          { error: GENERIC_SIGNUP_CONFLICT_ERROR },
           { status: 409 },
         );
       }
@@ -255,7 +260,7 @@ export async function POST(req: Request) {
         // очищён старый конфликт, идём дальше
       } else if (phoneOwner) {
         return NextResponse.json(
-          { error: "Телефон уже занят" },
+          { error: GENERIC_SIGNUP_CONFLICT_ERROR },
           { status: 409 },
         );
       }
@@ -281,7 +286,7 @@ export async function POST(req: Request) {
           email,
           cooldownSec: pendingMeta.cooldownLeftSec,
           notice:
-            "Данные обновлены. Код уже отправлен ранее — проверьте почту или дождитесь окончания таймера.",
+            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
         });
       }
 
@@ -328,7 +333,7 @@ export async function POST(req: Request) {
       // очищён старый конфликт
     } else if (phoneOwner) {
       return NextResponse.json(
-        { error: "Телефон уже занят" },
+        { error: GENERIC_SIGNUP_CONFLICT_ERROR },
         { status: 409 },
       );
     }
@@ -370,14 +375,18 @@ export async function POST(req: Request) {
       if (isP2002(e)) {
         const target = getPrismaTarget(e);
 
-        if (target.includes("email")) {
-          return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
-        }
-        if (target.includes("phone")) {
-          return NextResponse.json({ error: "Телефон уже занят" }, { status: 409 });
-        }
         if (target.includes("nickname")) {
-          return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
+          return NextResponse.json(
+            { error: "Никнейм уже занят" },
+            { status: 409 },
+          );
+        }
+
+        if (target.includes("email") || target.includes("phone")) {
+          return NextResponse.json(
+            { error: GENERIC_SIGNUP_CONFLICT_ERROR },
+            { status: 409 },
+          );
         }
 
         return NextResponse.json(

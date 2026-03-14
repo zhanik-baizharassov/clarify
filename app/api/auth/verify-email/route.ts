@@ -10,6 +10,7 @@ import {
   maybeCleanupExpiredSessions,
   setSessionCookie,
 } from "@/server/auth/session-token";
+import crypto from "crypto";
 import { hashCode } from "@/server/email/verification";
 
 export const runtime = "nodejs";
@@ -18,6 +19,9 @@ const Schema = z.object({
   email: z.string().trim().email(),
   code: z.string().trim().regex(/^\d{6}$/, "Код должен быть из 6 цифр"),
 });
+
+const GENERIC_VERIFY_ERROR =
+  "Не удалось подтвердить email. Запросите новый код и попробуйте снова.";
 
 export async function POST(req: Request) {
   try {
@@ -85,17 +89,14 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json(
-          {
-            error: "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново.",
-            code: "PENDING_REGISTRATION_EXPIRED",
-          },
-          { status: 410 },
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
         );
       }
 
       if (pendingCompany.attempts >= 5) {
         return NextResponse.json(
-          { error: "Слишком много попыток. Отправьте новый код." },
+          { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
         );
       }
@@ -108,7 +109,10 @@ export async function POST(req: Request) {
           data: { attempts: { increment: 1 } },
         });
 
-        return NextResponse.json({ error: "Неверный код" }, { status: 400 });
+        return NextResponse.json(
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
+        );
       }
 
       const existingEmailUser = await prisma.user.findUnique({
@@ -117,7 +121,10 @@ export async function POST(req: Request) {
       });
 
       if (existingEmailUser) {
-        return NextResponse.json({ error: "Email уже занят" }, { status: 409 });
+        return NextResponse.json(
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
+        );
       }
 
       const phoneOwner = await prisma.user.findUnique({
@@ -127,8 +134,8 @@ export async function POST(req: Request) {
 
       if (phoneOwner) {
         return NextResponse.json(
-          { error: "Телефон уже занят" },
-          { status: 409 },
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
         );
       }
 
@@ -139,10 +146,14 @@ export async function POST(req: Request) {
 
       if (binOwner) {
         return NextResponse.json(
-          { error: "Компания с таким БИН уже зарегистрирована" },
-          { status: 409 },
+          { error: GENERIC_VERIFY_ERROR },
+          { status: 400 },
         );
       }
+
+      const userId = crypto.randomUUID();
+      // placeholder to satisfy linter? no, not needed
+      void userId;
 
       const sessionRecord = buildSessionRecord("pending-company", now);
 
@@ -196,7 +207,7 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Неверный email или код" },
+        { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
       );
     }
@@ -207,21 +218,15 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json(
-        {
-          error: "Аккаунт заблокирован модерацией Clarify",
-          code: "ACCOUNT_BLOCKED",
-        },
-        { status: 423 },
+        { error: GENERIC_VERIFY_ERROR },
+        { status: 400 },
       );
     }
 
     if (user.emailVerifiedAt) {
       return NextResponse.json(
-        {
-          error: "Email уже подтверждён. Войдите по паролю.",
-          code: "ALREADY_VERIFIED",
-        },
-        { status: 409 },
+        { error: GENERIC_VERIFY_ERROR },
+        { status: 400 },
       );
     }
 
@@ -232,21 +237,21 @@ export async function POST(req: Request) {
 
     if (!rec) {
       return NextResponse.json(
-        { error: "Неверный email или код" },
+        { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
       );
     }
 
     if (rec.expiresAt < now) {
       return NextResponse.json(
-        { error: "Код истёк. Нажмите «Отправить заново»." },
+        { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
       );
     }
 
     if (rec.attempts >= 5) {
       return NextResponse.json(
-        { error: "Слишком много попыток. Отправьте новый код." },
+        { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
       );
     }
@@ -259,7 +264,10 @@ export async function POST(req: Request) {
         data: { attempts: { increment: 1 } },
       });
 
-      return NextResponse.json({ error: "Неверный код" }, { status: 400 });
+      return NextResponse.json(
+        { error: GENERIC_VERIFY_ERROR },
+        { status: 400 },
+      );
     }
 
     const sessionRecord = buildSessionRecord(user.id, now);

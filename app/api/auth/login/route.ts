@@ -20,7 +20,7 @@ const Schema = z.object({
 });
 
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const INVALID_LOGIN_ERROR = "Неверный email или пароль";
+const GENERIC_LOGIN_ERROR = "Не удалось войти. Проверьте введённые данные.";
 
 async function getPendingMeta(userId: string, fallbackCreatedAt: Date) {
   const verification = await prisma.emailVerification.findFirst({
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: INVALID_LOGIN_ERROR },
+        { error: GENERIC_LOGIN_ERROR },
         { status: 401 },
       );
     }
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
 
     if (!ok) {
       return NextResponse.json(
-        { error: INVALID_LOGIN_ERROR },
+        { error: GENERIC_LOGIN_ERROR },
         { status: 401 },
       );
     }
@@ -115,11 +115,8 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json(
-        {
-          error: "Аккаунт заблокирован модерацией Clarify",
-          code: "ACCOUNT_BLOCKED",
-        },
-        { status: 423 },
+        { error: GENERIC_LOGIN_ERROR },
+        { status: 401 },
       );
     }
 
@@ -137,11 +134,8 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json(
-          {
-            error: "Компания заблокирована модерацией Clarify",
-            code: "COMPANY_BLOCKED",
-          },
-          { status: 423 },
+          { error: GENERIC_LOGIN_ERROR },
+          { status: 401 },
         );
       }
     }
@@ -151,26 +145,15 @@ export async function POST(req: Request) {
 
       if (pendingMeta.expired) {
         await cleanupPendingUser(user.id);
-
-        return NextResponse.json(
-          {
-            error: "Срок подтверждения аккаунта истёк. Зарегистрируйтесь заново.",
-            code: "PENDING_REGISTRATION_EXPIRED",
-          },
-          { status: 410 },
-        );
+      } else {
+        await prisma.session.deleteMany({
+          where: { userId: user.id },
+        });
       }
 
-      await prisma.session.deleteMany({
-        where: { userId: user.id },
-      });
-
       return NextResponse.json(
-        {
-          error: "Подтвердите email: введите код из письма и попробуйте снова",
-          code: "EMAIL_NOT_VERIFIED",
-        },
-        { status: 403 },
+        { error: GENERIC_LOGIN_ERROR },
+        { status: 401 },
       );
     }
 
