@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import crypto from "crypto";
 import { prisma } from "@/server/db/prisma";
 import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import {
+  buildSessionRecord,
+  maybeCleanupExpiredSessions,
+  setSessionCookie,
+} from "@/server/auth/session-token";
 import { hashCode } from "@/server/email/verification";
 
 export const runtime = "nodejs";
@@ -14,16 +18,6 @@ const Schema = z.object({
   email: z.string().trim().email(),
   code: z.string().trim().regex(/^\d{6}$/, "Код должен быть из 6 цифр"),
 });
-
-function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
-  res.cookies.set("session", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: expiresAt,
-  });
-}
 
 export async function POST(req: Request) {
   try {
@@ -62,6 +56,8 @@ export async function POST(req: Request) {
     if (identityRateLimit) {
       return identityRateLimit;
     }
+
+    await maybeCleanupExpiredSessions();
 
     const now = new Date();
 
@@ -148,8 +144,7 @@ export async function POST(req: Request) {
         );
       }
 
-      const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const sessionRecord = buildSessionRecord("pending-company", now);
 
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -177,12 +172,16 @@ export async function POST(req: Request) {
         });
 
         await tx.session.create({
-          data: { userId: user.id, token, expiresAt },
+          data: {
+            userId: user.id,
+            tokenHash: sessionRecord.tokenHash,
+            expiresAt: sessionRecord.expiresAt,
+          },
         });
       });
 
       const res = NextResponse.json({ ok: true });
-      setSessionCookie(res, token, expiresAt);
+      setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
       return res;
     }
 
@@ -203,6 +202,10 @@ export async function POST(req: Request) {
     }
 
     if (user.blockedUntil && user.blockedUntil > now) {
+      await prisma.session.deleteMany({
+        where: { userId: user.id },
+      });
+
       return NextResponse.json(
         {
           error: "Аккаунт заблокирован модерацией Clarify",
@@ -259,8 +262,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Неверный код" }, { status: 400 });
     }
 
-    const token = crypto.randomUUID();
-    const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const sessionRecord = buildSessionRecord(user.id, now);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -273,12 +275,16 @@ export async function POST(req: Request) {
       });
 
       await tx.session.create({
-        data: { userId: user.id, token, expiresAt: sessionExpiresAt },
+        data: {
+          userId: user.id,
+          tokenHash: sessionRecord.tokenHash,
+          expiresAt: sessionRecord.expiresAt,
+        },
       });
     });
 
     const res = NextResponse.json({ ok: true });
-    setSessionCookie(res, token, sessionExpiresAt);
+    setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
     return res;
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {

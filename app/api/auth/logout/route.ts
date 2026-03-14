@@ -1,17 +1,28 @@
-//app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/server/db/prisma";
+import {
+  SESSION_COOKIE_NAME,
+  clearSessionCookie,
+  hashSessionToken,
+  maybeCleanupExpiredSessions,
+} from "@/server/auth/session-token";
+
+export const runtime = "nodejs";
 
 export async function POST() {
   const store = await cookies();
-  const token = store.get("session")?.value;
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
+
+  await maybeCleanupExpiredSessions();
 
   if (token) {
-    await prisma.session.deleteMany({ where: { token } });
+    await prisma.session.deleteMany({
+      where: { tokenHash: hashSessionToken(token) },
+    });
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("session", "", { path: "/", expires: new Date(0) });
+  clearSessionCookie(res);
   return res;
 }

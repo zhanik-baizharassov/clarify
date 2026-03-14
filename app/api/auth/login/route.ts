@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { prisma } from "@/server/db/prisma";
 import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import {
+  buildSessionRecord,
+  maybeCleanupExpiredSessions,
+  setSessionCookie,
+} from "@/server/auth/session-token";
 
 export const runtime = "nodejs";
 
@@ -73,6 +77,8 @@ export async function POST(req: Request) {
       return identityRateLimit;
     }
 
+    await maybeCleanupExpiredSessions();
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -104,6 +110,10 @@ export async function POST(req: Request) {
     const now = new Date();
 
     if (user.blockedUntil && user.blockedUntil > now) {
+      await prisma.session.deleteMany({
+        where: { userId: user.id },
+      });
+
       return NextResponse.json(
         {
           error: "Аккаунт заблокирован модерацией Clarify",
@@ -122,6 +132,10 @@ export async function POST(req: Request) {
       });
 
       if (company?.blockedUntil && company.blockedUntil > now) {
+        await prisma.session.deleteMany({
+          where: { userId: user.id },
+        });
+
         return NextResponse.json(
           {
             error: "Компания заблокирована модерацией Clarify",
@@ -147,6 +161,10 @@ export async function POST(req: Request) {
         );
       }
 
+      await prisma.session.deleteMany({
+        where: { userId: user.id },
+      });
+
       return NextResponse.json(
         {
           error: "Подтвердите email: введите код из письма и попробуйте снова",
@@ -156,21 +174,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const sessionRecord = buildSessionRecord(user.id, now);
 
     await prisma.session.create({
-      data: { userId: user.id, token, expiresAt },
+      data: {
+        userId: user.id,
+        tokenHash: sessionRecord.tokenHash,
+        expiresAt: sessionRecord.expiresAt,
+      },
     });
 
     const res = NextResponse.json({ ok: true });
-    res.cookies.set("session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      expires: expiresAt,
-    });
+    setSessionCookie(res, sessionRecord.rawToken, sessionRecord.expiresAt);
 
     return res;
   } catch (err: unknown) {
