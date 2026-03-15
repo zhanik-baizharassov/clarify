@@ -198,6 +198,25 @@ export async function POST(req: Request) {
       address: input.address,
     });
 
+    const existingPlace = await prisma.place.findFirst({
+      where: {
+        companyId: company.id,
+        city,
+        address: normalizedAddress,
+      },
+      select: {
+        id: true,
+        slug: true,
+      },
+    });
+
+    if (existingPlace) {
+      return NextResponse.json(
+        { error: "Такой филиал уже существует у вашей компании" },
+        { status: 409 },
+      );
+    }
+
     const slug = `${slugifyAscii(company.name)}-${
       company.bin ?? company.id.slice(0, 6)
     }-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
@@ -223,7 +242,7 @@ export async function POST(req: Request) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
         return NextResponse.json(
-          { error: "Филиал уже создан (повторите запрос позже)" },
+          { error: "Такой филиал уже существует у вашей компании" },
           { status: 409 },
         );
       }

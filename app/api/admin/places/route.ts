@@ -140,7 +140,9 @@ function buildWorkHours(input: z.infer<typeof Schema>) {
   }
 
   if (!input.weekendOpen || !input.weekendClose) {
-    throw new Error("Выходные дни: укажите время работы или включите режим выходного");
+    throw new Error(
+      "Выходные дни: укажите время работы или включите режим выходного",
+    );
   }
 
   assertValidRange(input.weekendOpen, input.weekendClose, "Выходные дни");
@@ -179,7 +181,9 @@ export async function POST(req: Request) {
       );
     }
 
-    assertNoProfanity(input.name, "Название места");
+    const placeName = input.name.trim();
+
+    assertNoProfanity(placeName, "Название места");
     assertNoProfanity(input.address, "Адрес");
 
     const city = assertKzCity(input.city, "Город");
@@ -191,13 +195,33 @@ export async function POST(req: Request) {
       address: input.address,
     });
 
+    const existingPlace = await prisma.place.findFirst({
+      where: {
+        city,
+        address: normalizedAddress,
+        name: placeName,
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+      },
+    });
+
+    if (existingPlace) {
+      return NextResponse.json(
+        { error: "Такая карточка уже существует по этому адресу" },
+        { status: 409 },
+      );
+    }
+
     const slug = `${slugifyAscii(`${input.name}-${city}`)}-${Date.now().toString(
       36,
     )}-${crypto.randomUUID().slice(0, 6)}`;
 
     const place = await prisma.place.create({
       data: {
-        name: input.name.trim(),
+        name: placeName,
         slug,
         categoryId: input.categoryId,
         city,
@@ -219,7 +243,7 @@ export async function POST(req: Request) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
         return NextResponse.json(
-          { error: "Карточка уже существует или slug конфликтует" },
+          { error: "Такая карточка уже существует по этому адресу" },
           { status: 409 },
         );
       }
