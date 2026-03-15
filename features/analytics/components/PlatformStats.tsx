@@ -8,6 +8,10 @@ type Analytics = {
   totals: { places: number; reviews: number; users: number; companies: number };
 };
 
+type ApiError = {
+  error?: string;
+};
+
 const nf = new Intl.NumberFormat("ru-RU");
 
 export default function PlatformStats() {
@@ -26,19 +30,23 @@ export default function PlatformStats() {
 
       try {
         const res = await fetch("/api/analytics/overview", {
-          cache: "no-store",
           signal: ctrl.signal,
         });
 
-        const json = await safeJson(res);
+        const json = await safeJson<Analytics | ApiError>(res);
 
         if (!res.ok) {
           setData(null);
-          setErr((json as any)?.error ?? "Не удалось загрузить статистику");
+          const errorMessage =
+            json && "error" in json && typeof json.error === "string"
+              ? json.error
+              : "Не удалось загрузить статистику";
+
+          setErr(errorMessage);
           return;
         }
 
-        setData(json as Analytics);
+        setData((json ?? null) as Analytics | null);
       } catch {
         if (ctrl.signal.aborted) return;
         setData(null);
@@ -197,13 +205,7 @@ function StatCard({
   );
 }
 
-function AnimatedNumber({
-  value,
-  start,
-}: {
-  value: number;
-  start: boolean;
-}) {
+function AnimatedNumber({ value, start }: { value: number; start: boolean }) {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -247,11 +249,11 @@ function StatSkeleton() {
   );
 }
 
-async function safeJson(res: Response) {
+async function safeJson<T>(res: Response): Promise<T | null> {
   try {
     const text = await res.text();
     if (!text) return null;
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }

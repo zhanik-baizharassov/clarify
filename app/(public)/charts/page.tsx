@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Building2,
-  MapPin,
-  MessageCircle,
-  Sparkles,
-  Star,
-  TrendingUp,
-} from "lucide-react";
+import { MapPin, MessageCircle, Star, TrendingUp } from "lucide-react";
 
 type Analytics = {
   totals: { places: number; reviews: number; users: number; companies: number };
@@ -52,6 +45,10 @@ type Analytics = {
   };
 };
 
+type ApiError = {
+  error?: string;
+};
+
 const nf = new Intl.NumberFormat("ru-RU");
 
 export default function ChartsPage() {
@@ -75,25 +72,27 @@ export default function ChartsPage() {
 
       try {
         const res = await fetch("/api/analytics/overview", {
-          cache: "no-store",
           signal: ctrl.signal,
         });
 
-        const data = await safeJson(res);
+        const data = await safeJson<Analytics | ApiError>(res);
 
         if (!res.ok) {
-          throw new Error(
-            (data as any)?.error ?? "Не удалось загрузить чарты",
-          );
+          const errorMessage =
+            data && "error" in data && typeof data.error === "string"
+              ? data.error
+              : "Не удалось загрузить чарты";
+
+          throw new Error(errorMessage);
         }
 
         if (!ctrl.signal.aborted) {
-          setAnalytics(data as Analytics);
+          setAnalytics((data ?? null) as Analytics | null);
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
         setAnalytics(null);
-        setErr(e?.message ?? "Не удалось загрузить чарты");
+        setErr(e instanceof Error ? e.message : "Не удалось загрузить чарты");
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
@@ -119,28 +118,34 @@ export default function ChartsPage() {
         const res = await fetch(
           `/api/analytics/overview?city=${encodeURIComponent(selectedCity)}`,
           {
-            cache: "no-store",
             signal: ctrl.signal,
           },
         );
 
-        const data = await safeJson(res);
+        const data = await safeJson<Analytics | ApiError>(res);
 
         if (!res.ok) {
-          throw new Error(
-            (data as any)?.error ?? "Не удалось загрузить топ заведений",
-          );
+          const errorMessage =
+            data && "error" in data && typeof data.error === "string"
+              ? data.error
+              : "Не удалось загрузить топ заведений";
+
+          throw new Error(errorMessage);
         }
 
         if (!ctrl.signal.aborted) {
-          setCityPlaces(((data as Analytics).topPlacesByCity ?? null) as
-            | Analytics["topPlacesByCity"]
-            | null);
+          setCityPlaces(
+            ((data as Analytics | null)?.topPlacesByCity ?? null) as
+              | Analytics["topPlacesByCity"]
+              | null,
+          );
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
         setCityPlaces(null);
-        setCityErr(e?.message ?? "Не удалось загрузить топ заведений");
+        setCityErr(
+          e instanceof Error ? e.message : "Не удалось загрузить топ заведений",
+        );
       } finally {
         if (!ctrl.signal.aborted) setCityLoading(false);
       }
@@ -219,7 +224,9 @@ export default function ChartsPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-lg font-semibold">{place.name}</div>
+                        <div className="text-lg font-semibold">
+                          {place.name}
+                        </div>
                         <div className="mt-1 text-sm text-muted-foreground">
                           {place.categoryName} • {place.city}
                         </div>
@@ -284,9 +291,12 @@ export default function ChartsPage() {
           <section className="mt-6 rounded-2xl border bg-background p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-lg font-semibold">Топ заведений по городу</div>
+                <div className="text-lg font-semibold">
+                  Топ заведений по городу
+                </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Выберите город и посмотрите лучшие места по рейтингу и отзывам.
+                  Выберите город и посмотрите лучшие места по рейтингу и
+                  отзывам.
                 </div>
               </div>
 
@@ -310,7 +320,9 @@ export default function ChartsPage() {
                     className={[
                       "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
                       "hover:border-primary/40 hover:bg-muted/20",
-                      isActive ? "border-primary bg-primary/5 text-primary" : "",
+                      isActive
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "",
                     ].join(" ")}
                   >
                     <span>{city.city}</span>
@@ -345,7 +357,8 @@ export default function ChartsPage() {
                       Лучшие места города {cityPlaces.city}
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      Список формируется по среднему рейтингу и количеству отзывов.
+                      Список формируется по среднему рейтингу и количеству
+                      отзывов.
                     </div>
                   </div>
                 </div>
@@ -363,7 +376,9 @@ export default function ChartsPage() {
                             <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border bg-primary/10 px-2 text-xs font-semibold text-primary">
                               #{index + 1}
                             </span>
-                            <div className="text-lg font-semibold">{place.name}</div>
+                            <div className="text-lg font-semibold">
+                              {place.name}
+                            </div>
                           </div>
 
                           <div className="mt-2 text-sm text-muted-foreground">
@@ -470,11 +485,11 @@ function PlaceSkeleton() {
   );
 }
 
-async function safeJson(res: Response) {
+async function safeJson<T>(res: Response): Promise<T | null> {
   try {
     const text = await res.text();
     if (!text) return null;
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }

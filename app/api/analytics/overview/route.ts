@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
-import {enforceRateLimits,getRequestIp,} from "@/server/security/rate-limit";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,10 +12,22 @@ const TOP_N = 8;
 const RECOMMENDED_LIMIT = 6;
 const TOP_PLACES_PER_CITY = 8;
 
+const BROWSER_MAX_AGE_SEC = 60;
+const CDN_S_MAXAGE_SEC = 300;
+const STALE_WHILE_REVALIDATE_SEC = 600;
+
 function truncateText(text: string, max = 120) {
   const clean = text.replace(/\s+/g, " ").trim();
   if (clean.length <= max) return clean;
   return `${clean.slice(0, max).trimEnd()}…`;
+}
+
+function withAnalyticsCacheHeaders(res: NextResponse) {
+  res.headers.set(
+    "Cache-Control",
+    `public, max-age=${BROWSER_MAX_AGE_SEC}, s-maxage=${CDN_S_MAXAGE_SEC}, stale-while-revalidate=${STALE_WHILE_REVALIDATE_SEC}`,
+  );
+  return res;
 }
 
 export async function GET(req: Request) {
@@ -37,22 +52,89 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const selectedCity = searchParams.get("city")?.trim() || null;
 
-    const [places, reviews, users, companies] = await Promise.all([
-      prisma.place.count(),
-      prisma.review.count({ where: { status: "PUBLISHED" } }),
-      prisma.user.count(),
-      prisma.company.count(),
-    ]);
-
-    // Все города с количеством карточек.
-    const cityAggRaw = await prisma.place.groupBy({
-      by: ["city"],
-      where: { city: { not: "" } },
-      _count: { id: true },
-      _avg: { avgRating: true },
-      _sum: { ratingCount: true },
-      orderBy: { _count: { id: "desc" } },
-    });
+    const [places, reviews, users, companies, cityAggRaw, topCatRaw, recentPositiveReviews, cityPlacesRaw] =
+      await Promise.all([
+        prisma.place.count(),
+        prisma.review.count({ where: { status: "PUBLISHED" } }),
+        prisma.user.count({
+          where: {
+            role: "USER",
+            emailVerifiedAt: { not: null },
+          },
+        }),
+        prisma.company.count(),
+        prisma.place.groupBy({
+          by: ["city"],
+          where: { city: { not: "" } },
+          _count: { id: true },
+          _avg: { avgRating: true },
+          _sum: { ratingCount: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.place.groupBy({
+          by: ["categoryId"],
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+          take: TOP_N,
+        }),
+        prisma.review.findMany({
+          where: {
+            status: "PUBLISHED",
+            rating: { gte: 4 },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: {
+            id: true,
+            rating: true,
+            text: true,
+            createdAt: true,
+            place: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                city: true,
+                address: true,
+                avgRating: true,
+                ratingCount: true,
+                category: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        selectedCity
+          ? prisma.place.findMany({
+              where: {
+                city: selectedCity,
+                ratingCount: { gt: 0 },
+              },
+              orderBy: [
+                { avgRating: "desc" },
+                { ratingCount: "desc" },
+                { createdAt: "desc" },
+              ],
+              take: TOP_PLACES_PER_CITY,
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                address: true,
+                avgRating: true,
+                ratingCount: true,
+                category: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            })
+          : Promise.resolve(null),
+      ]);
 
     const cityOptions = cityAggRaw.map((x) => ({
       city: x.city,
@@ -62,14 +144,6 @@ export async function GET(req: Request) {
     }));
 
     const topCities = cityOptions.slice(0, TOP_N);
-
-    // Топ категорий по количеству карточек.
-    const topCatRaw = await prisma.place.groupBy({
-      by: ["categoryId"],
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: TOP_N,
-    });
 
     const catIds = topCatRaw
       .map((x) => x.categoryId)
@@ -92,38 +166,6 @@ export async function GET(req: Request) {
         places: x._count.id,
       }));
 
-    // Недавние хорошо оценённые места.
-    const recentPositiveReviews = await prisma.review.findMany({
-      where: {
-        status: "PUBLISHED",
-        rating: { gte: 4 },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      select: {
-        id: true,
-        rating: true,
-        text: true,
-        createdAt: true,
-        place: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            city: true,
-            address: true,
-            avgRating: true,
-            ratingCount: true,
-            category: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
     const seenPlaceIds = new Set<string>();
     const recommendedPlaces = recentPositiveReviews
       .filter((review) => {
@@ -145,76 +187,40 @@ export async function GET(req: Request) {
         reviewText: truncateText(review.text, 110),
       }));
 
-    let topPlacesByCity:
-      | {
-          city: string;
-          items: {
-            id: string;
-            slug: string;
-            name: string;
-            address: string | null;
-            categoryName: string;
-            avgRating: number;
-            ratingCount: number;
-          }[];
-        }
-      | undefined;
+    const topPlacesByCity =
+      selectedCity && cityPlacesRaw
+        ? {
+            city: selectedCity,
+            items: cityPlacesRaw.map((place) => ({
+              id: place.id,
+              slug: place.slug,
+              name: place.name,
+              address: place.address,
+              categoryName: place.category.name,
+              avgRating: Number(place.avgRating ?? 0),
+              ratingCount: Number(place.ratingCount ?? 0),
+            })),
+          }
+        : undefined;
 
-    if (selectedCity) {
-      const cityPlacesRaw = await prisma.place.findMany({
-        where: {
-          city: selectedCity,
-          ratingCount: { gt: 0 },
-        },
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          address: true,
-          avgRating: true,
-          ratingCount: true,
-          createdAt: true,
-          category: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
-      const cityPlacesSorted = [...cityPlacesRaw].sort((a, b) => {
-        if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
-        if (b.ratingCount !== a.ratingCount) return b.ratingCount - a.ratingCount;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
-
-      topPlacesByCity = {
-        city: selectedCity,
-        items: cityPlacesSorted.slice(0, TOP_PLACES_PER_CITY).map((place) => ({
-          id: place.id,
-          slug: place.slug,
-          name: place.name,
-          address: place.address,
-          categoryName: place.category.name,
-          avgRating: Number(place.avgRating ?? 0),
-          ratingCount: Number(place.ratingCount ?? 0),
-        })),
-      };
-    }
-
-    return NextResponse.json({
-      totals: { places, reviews, users, companies },
-      cityOptions,
-      topCities,
-      topCategories,
-      recommendedPlaces,
-      ...(topPlacesByCity ? { topPlacesByCity } : {}),
-    });
+    return withAnalyticsCacheHeaders(
+      NextResponse.json({
+        totals: { places, reviews, users, companies },
+        cityOptions,
+        topCities,
+        topCategories,
+        recommendedPlaces,
+        ...(topPlacesByCity ? { topPlacesByCity } : {}),
+      }),
+    );
   } catch (err) {
     console.error("GET /api/analytics/overview failed:", err);
-    return NextResponse.json(
+
+    const res = NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },
     );
+    res.headers.set("Cache-Control", "no-store");
+    return res;
   }
 }
