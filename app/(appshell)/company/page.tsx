@@ -155,6 +155,7 @@ export default async function CompanyPage({
     rejectedClaimsCount,
   ] = await Promise.all([
     prisma.category.findMany({
+      where: { isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -219,7 +220,7 @@ export default async function CompanyPage({
   const activeCity =
     requestedCity && cities.includes(requestedCity)
       ? requestedCity
-      : cities[0] ?? null;
+      : (cities[0] ?? null);
 
   const branchesInActiveCity = activeCity
     ? branches.filter((branch) => branch.city === activeCity)
@@ -228,8 +229,9 @@ export default async function CompanyPage({
   const activeBranch =
     requestedBranchId &&
     branchesInActiveCity.some((branch) => branch.id === requestedBranchId)
-      ? branchesInActiveCity.find((branch) => branch.id === requestedBranchId) ??
-        null
+      ? (branchesInActiveCity.find(
+          (branch) => branch.id === requestedBranchId,
+        ) ?? null)
       : null;
 
   const [answeredCount, unansweredCount] = activeBranch
@@ -348,7 +350,8 @@ export default async function CompanyPage({
             Кабинет компании
           </h1>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Выберите нужный раздел и управляйте компанией в более удобном формате.
+            Выберите нужный раздел и управляйте компанией в более удобном
+            формате.
           </p>
         </div>
 
@@ -409,11 +412,13 @@ export default async function CompanyPage({
       {activeTab === "dashboard" ? (
         <section className="mt-8 rounded-3xl border bg-background p-6">
           <div className="max-w-2xl">
-            <h2 className="text-xl font-semibold">Добро пожаловать в кабинет</h2>
+            <h2 className="text-xl font-semibold">
+              Добро пожаловать в кабинет
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Теперь кабинет работает как панель управления: сначала вы выбираете
-              раздел через карточки сверху, а затем работаете только с нужным
-              блоком.
+              Теперь кабинет работает как панель управления: сначала вы
+              выбираете раздел через карточки сверху, а затем работаете только с
+              нужным блоком.
             </p>
           </div>
 
@@ -493,7 +498,9 @@ export default async function CompanyPage({
 
             <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
               Всего филиалов:{" "}
-              <span className="font-medium text-foreground">{branches.length}</span>
+              <span className="font-medium text-foreground">
+                {branches.length}
+              </span>
             </div>
           </div>
 
@@ -513,7 +520,9 @@ export default async function CompanyPage({
                         className={[
                           "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
                           "hover:border-primary/40 hover:bg-muted/20",
-                          isActive ? "border-primary bg-primary/5 text-primary" : "",
+                          isActive
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "",
                         ].join(" ")}
                         scroll={false}
                       >
@@ -583,12 +592,16 @@ export default async function CompanyPage({
 
                                   <div className="mt-2 text-sm text-muted-foreground">
                                     {branch.city}
-                                    {branch.address ? ` • ${branch.address}` : ""}
+                                    {branch.address
+                                      ? ` • ${branch.address}`
+                                      : ""}
                                   </div>
 
                                   <div className="mt-1 text-sm text-muted-foreground">
                                     {branch.phone ? `☎ ${branch.phone}` : "☎ —"}
-                                    {branch.workHours ? ` • ⏰ ${branch.workHours}` : ""}
+                                    {branch.workHours
+                                      ? ` • ⏰ ${branch.workHours}`
+                                      : ""}
                                   </div>
 
                                   <div className="mt-4 text-sm text-primary">
@@ -697,7 +710,10 @@ export default async function CompanyPage({
                           const dt = dtf.format(review.createdAt);
 
                           return (
-                            <div key={review.id} className="rounded-2xl border p-5">
+                            <div
+                              key={review.id}
+                              className="rounded-2xl border p-5"
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <Link
@@ -737,7 +753,9 @@ export default async function CompanyPage({
 
                               {review.replies.length ? (
                                 <div className="mt-4 rounded-xl bg-muted/30 p-4 text-sm">
-                                  <div className="font-medium">Ответы компаний:</div>
+                                  <div className="font-medium">
+                                    Ответы компаний:
+                                  </div>
                                   {review.replies.map((reply) => (
                                     <div key={reply.id} className="mt-3">
                                       <div className="text-xs text-muted-foreground">
@@ -789,7 +807,8 @@ export default async function CompanyPage({
             <div>
               <h2 className="text-xl font-semibold">Мои заявки</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Здесь отображаются заявки на привязку каталожных карточек к вашей компании.
+                Здесь отображаются заявки на привязку каталожных карточек к
+                вашей компании.
               </p>
             </div>
 
@@ -932,7 +951,9 @@ export default async function CompanyPage({
 
                         <div className="mt-2 text-sm text-muted-foreground">
                           {claim.place.city}
-                          {claim.place.address ? ` • ${claim.place.address}` : ""}
+                          {claim.place.address
+                            ? ` • ${claim.place.address}`
+                            : ""}
                         </div>
 
                         <div className="mt-2 text-xs text-muted-foreground">
@@ -942,8 +963,9 @@ export default async function CompanyPage({
                         <div className="mt-4 rounded-xl border bg-muted/20 p-4 text-sm">
                           {claim.status === "PENDING" ? (
                             <div className="text-muted-foreground">
-                              Заявка находится на проверке. После решения администратора
-                              карточка либо перейдёт вашей компании, либо заявка будет отклонена.
+                              Заявка находится на проверке. После решения
+                              администратора карточка либо перейдёт вашей
+                              компании, либо заявка будет отклонена.
                             </div>
                           ) : null}
 
@@ -971,8 +993,9 @@ export default async function CompanyPage({
 
                           {claim.status === "REJECTED" ? (
                             <div className="text-muted-foreground">
-                              Заявка была отклонена. Если это действительно ваш бизнес,
-                              можно обратиться к администратору или подать новую заявку позже.
+                              Заявка была отклонена. Если это действительно ваш
+                              бизнес, можно обратиться к администратору или
+                              подать новую заявку позже.
                             </div>
                           ) : null}
                         </div>
@@ -1017,8 +1040,8 @@ export default async function CompanyPage({
               <h2 className="text-xl font-semibold">Бизнес-аналитика</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Здесь появятся будущие платные инструменты для компаний:
-                аналитика отзывов, динамика рейтинга, отчёты по филиалам и другие
-                полезные инсайты.
+                аналитика отзывов, динамика рейтинга, отчёты по филиалам и
+                другие полезные инсайты.
               </p>
             </div>
 

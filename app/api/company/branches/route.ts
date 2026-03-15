@@ -16,25 +16,81 @@ const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 0
 const Schema = z
   .object({
     categoryId: z.string().min(1, "Категория обязательна"),
-    city: z.string().trim().min(2, "Город обязателен").max(60, "Город слишком длинный"),
-    address: z.string().trim().min(5, "Адрес: минимум 5 символов").max(200, "Адрес слишком длинный"),
-    phone: z.string().trim().min(5, "Телефон обязателен").max(30, "Телефон слишком длинный"),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Город обязателен")
+      .max(60, "Город слишком длинный"),
+    address: z
+      .string()
+      .trim()
+      .min(5, "Адрес: минимум 5 символов")
+      .max(200, "Адрес слишком длинный"),
+    phone: z
+      .string()
+      .trim()
+      .min(5, "Телефон обязателен")
+      .max(30, "Телефон слишком длинный"),
 
     weekdayOpen: timeSchema,
     weekdayClose: timeSchema,
 
     weekendClosed: z.boolean(),
-    weekendOpen: z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00").nullable(),
-    weekendClose: z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 09:00").nullable(),
+    weekendOpen: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/, "Время: формат 09:00")
+      .nullable(),
+    weekendClose: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/, "Время: формат 09:00")
+      .nullable(),
   })
   .strict();
 
 function translitRuKz(s: string) {
   const map: Record<string, string> = {
-    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y",
-    к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f",
-    х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
-    ә: "a", ө: "o", ү: "u", ұ: "u", қ: "k", ғ: "g", ң: "n", і: "i", һ: "h",
+    а: "a",
+    б: "b",
+    в: "v",
+    г: "g",
+    д: "d",
+    е: "e",
+    ё: "e",
+    ж: "zh",
+    з: "z",
+    и: "i",
+    й: "y",
+    к: "k",
+    л: "l",
+    м: "m",
+    н: "n",
+    о: "o",
+    п: "p",
+    р: "r",
+    с: "s",
+    т: "t",
+    у: "u",
+    ф: "f",
+    х: "h",
+    ц: "ts",
+    ч: "ch",
+    ш: "sh",
+    щ: "sch",
+    ъ: "",
+    ы: "y",
+    ь: "",
+    э: "e",
+    ю: "yu",
+    я: "ya",
+    ә: "a",
+    ө: "o",
+    ү: "u",
+    ұ: "u",
+    қ: "k",
+    ғ: "g",
+    ң: "n",
+    і: "i",
+    һ: "h",
   };
   return s
     .split("")
@@ -77,7 +133,9 @@ function buildWorkHours(input: z.infer<typeof Schema>) {
   }
 
   if (!input.weekendOpen || !input.weekendClose) {
-    throw new Error("Выходные дни: укажите время работы или включите режим выходного");
+    throw new Error(
+      "Выходные дни: укажите время работы или включите режим выходного",
+    );
   }
 
   assertValidRange(input.weekendOpen, input.weekendClose, "Выходные дни");
@@ -103,16 +161,29 @@ export async function POST(req: Request) {
     });
 
     if (!company) {
-      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Компания не найдена" },
+        { status: 404 },
+      );
     }
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
 
     if (!category) {
-      return NextResponse.json({ error: "Категория не найдена" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Категория не найдена" },
+        { status: 400 },
+      );
+    }
+
+    if (!category.isActive) {
+      return NextResponse.json(
+        { error: "Категория недоступна для создания филиала" },
+        { status: 400 },
+      );
     }
 
     assertNoProfanity(company.name, "Название компании");

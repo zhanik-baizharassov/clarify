@@ -68,7 +68,9 @@ export default function CreateBranchForm({
     setErr(null);
 
     if (!categories.length) {
-      return setErr("Категории не загружены. Обновите страницу.");
+      return setErr(
+        "Сейчас нет доступных активных категорий для создания филиала.",
+      );
     }
     if (!categoryId) return setErr("Категория: выберите категорию");
     if (!city) return setErr("Город: выберите город из списка Казахстана");
@@ -141,7 +143,8 @@ export default function CreateBranchForm({
 
       {!categories.length ? (
         <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-          Категории не загружены. Проверь /api/categories или обнови страницу.
+          Сейчас нет доступных активных категорий для создания филиала. Если
+          администратор снова активирует категорию, она появится в списке.
         </div>
       ) : null}
 
