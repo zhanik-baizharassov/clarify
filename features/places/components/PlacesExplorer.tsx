@@ -43,6 +43,8 @@ type PlacesMeta = {
 
 const nf = new Intl.NumberFormat("ru-RU");
 const DEFAULT_LIMIT = 24;
+const AUTO_SEARCH_DEBOUNCE_MS = 350;
+
 const EMPTY_META: PlacesMeta = {
   page: 1,
   limit: DEFAULT_LIMIT,
@@ -111,9 +113,11 @@ export default function PlacesExplorer({
   const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(variant === "catalog");
   const [meta, setMeta] = useState<PlacesMeta>(EMPTY_META);
 
   const placesAbortRef = useRef<AbortController | null>(null);
+  const skipNextAutoSearchRef = useRef(false);
 
   const buildQueryString = useCallback(
     (
@@ -147,36 +151,6 @@ export default function PlacesExplorer({
     },
     [q, city, categoryId, sort],
   );
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-
-    (async () => {
-      try {
-        const catsRes = await fetch("/api/categories", {
-          cache: "no-store",
-          signal: ctrl.signal,
-        });
-
-        if (ctrl.signal.aborted) return;
-
-        const catsData = await safeJson(catsRes);
-        const list =
-          catsRes.ok && Array.isArray((catsData as any)?.items)
-            ? ((catsData as any).items as Category[])
-            : [];
-
-        setCategories(list);
-      } catch {
-        if (ctrl.signal.aborted) return;
-        setCategories([]);
-      }
-    })();
-
-    return () => ctrl.abort();
-  }, []);
-
-  const allCategories = useMemo(() => categories, [categories]);
 
   const loadPlaces = useCallback(
     async ({
@@ -246,12 +220,78 @@ export default function PlacesExplorer({
   );
 
   useEffect(() => {
+    const ctrl = new AbortController();
+
+    (async () => {
+      try {
+        const catsRes = await fetch("/api/categories", {
+          cache: "no-store",
+          signal: ctrl.signal,
+        });
+
+        if (ctrl.signal.aborted) return;
+
+        const catsData = await safeJson(catsRes);
+        const list =
+          catsRes.ok && Array.isArray((catsData as any)?.items)
+            ? ((catsData as any).items as Category[])
+            : [];
+
+        setCategories(list);
+      } catch {
+        if (ctrl.signal.aborted) return;
+        setCategories([]);
+      }
+    })();
+
+    return () => ctrl.abort();
+  }, []);
+
+  const allCategories = useMemo(() => categories, [categories]);
+
+  useEffect(() => {
+    if (variant !== "hero" || hasInteracted) return;
+
+    if (q.trim() || city || categoryId || sort !== "rating_desc") {
+      setHasInteracted(true);
+    }
+  }, [variant, hasInteracted, q, city, categoryId, sort]);
+
+  useEffect(() => {
+    if (!hasInteracted) return;
+
+    if (skipNextAutoSearchRef.current) {
+      skipNextAutoSearchRef.current = false;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHasSearched(true);
+
+      const qs = buildQueryString({
+        page: 1,
+        limit: DEFAULT_LIMIT,
+      });
+
+      void loadPlaces({
+        qs,
+        mode: "replace",
+        requestedPage: 1,
+      });
+    }, AUTO_SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [hasInteracted, q, city, categoryId, sort, buildQueryString, loadPlaces]);
+
+  useEffect(() => {
     return () => {
       placesAbortRef.current?.abort();
     };
   }, []);
 
   async function onSearchClick() {
+    skipNextAutoSearchRef.current = true;
+    setHasInteracted(true);
     setHasSearched(true);
 
     const qs = buildQueryString({
@@ -283,10 +323,13 @@ export default function PlacesExplorer({
   }
 
   async function resetFilters() {
+    skipNextAutoSearchRef.current = true;
+
     setQ("");
     setCity("");
     setCategoryId("");
     setSort("rating_desc");
+    setHasInteracted(true);
     setHasSearched(true);
 
     const qs = buildQueryString({
@@ -436,7 +479,10 @@ export default function PlacesExplorer({
             <div className="flex gap-2 overflow-x-auto pb-2">
               <Chip
                 active={!categoryId}
-                onClick={() => setCategoryId("")}
+                onClick={() => {
+                  setHasInteracted(true);
+                  setCategoryId("");
+                }}
                 text="Все"
               />
               {allCategories.map((c) => (
@@ -444,6 +490,7 @@ export default function PlacesExplorer({
                   key={c.id}
                   active={categoryId === c.id}
                   onClick={() => {
+                    setHasInteracted(true);
                     setCategoryId(c.id);
                     setShowFilters(true);
                     const el = document.getElementById("search");
