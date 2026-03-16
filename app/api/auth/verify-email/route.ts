@@ -13,7 +13,7 @@ import {
   cleanupExpiredPendingSignups,
   maybeRunMaintenanceCleanup,
 } from "@/server/maintenance/cleanup";
-import { hashCode } from "@/server/email/verification";
+import { isCodeHashMatch } from "@/server/email/verification";
 
 export const runtime = "nodejs";
 
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
         );
       }
 
-      const ok = hashCode(code) === pendingCompany.codeHash;
+      const ok = isCodeHashMatch(code, pendingCompany.codeHash);
 
       if (!ok) {
         await prisma.pendingCompanySignup.update({
@@ -194,7 +194,7 @@ export async function POST(req: Request) {
         );
       }
 
-      const ok = hashCode(code) === pendingUser.codeHash;
+      const ok = isCodeHashMatch(code, pendingUser.codeHash);
 
       if (!ok) {
         await prisma.pendingUserSignup.update({
@@ -312,7 +312,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const ok = hashCode(code) === rec.codeHash;
+    const ok = isCodeHashMatch(code, rec.codeHash);
 
     if (!ok) {
       await prisma.emailVerification.update({

@@ -1,4 +1,3 @@
-// server/email/verification.ts
 import crypto from "crypto";
 
 function must(v: string | undefined, name: string) {
@@ -18,6 +17,19 @@ export function hashCode(code: string) {
     .createHash("sha256")
     .update(`${pepper}:${clean}`)
     .digest("hex");
+}
+
+export function isCodeHashMatch(code: string, expectedHash: string) {
+  const actualHash = hashCode(code);
+
+  const actualBuf = Buffer.from(actualHash, "hex");
+  const expectedBuf = Buffer.from(expectedHash, "hex");
+
+  if (actualBuf.length !== expectedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(actualBuf, expectedBuf);
 }
 
 export function codeTtlMs() {
