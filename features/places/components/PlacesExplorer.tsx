@@ -29,10 +29,67 @@ type PlaceCard = {
 };
 
 type SortKey = "rating_desc" | "reviews_desc" | "new_desc" | "name_asc";
-
 type Variant = "hero" | "catalog";
+type LoadMode = "replace" | "append";
+
+type PlacesMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+};
 
 const nf = new Intl.NumberFormat("ru-RU");
+const DEFAULT_LIMIT = 24;
+const EMPTY_META: PlacesMeta = {
+  page: 1,
+  limit: DEFAULT_LIMIT,
+  total: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPrevPage: false,
+};
+
+function parsePlacesMeta(
+  raw: any,
+  requestedPage: number,
+  itemCount: number,
+): PlacesMeta {
+  const page =
+    typeof raw?.page === "number" && raw.page > 0 ? raw.page : requestedPage;
+
+  const limit =
+    typeof raw?.limit === "number" && raw.limit > 0
+      ? raw.limit
+      : DEFAULT_LIMIT;
+
+  const total =
+    typeof raw?.total === "number" && raw.total >= 0 ? raw.total : itemCount;
+
+  const totalPages =
+    typeof raw?.totalPages === "number" && raw.totalPages >= 0
+      ? raw.totalPages
+      : total > 0
+        ? Math.ceil(total / limit)
+        : 0;
+
+  const hasNextPage =
+    typeof raw?.hasNextPage === "boolean" ? raw.hasNextPage : page < totalPages;
+
+  const hasPrevPage =
+    typeof raw?.hasPrevPage === "boolean" ? raw.hasPrevPage : page > 1;
+
+  return {
+    page,
+    limit,
+    total,
+    totalPages,
+    hasNextPage,
+    hasPrevPage,
+  };
+}
 
 export default function PlacesExplorer({
   isAuthed,
@@ -51,9 +108,10 @@ export default function PlacesExplorer({
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<PlaceCard[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
   const [hasSearched, setHasSearched] = useState(false);
+  const [meta, setMeta] = useState<PlacesMeta>(EMPTY_META);
 
   const placesAbortRef = useRef<AbortController | null>(null);
 
@@ -64,6 +122,8 @@ export default function PlacesExplorer({
         city: string;
         categoryId: string;
         sort: SortKey;
+        page: number;
+        limit: number;
       }>,
     ) => {
       const p = new URLSearchParams();
@@ -72,11 +132,16 @@ export default function PlacesExplorer({
       const city0 = (override?.city ?? city).trim();
       const categoryId0 = (override?.categoryId ?? categoryId).trim();
       const sort0 = override?.sort ?? sort;
+      const page0 = override?.page ?? 1;
+      const limit0 = override?.limit ?? DEFAULT_LIMIT;
 
       if (q0) p.set("q", q0);
       if (city0) p.set("city", city0);
       if (categoryId0) p.set("categoryId", categoryId0);
       if (sort0) p.set("sort", sort0);
+
+      p.set("page", String(page0));
+      p.set("limit", String(limit0));
 
       return p.toString();
     },
@@ -113,40 +178,72 @@ export default function PlacesExplorer({
 
   const allCategories = useMemo(() => categories, [categories]);
 
-  const loadPlaces = useCallback(async (qs: string) => {
-    placesAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    placesAbortRef.current = ctrl;
+  const loadPlaces = useCallback(
+    async ({
+      qs,
+      mode,
+      requestedPage,
+    }: {
+      qs: string;
+      mode: LoadMode;
+      requestedPage: number;
+    }) => {
+      placesAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      placesAbortRef.current = ctrl;
 
-    setLoading(true);
-    setErr(null);
+      setErr(null);
 
-    try {
-      const res = await fetch(`/api/places?${qs}`, {
-        cache: "no-store",
-        signal: ctrl.signal,
-      });
-
-      if (ctrl.signal.aborted) return;
-
-      const data = await safeJson(res);
-      if (!res.ok) {
-        throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+      if (mode === "append") {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
       }
 
-      setItems(
-        Array.isArray((data as any)?.items)
+      try {
+        const res = await fetch(`/api/places?${qs}`, {
+          cache: "no-store",
+          signal: ctrl.signal,
+        });
+
+        if (ctrl.signal.aborted) return;
+
+        const data = await safeJson(res);
+        if (!res.ok) {
+          throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+        }
+
+        const nextItems = Array.isArray((data as any)?.items)
           ? ((data as any).items as PlaceCard[])
-          : [],
-      );
-    } catch (e: any) {
-      if (ctrl.signal.aborted) return;
-      setErr(e?.message ?? "Ошибка");
-      setItems([]);
-    } finally {
-      if (!ctrl.signal.aborted) setLoading(false);
-    }
-  }, []);
+          : [];
+
+        const nextMeta = parsePlacesMeta(
+          (data as any)?.meta,
+          requestedPage,
+          nextItems.length,
+        );
+
+        setMeta(nextMeta);
+        setItems((prev) =>
+          mode === "append" ? [...prev, ...nextItems] : nextItems,
+        );
+      } catch (e: any) {
+        if (ctrl.signal.aborted) return;
+        setErr(e?.message ?? "Ошибка");
+
+        if (mode === "replace") {
+          setItems([]);
+          setMeta(EMPTY_META);
+        }
+      } finally {
+        if (!ctrl.signal.aborted) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     return () => {
@@ -155,9 +252,34 @@ export default function PlacesExplorer({
   }, []);
 
   async function onSearchClick() {
-    const qs = buildQueryString();
     setHasSearched(true);
-    await loadPlaces(qs);
+
+    const qs = buildQueryString({
+      page: 1,
+      limit: DEFAULT_LIMIT,
+    });
+
+    await loadPlaces({
+      qs,
+      mode: "replace",
+      requestedPage: 1,
+    });
+  }
+
+  async function onLoadMore() {
+    if (loading || loadingMore || !meta.hasNextPage) return;
+
+    const nextPage = meta.page + 1;
+    const qs = buildQueryString({
+      page: nextPage,
+      limit: meta.limit || DEFAULT_LIMIT,
+    });
+
+    await loadPlaces({
+      qs,
+      mode: "append",
+      requestedPage: nextPage,
+    });
   }
 
   async function resetFilters() {
@@ -165,15 +287,22 @@ export default function PlacesExplorer({
     setCity("");
     setCategoryId("");
     setSort("rating_desc");
+    setHasSearched(true);
 
     const qs = buildQueryString({
       q: "",
       city: "",
       categoryId: "",
       sort: "rating_desc",
+      page: 1,
+      limit: DEFAULT_LIMIT,
     });
-    setHasSearched(true);
-    await loadPlaces(qs);
+
+    await loadPlaces({
+      qs,
+      mode: "replace",
+      requestedPage: 1,
+    });
   }
 
   return (
@@ -266,7 +395,7 @@ export default function PlacesExplorer({
               sort={sort}
               setSort={setSort}
               allCategories={allCategories}
-              loading={loading}
+              loading={loading || loadingMore}
               err={err}
               onSearch={onSearchClick}
               onReset={resetFilters}
@@ -291,7 +420,7 @@ export default function PlacesExplorer({
             sort={sort}
             setSort={setSort}
             allCategories={allCategories}
-            loading={loading}
+            loading={loading || loadingMore}
             err={err}
             onSearch={onSearchClick}
             onReset={resetFilters}
@@ -328,6 +457,18 @@ export default function PlacesExplorer({
         </div>
       ) : null}
 
+      {hasSearched && !err ? (
+        <div className="mt-6 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div>Найдено: {nf.format(meta.total)}</div>
+          {items.length > 0 ? (
+            <div>
+              Показано: {nf.format(items.length)}
+              {meta.total > 0 ? ` из ${nf.format(meta.total)}` : ""}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {items.map((p) => (
           <Link
@@ -356,7 +497,7 @@ export default function PlacesExplorer({
           </Link>
         ))}
 
-        {!loading && items.length === 0 ? (
+        {!loading && !loadingMore && items.length === 0 ? (
           hasSearched ? (
             <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
               Ничего не найдено по этим условиям.
@@ -368,6 +509,19 @@ export default function PlacesExplorer({
           )
         ) : null}
       </div>
+
+      {hasSearched && items.length > 0 && meta.hasNextPage ? (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loading || loadingMore}
+            className="inline-flex h-11 items-center justify-center rounded-2xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/40 disabled:opacity-50"
+          >
+            {loadingMore ? "Загружаем…" : "Показать ещё"}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

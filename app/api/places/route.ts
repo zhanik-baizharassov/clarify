@@ -18,6 +18,8 @@ const QuerySchema = z.object({
   categoryId: z.string().trim().optional(),
   categorySlug: z.string().trim().optional(),
   sort: SortSchema.default("rating_desc"),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(60).default(24),
 });
 
 export async function GET(req: Request) {
@@ -30,6 +32,8 @@ export async function GET(req: Request) {
       categoryId: url.searchParams.get("categoryId") ?? undefined,
       categorySlug: url.searchParams.get("categorySlug") ?? undefined,
       sort: url.searchParams.get("sort") ?? undefined,
+      page: url.searchParams.get("page") ?? undefined,
+      limit: url.searchParams.get("limit") ?? undefined,
     });
 
     if (!parsed.success) {
@@ -38,7 +42,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const { q, city, categoryId, categorySlug, sort } = parsed.data;
+    const { q, city, categoryId, categorySlug, sort, page, limit } =
+      parsed.data;
 
     let baseCategoryId: string | undefined;
 
@@ -112,30 +117,48 @@ export async function GET(req: Request) {
 
     const orderBy: Prisma.PlaceOrderByWithRelationInput[] =
       sort === "reviews_desc"
-        ? [{ ratingCount: "desc" }, { avgRating: "desc" }]
+        ? [{ ratingCount: "desc" }, { avgRating: "desc" }, { id: "asc" }]
         : sort === "new_desc"
-          ? [{ createdAt: "desc" }]
+          ? [{ createdAt: "desc" }, { id: "desc" }]
           : sort === "name_asc"
-            ? [{ name: "asc" }]
-            : [{ avgRating: "desc" }, { ratingCount: "desc" }];
+            ? [{ name: "asc" }, { id: "asc" }]
+            : [{ avgRating: "desc" }, { ratingCount: "desc" }, { id: "asc" }];
 
-    const places = await prisma.place.findMany({
-      where,
-      orderBy,
-      take: 50,
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        city: true,
-        address: true,
-        avgRating: true,
-        ratingCount: true,
-        category: { select: { name: true } },
+    const skip = (page - 1) * limit;
+
+    const [places, total] = await prisma.$transaction([
+      prisma.place.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          city: true,
+          address: true,
+          avgRating: true,
+          ratingCount: true,
+          category: { select: { name: true } },
+        },
+      }),
+      prisma.place.count({ where }),
+    ]);
+
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
+    return NextResponse.json({
+      items: places,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     });
-
-    return NextResponse.json({ items: places });
   } catch (err) {
     console.error("PLACES GET ERROR:", err);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
