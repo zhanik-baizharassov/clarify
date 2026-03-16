@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,12 +12,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
-  : undefined;
+function resolveMetadataBase() {
+  const raw =
+    process.env.APP_ORIGIN?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    "";
+
+  if (!raw) return undefined;
+
+  try {
+    return new URL(raw);
+  } catch {
+    console.error("Invalid site origin for metadataBase:", raw);
+    return undefined;
+  }
+}
+
+const metadataBase = resolveMetadataBase();
 
 export const metadata: Metadata = {
-  metadataBase: siteUrl,
+  metadataBase,
   title: {
     default: "Clarify",
     template: "%s — Clarify",
@@ -41,7 +55,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
