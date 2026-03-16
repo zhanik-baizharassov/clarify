@@ -25,7 +25,7 @@ export default function LandingHome({
   const isCompany = role === "COMPANY";
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* HERO */}
       <section className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
         <div
@@ -187,7 +187,9 @@ export default function LandingHome({
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
                   <ShieldCheck className="h-5 w-5" />
                 </span>
-                <span>Обратная связь помогает быстрее находить точки роста сервиса</span>
+                <span>
+                  Обратная связь помогает быстрее находить точки роста сервиса
+                </span>
               </li>
             </ul>
           </div>
@@ -281,7 +283,7 @@ export default function LandingHome({
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

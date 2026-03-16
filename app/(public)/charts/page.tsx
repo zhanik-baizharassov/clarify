@@ -155,7 +155,7 @@ export default function ChartsPage() {
   }, [selectedCity]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <section className="rounded-3xl border bg-muted/20 p-7 md:p-10">
         <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
           <TrendingUp className="h-3.5 w-3.5 text-primary" />
@@ -413,7 +413,7 @@ export default function ChartsPage() {
           </section>
         </>
       ) : null}
-    </main>
+    </div>
   );
 }
 

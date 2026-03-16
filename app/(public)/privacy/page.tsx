@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <article className="rounded-3xl border bg-background p-7">
         <h1 className="text-2xl font-semibold tracking-tight">
           Политика конфиденциальности
@@ -43,8 +43,8 @@ export default function PrivacyPage() {
             </h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>
-                регистрационные и учётные данные, например email, имя,
-                фамилия, никнейм, телефон и иные сведения, которые пользователь
+                регистрационные и учётные данные, например email, имя, фамилия,
+                никнейм, телефон и иные сведения, которые пользователь
                 указывает при создании аккаунта;
               </li>
               <li>
@@ -158,7 +158,11 @@ export default function PrivacyPage() {
               Если у пользователя есть вопросы, связанные с обработкой данных,
               использованием аккаунта или размещённой на платформе информацией,
               он может направить обращение администрации Clarify по адресу:
-              <span className="text-foreground/90"> clarify.helper@gmail.com</span>.
+              <span className="text-foreground/90">
+                {" "}
+                clarify.helper@gmail.com
+              </span>
+              .
             </p>
             <p className="mt-2">
               Администрация Clarify вправе рассматривать такие обращения в
@@ -182,6 +186,6 @@ export default function PrivacyPage() {
           </div>
         </section>
       </article>
-    </main>
+    </div>
   );
 }
