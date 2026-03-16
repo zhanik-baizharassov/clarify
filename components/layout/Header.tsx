@@ -1,23 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
-import {
-  getSessionUser,
-  isDynamicServerUsageError,
-} from "@/server/auth/session";
 
-export default async function Header() {
-  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
+type HeaderUser = {
+  role: "USER" | "COMPANY" | "ADMIN";
+} | null;
 
-  try {
-    user = await getSessionUser();
-  } catch (err) {
-    if (!isDynamicServerUsageError(err)) {
-      console.error("Header: getSessionUser failed:", err);
-    }
-    user = null;
-  }
-
+export default async function Header({
+  user = null,
+}: {
+  user?: HeaderUser;
+}) {
   const desktopNavClass =
     "inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm";
 

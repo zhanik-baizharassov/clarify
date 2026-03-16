@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -14,11 +15,11 @@ export function isDynamicServerUsageError(
     err !== null &&
     "digest" in err &&
     typeof (err as { digest?: unknown }).digest === "string" &&
-    (err as { digest: string }).digest === "DYNAMIC_SERVER_USAGE"
+    (err as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE"
   );
 }
 
-export async function getSessionUser() {
+const getSessionUserCached = cache(async () => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE_NAME)?.value;
 
@@ -65,4 +66,8 @@ export async function getSessionUser() {
   }
 
   return session.user;
+});
+
+export async function getSessionUser() {
+  return getSessionUserCached();
 }

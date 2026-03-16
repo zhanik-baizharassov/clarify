@@ -114,22 +114,13 @@ export async function POST(req: Request) {
         },
       });
 
-      const aggregate = await tx.review.aggregate({
-        where: {
-          placeId: place.id,
-          status: "PUBLISHED",
-        },
-        _avg: { rating: true },
-        _count: { _all: true },
-      });
-
-      await tx.place.update({
-        where: { id: place.id },
-        data: {
-          avgRating: aggregate._avg.rating ?? 0,
-          ratingCount: aggregate._count._all,
-        },
-      });
+      await tx.$executeRaw`
+        UPDATE "Place"
+        SET
+          "avgRating" = (("avgRating" * "ratingCount") + ${input.rating}) / ("ratingCount" + 1),
+          "ratingCount" = "ratingCount" + 1
+        WHERE "id" = ${place.id}
+      `;
 
       return review;
     });

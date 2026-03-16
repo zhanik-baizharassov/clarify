@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import LandingHome from "@/features/landing/LandingHome";
 import { getSessionUser } from "@/server/auth/session";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Clarify — отзывы по Казахстану",
   description:

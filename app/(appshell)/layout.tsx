@@ -7,11 +7,18 @@ export default async function AppShellLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const sessionUser = await getSessionUser();
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    console.error("AppShellLayout: getSessionUser failed:", err);
+    sessionUser = null;
+  }
 
   return (
     <>
-      <Header />
+      <Header user={sessionUser} />
       <main>{children}</main>
       <Footer role={sessionUser?.role ?? null} />
     </>
