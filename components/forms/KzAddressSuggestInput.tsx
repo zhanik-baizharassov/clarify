@@ -9,6 +9,54 @@ type SuggestItem = {
   lng: number | null;
 };
 
+const CLIENT_SUGGEST_CACHE_TTL_MS = 60_000;
+const MAX_CLIENT_SUGGEST_CACHE_SIZE = 200;
+
+type ClientSuggestCacheEntry = {
+  expiresAt: number;
+  items: SuggestItem[];
+};
+
+const clientSuggestCache = new Map<string, ClientSuggestCacheEntry>();
+
+function getClientSuggestCacheKey(city: string, q: string) {
+  return `${city.trim().toLowerCase()}::${q.trim().toLowerCase()}`;
+}
+
+function cleanupClientSuggestCache(now = Date.now()) {
+  for (const [key, entry] of clientSuggestCache) {
+    if (entry.expiresAt <= now) {
+      clientSuggestCache.delete(key);
+    }
+  }
+
+  while (clientSuggestCache.size > MAX_CLIENT_SUGGEST_CACHE_SIZE) {
+    const oldestKey = clientSuggestCache.keys().next().value;
+    if (!oldestKey) break;
+    clientSuggestCache.delete(oldestKey);
+  }
+}
+
+function readClientSuggestCache(cacheKey: string): SuggestItem[] | null {
+  const entry = clientSuggestCache.get(cacheKey);
+  if (!entry) return null;
+
+  if (entry.expiresAt <= Date.now()) {
+    clientSuggestCache.delete(cacheKey);
+    return null;
+  }
+
+  return entry.items;
+}
+
+function writeClientSuggestCache(cacheKey: string, items: SuggestItem[]) {
+  cleanupClientSuggestCache();
+  clientSuggestCache.set(cacheKey, {
+    expiresAt: Date.now() + CLIENT_SUGGEST_CACHE_TTL_MS,
+    items,
+  });
+}
+
 export default function KzAddressSuggestInput({
   city,
   value,
@@ -34,14 +82,27 @@ export default function KzAddressSuggestInput({
       setItems([]);
       setOpen(false);
       setLoading(false);
+      setLocalError(null);
       return;
     }
 
     const q = value.trim();
+    const cityValue = city.trim();
 
-    if (!city || q.length < 3) {
+    if (!cityValue || q.length < 3) {
       setItems([]);
       setOpen(false);
+      setLoading(false);
+      setLocalError(null);
+      return;
+    }
+
+    const cacheKey = getClientSuggestCacheKey(cityValue, q);
+    const cached = readClientSuggestCache(cacheKey);
+
+    if (cached) {
+      setItems(cached);
+      setOpen(true);
       setLoading(false);
       setLocalError(null);
       return;
@@ -57,7 +118,7 @@ export default function KzAddressSuggestInput({
 
       try {
         const res = await fetch(
-          `/api/address/suggest?q=${encodeURIComponent(q)}&city=${encodeURIComponent(city)}`,
+          `/api/address/suggest?q=${encodeURIComponent(q)}&city=${encodeURIComponent(cityValue)}`,
           {
             method: "GET",
             cache: "no-store",
@@ -75,6 +136,8 @@ export default function KzAddressSuggestInput({
         }
 
         const nextItems = Array.isArray(data?.items) ? data.items : [];
+        writeClientSuggestCache(cacheKey, nextItems);
+
         setItems(nextItems);
         setOpen(true);
       } catch (e: any) {
@@ -104,7 +167,11 @@ export default function KzAddressSuggestInput({
   }
 
   const showEmpty =
-    open && !loading && value.trim().length >= 3 && items.length === 0 && !localError;
+    open &&
+    !loading &&
+    value.trim().length >= 3 &&
+    items.length === 0 &&
+    !localError;
 
   return (
     <div className="relative">

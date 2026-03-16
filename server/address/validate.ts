@@ -7,6 +7,17 @@ export type AddressCheckResult = {
   provider: "2gis";
 };
 
+const VALIDATION_CACHE_TTL_MS = 10 * 60_000;
+const MAX_VALIDATION_CACHE_SIZE = 300;
+
+type ValidationCacheEntry = {
+  expiresAt: number;
+  value: AddressCheckResult;
+};
+
+const validationCache = new Map<string, ValidationCacheEntry>();
+const validationInflight = new Map<string, Promise<AddressCheckResult | null>>();
+
 function norm(s: string) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
 }
@@ -30,7 +41,7 @@ function extractDesiredHouse(address: string): string | null {
 
   const explicit =
     a.match(
-      /(?:^|[\s,;])(?:дом|д\.?)\s*([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[\/-][0-9]{1,4})?)/iu,
+      /(?:^|[\s,;])(?:дом|д\.?)\s*([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[/-][0-9]{1,4})?)/iu,
     ) ?? null;
 
   if (explicit?.[1]) {
@@ -38,7 +49,7 @@ function extractDesiredHouse(address: string): string | null {
   }
 
   const all = Array.from(
-    a.matchAll(/\b([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[\/-][0-9]{1,4})?)\b/gu),
+    a.matchAll(/\b([0-9]{1,5}[A-Za-zА-Яа-яЁё]?(?:[/-][0-9]{1,4})?)\b/gu),
   );
 
   if (!all.length) return null;
@@ -109,6 +120,47 @@ function streetKeywords(address: string): string[] {
     .filter(Boolean)
     .filter((w) => w.length >= 3)
     .filter((w) => !stop.has(w));
+}
+
+function getValidationCacheKey(city: string, address: string) {
+  return `${normLower(city)}::${normLower(address)}`;
+}
+
+function cleanupValidationCache(now = Date.now()) {
+  for (const [key, entry] of validationCache) {
+    if (entry.expiresAt <= now) {
+      validationCache.delete(key);
+    }
+  }
+
+  while (validationCache.size > MAX_VALIDATION_CACHE_SIZE) {
+    const oldestKey = validationCache.keys().next().value;
+    if (!oldestKey) break;
+    validationCache.delete(oldestKey);
+  }
+}
+
+function readValidationCache(cacheKey: string): AddressCheckResult | null {
+  const entry = validationCache.get(cacheKey);
+  if (!entry) return null;
+
+  if (entry.expiresAt <= Date.now()) {
+    validationCache.delete(cacheKey);
+    return null;
+  }
+
+  return entry.value;
+}
+
+function writeValidationCache(
+  cacheKey: string,
+  value: AddressCheckResult,
+) {
+  cleanupValidationCache();
+  validationCache.set(cacheKey, {
+    expiresAt: Date.now() + VALIDATION_CACHE_TTL_MS,
+    value,
+  });
 }
 
 async function geocode2gis(params: {
@@ -247,6 +299,37 @@ async function geocode2gis(params: {
   }
 }
 
+async function getCachedGeocode2gis(params: {
+  city: string;
+  address: string;
+  desiredHouse: string;
+  kw: string[];
+}): Promise<AddressCheckResult | null> {
+  const cacheKey = getValidationCacheKey(params.city, params.address);
+
+  const cached = readValidationCache(cacheKey);
+  if (cached) return cached;
+
+  const inflight = validationInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = geocode2gis(params);
+
+  validationInflight.set(cacheKey, promise);
+
+  try {
+    const result = await promise;
+
+    if (result) {
+      writeValidationCache(cacheKey, result);
+    }
+
+    return result;
+  } finally {
+    validationInflight.delete(cacheKey);
+  }
+}
+
 export async function validateKzAddress(params: {
   city: string;
   address: string;
@@ -269,7 +352,7 @@ export async function validateKzAddress(params: {
 
   const kw = streetKeywords(address);
 
-  const result = await geocode2gis({
+  const result = await getCachedGeocode2gis({
     city,
     address,
     desiredHouse,

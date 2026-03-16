@@ -8,6 +8,9 @@ import { assertKzCity } from "@/shared/kz/kz";
 
 export const runtime = "nodejs";
 
+const SUGGEST_CACHE_TTL_MS = 60_000;
+const MAX_SUGGEST_CACHE_SIZE = 300;
+
 function norm(s: string | null | undefined) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
 }
@@ -19,50 +22,80 @@ type SuggestItem = {
   lng: number | null;
 };
 
-export async function GET(req: Request) {
-  try {
-    const ip = getRequestIp(req);
+type SuggestCacheEntry = {
+  expiresAt: number;
+  items: SuggestItem[];
+};
 
-    const rateLimit = await consumeRateLimit({
-      scope: "address:suggest:ip",
-      key: ip,
-      limit: 30,
-      windowSec: 60,
-    });
+const suggestCache = new Map<string, SuggestCacheEntry>();
+const suggestInflight = new Map<string, Promise<SuggestItem[]>>();
 
-    if (!rateLimit.ok) {
-      return createRateLimitResponse(
-        rateLimit,
-        "Слишком много запросов к подсказкам адреса. Попробуйте позже.",
-        { items: [] },
-      );
+class SuggestHttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function getSuggestCacheKey(city: string, q: string) {
+  return `${city.toLowerCase()}::${q.toLowerCase()}`;
+}
+
+function cleanupSuggestCache(now = Date.now()) {
+  for (const [key, entry] of suggestCache) {
+    if (entry.expiresAt <= now) {
+      suggestCache.delete(key);
     }
+  }
 
-    const { searchParams } = new URL(req.url);
+  while (suggestCache.size > MAX_SUGGEST_CACHE_SIZE) {
+    const oldestKey = suggestCache.keys().next().value;
+    if (!oldestKey) break;
+    suggestCache.delete(oldestKey);
+  }
+}
 
-    const q = norm(searchParams.get("q"));
-    const cityRaw = norm(searchParams.get("city"));
+function readSuggestCache(cacheKey: string): SuggestItem[] | null {
+  const entry = suggestCache.get(cacheKey);
+  if (!entry) return null;
 
-    if (!q || q.length < 3) {
-      return NextResponse.json({ items: [] });
-    }
+  if (entry.expiresAt <= Date.now()) {
+    suggestCache.delete(cacheKey);
+    return null;
+  }
 
-    const city = assertKzCity(cityRaw, "Город");
+  return entry.items;
+}
 
-    const key = process.env.TWOGIS_GEOCODER_API_KEY;
-    if (!key) {
-      return NextResponse.json(
-        { error: "Не настроен TWOGIS_GEOCODER_API_KEY" },
-        { status: 500 },
-      );
-    }
+function writeSuggestCache(cacheKey: string, items: SuggestItem[]) {
+  cleanupSuggestCache();
+  suggestCache.set(cacheKey, {
+    expiresAt: Date.now() + SUGGEST_CACHE_TTL_MS,
+    items,
+  });
+}
 
+async function fetchSuggestItems(params: {
+  city: string;
+  q: string;
+  apiKey: string;
+  cacheKey: string;
+}): Promise<SuggestItem[]> {
+  const cached = readSuggestCache(params.cacheKey);
+  if (cached) return cached;
+
+  const inflight = suggestInflight.get(params.cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
     const url = new URL("https://catalog.api.2gis.com/3.0/suggests");
-    url.searchParams.set("q", `${city} ${q}`);
+    url.searchParams.set("q", `${params.city} ${params.q}`);
     url.searchParams.set("suggest_type", "address");
     url.searchParams.set("type", "building");
     url.searchParams.set("fields", "items.point");
-    url.searchParams.set("key", key);
+    url.searchParams.set("key", params.apiKey);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -76,23 +109,20 @@ export async function GET(req: Request) {
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          return NextResponse.json(
-            { error: "2GIS отклонил запрос. Проверьте API key." },
-            { status: 500 },
+          throw new SuggestHttpError(
+            500,
+            "2GIS отклонил запрос. Проверьте API key.",
           );
         }
 
         if (res.status === 429) {
-          return NextResponse.json(
-            { error: "2GIS временно ограничил запросы. Попробуйте позже." },
-            { status: 429 },
+          throw new SuggestHttpError(
+            429,
+            "2GIS временно ограничил запросы. Попробуйте позже.",
           );
         }
 
-        return NextResponse.json(
-          { error: "2GIS Suggest временно недоступен." },
-          { status: 502 },
-        );
+        throw new SuggestHttpError(502, "2GIS Suggest временно недоступен.");
       }
 
       const data = (await res.json().catch(() => null)) as
@@ -146,11 +176,84 @@ export async function GET(req: Request) {
         if (items.length >= 6) break;
       }
 
-      return NextResponse.json({ items });
+      writeSuggestCache(params.cacheKey, items);
+
+      return items;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new SuggestHttpError(
+          504,
+          "2GIS слишком долго отвечает. Попробуйте ещё раз.",
+        );
+      }
+
+      throw err;
     } finally {
       clearTimeout(timeout);
     }
+  })();
+
+  suggestInflight.set(params.cacheKey, promise);
+
+  try {
+    return await promise;
+  } finally {
+    suggestInflight.delete(params.cacheKey);
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const ip = getRequestIp(req);
+
+    const rateLimit = await consumeRateLimit({
+      scope: "address:suggest:ip",
+      key: ip,
+      limit: 30,
+      windowSec: 60,
+    });
+
+    if (!rateLimit.ok) {
+      return createRateLimitResponse(
+        rateLimit,
+        "Слишком много запросов к подсказкам адреса. Попробуйте позже.",
+        { items: [] },
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+
+    const q = norm(searchParams.get("q"));
+    const cityRaw = norm(searchParams.get("city"));
+
+    if (!q || q.length < 3) {
+      return NextResponse.json({ items: [] });
+    }
+
+    const city = assertKzCity(cityRaw, "Город");
+
+    const apiKey = process.env.TWOGIS_GEOCODER_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Не настроен TWOGIS_GEOCODER_API_KEY" },
+        { status: 500 },
+      );
+    }
+
+    const cacheKey = getSuggestCacheKey(city, q);
+    const items = await fetchSuggestItems({
+      city,
+      q,
+      apiKey,
+      cacheKey,
+    });
+
+    return NextResponse.json({ items });
   } catch (err: unknown) {
+    if (err instanceof SuggestHttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+
     if (err instanceof Error && err.message.includes("Город")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
