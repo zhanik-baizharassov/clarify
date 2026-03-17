@@ -67,6 +67,7 @@ export async function POST(req: Request) {
       where: { email },
       select: {
         id: true,
+        email: true,
         passwordHash: true,
         emailVerifiedAt: true,
         role: true,
@@ -127,8 +128,13 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json(
-        { error: GENERIC_LOGIN_ERROR },
-        { status: 401 },
+        {
+          error: "Подтвердите email, чтобы войти.",
+          code: "EMAIL_NOT_VERIFIED",
+          needsEmailVerification: true,
+          email: user.email,
+        },
+        { status: 403 },
       );
     }
 
