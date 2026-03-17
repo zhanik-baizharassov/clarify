@@ -13,17 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 function resolveMetadataBase() {
-  const raw =
-    process.env.APP_ORIGIN?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    "";
+  const raw = process.env.APP_ORIGIN?.trim() || "";
 
   if (!raw) return undefined;
 
   try {
     return new URL(raw);
   } catch {
-    console.error("Invalid site origin for metadataBase:", raw);
+    console.error("Invalid APP_ORIGIN for metadataBase:", raw);
     return undefined;
   }
 }
