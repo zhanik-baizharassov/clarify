@@ -47,6 +47,7 @@ const Schema = z.object({
         .join(", ")}`,
     ),
   password: z.string().min(8).max(200).optional(),
+  currentPassword: z.string().min(1).max(200).optional(),
   avatarClear: z.boolean().optional(),
 });
 
@@ -67,6 +68,12 @@ async function readBody(req: Request) {
         ? passwordRaw
         : undefined;
 
+    const currentPasswordRaw = fd.get("currentPassword");
+    const currentPassword =
+      typeof currentPasswordRaw === "string" && currentPasswordRaw.trim()
+        ? currentPasswordRaw
+        : undefined;
+
     const avatarClear = String(fd.get("avatarClear") ?? "") === "1";
     const avatar = fd.get("avatar");
 
@@ -76,13 +83,22 @@ async function readBody(req: Request) {
       nickname,
       email,
       password,
+      currentPassword,
       avatarClear,
       avatar,
     };
   }
 
   const json = await req.json();
-  return { ...json, avatarClear: Boolean(json?.avatarClear), avatar: null };
+  return {
+    ...json,
+    currentPassword:
+      typeof json?.currentPassword === "string" && json.currentPassword.trim()
+        ? json.currentPassword
+        : undefined,
+    avatarClear: Boolean(json?.avatarClear),
+    avatar: null,
+  };
 }
 
 function isLikelyPrismaUniqueErr(e: unknown) {
@@ -120,6 +136,7 @@ export async function PATCH(req: Request) {
       nickname: body.nickname,
       email: body.email,
       password: body.password,
+      currentPassword: body.currentPassword,
       avatarClear: body.avatarClear,
     });
 
@@ -193,6 +210,7 @@ export async function PATCH(req: Request) {
         lastName: true,
         nickname: true,
         avatarUrl: true,
+        passwordHash: true,
         profileEditCount: true,
       },
     });
@@ -217,12 +235,37 @@ export async function PATCH(req: Request) {
       isAvatarChanged;
 
     const isPasswordChanged = Boolean(passwordHash);
+    const isSensitiveChange = isEmailChanged || isPasswordChanged;
 
     if (!isMainChanged && !isPasswordChanged) {
       return NextResponse.json(
         { error: "Нет изменений для сохранения" },
         { status: 400 },
       );
+    }
+
+    if (isSensitiveChange) {
+      if (!input.currentPassword) {
+        return NextResponse.json(
+          {
+            error:
+              "Для смены email или пароля введите текущий пароль.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const currentPasswordOk = await bcrypt.compare(
+        input.currentPassword,
+        current.passwordHash,
+      );
+
+      if (!currentPasswordOk) {
+        return NextResponse.json(
+          { error: "Текущий пароль указан неверно." },
+          { status: 401 },
+        );
+      }
     }
 
     if (!isMainChanged && isPasswordChanged) {

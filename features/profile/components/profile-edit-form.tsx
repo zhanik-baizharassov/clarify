@@ -97,8 +97,11 @@ export default function ProfileEditForm({
   const [avatarClear, setAvatarClear] = useState(false);
 
   const [changePassword, setChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
 
@@ -117,6 +120,10 @@ export default function ProfileEditForm({
       }
     };
   }, [avatarPreview]);
+
+  const normalizedInitialEmail = initial.email.trim().toLowerCase();
+  const normalizedNextEmail = email.trim().toLowerCase();
+  const isEmailChanged = normalizedNextEmail !== normalizedInitialEmail;
 
   const saveLabel = useMemo(() => {
     if (tab === "security") return "Сохранить пароль";
@@ -173,6 +180,7 @@ export default function ProfileEditForm({
     const fn = firstName.trim();
     const ln = lastName.trim();
     const nn = nickname.trim();
+    const cp = currentPassword.trim();
 
     if (tab === "main") {
       if (fn.length < 2) return setErr("Имя: минимум 2 символа");
@@ -181,10 +189,15 @@ export default function ProfileEditForm({
       if (!NICK_RE.test(nn)) {
         return setErr("Никнейм: только латиница, цифры и _ (без пробелов)");
       }
+
+      if (isEmailChanged && !cp) {
+        return setErr("Для смены email введите текущий пароль.");
+      }
     }
 
     if (tab === "security") {
       if (!changePassword) return setErr("Включите смену пароля.");
+      if (!cp) return setErr("Введите текущий пароль.");
       if (password.length < 8) return setErr("Пароль: минимум 8 символов");
       if (!/[A-Z]/.test(password))
         return setErr("Пароль: нужна хотя бы 1 заглавная буква");
@@ -194,6 +207,7 @@ export default function ProfileEditForm({
       if (password !== password2) return setErr("Пароли не совпадают");
     } else {
       if (changePassword) {
+        if (!cp) return setErr("Для смены пароля введите текущий пароль.");
         if (password.length < 8) return setErr("Пароль: минимум 8 символов");
         if (!/[A-Z]/.test(password))
           return setErr("Пароль: нужна хотя бы 1 заглавная буква");
@@ -214,6 +228,7 @@ export default function ProfileEditForm({
       fd.set("nickname", nn || initial.nickname || "");
       fd.set("email", email);
 
+      if (cp) fd.set("currentPassword", cp);
       if (changePassword && password.trim()) fd.set("password", password);
 
       if (tab === "main") {
@@ -232,8 +247,10 @@ export default function ProfileEditForm({
       setOk(tab === "security" ? "Пароль обновлён" : "Профиль сохранён");
       router.refresh();
 
+      setCurrentPassword("");
       setPassword("");
       setPassword2("");
+      setShowCurrentPassword(false);
       setShowPassword(false);
       setShowPassword2(false);
     } catch (e: any) {
@@ -258,7 +275,7 @@ export default function ProfileEditForm({
             <div>
               <div className="text-sm font-semibold">Смена пароля</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Используйте надёжный пароль (мин. 8 символов).
+                Для смены пароля нужно сначала ввести текущий пароль.
               </div>
             </div>
 
@@ -273,25 +290,29 @@ export default function ProfileEditForm({
           </div>
 
           {changePassword ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
+            <div className="mt-4 grid gap-3">
+              <Field label="Текущий пароль">
                 <div className="relative">
                   <input
                     className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                     disabled={loading || !canEdit}
-                    autoComplete="new-password"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
+                    onClick={() => setShowCurrentPassword((v) => !v)}
                     disabled={loading || !canEdit}
-                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    aria-label={
+                      showCurrentPassword
+                        ? "Скрыть текущий пароль"
+                        : "Показать текущий пароль"
+                    }
                     className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
                   >
-                    {showPassword ? (
+                    {showCurrentPassword ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
@@ -300,31 +321,61 @@ export default function ProfileEditForm({
                 </div>
               </Field>
 
-              <Field label="Повторите пароль">
-                <div className="relative">
-                  <input
-                    className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                    type={showPassword2 ? "text" : "password"}
-                    value={password2}
-                    onChange={(e) => setPassword2(e.target.value)}
-                    disabled={loading || !canEdit}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword2((v) => !v)}
-                    disabled={loading || !canEdit}
-                    aria-label={showPassword2 ? "Скрыть пароль" : "Показать пароль"}
-                    className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
-                  >
-                    {showPassword2 ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
+                  <div className="relative">
+                    <input
+                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading || !canEdit}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      disabled={loading || !canEdit}
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                      className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </Field>
+
+                <Field label="Повторите пароль">
+                  <div className="relative">
+                    <input
+                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                      type={showPassword2 ? "text" : "password"}
+                      value={password2}
+                      onChange={(e) => setPassword2(e.target.value)}
+                      disabled={loading || !canEdit}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword2((v) => !v)}
+                      disabled={loading || !canEdit}
+                      aria-label={
+                        showPassword2 ? "Скрыть пароль" : "Показать пароль"
+                      }
+                      className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                    >
+                      {showPassword2 ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </Field>
+              </div>
             </div>
           ) : null}
         </div>
@@ -349,8 +400,8 @@ export default function ProfileEditForm({
         </button>
 
         <div className="text-xs text-muted-foreground">
-          Пароль можно менять в любое время. Ограничение “1 раз” относится
-          только к основным данным профиля.
+          Пароль можно менять в любое время. Для смены email в основной вкладке
+          тоже потребуется текущий пароль.
         </div>
       </form>
     );
@@ -362,7 +413,7 @@ export default function ProfileEditForm({
         <div>
           <div className="text-xl font-semibold">Редактирование профиля</div>
           <div className="mt-1 text-sm text-muted-foreground">
-            Изменить данные можно только один раз.
+            Изменить основные данные можно только один раз.
           </div>
         </div>
 
@@ -480,6 +531,45 @@ export default function ProfileEditForm({
               autoComplete="email"
             />
           </Field>
+        </div>
+
+        <div className="mt-4 rounded-2xl border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">Подтверждение личности</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Текущий пароль нужен только если вы меняете email.
+          </div>
+
+          <div className="mt-4">
+            <Field label="Текущий пароль" hint="Обязателен только для смены email">
+              <div className="relative">
+                <input
+                  className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={loading || !canEdit}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword((v) => !v)}
+                  disabled={loading || !canEdit}
+                  aria-label={
+                    showCurrentPassword
+                      ? "Скрыть текущий пароль"
+                      : "Показать текущий пароль"
+                  }
+                  className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </Field>
+          </div>
         </div>
 
         <div className="mt-3 text-xs text-muted-foreground">
