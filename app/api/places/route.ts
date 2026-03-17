@@ -50,19 +50,12 @@ export async function GET(req: Request) {
     if (categoryId) {
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
-        select: { id: true, isActive: true },
+        select: { id: true },
       });
 
       if (!category) {
         return NextResponse.json(
           { error: "Категория не найдена" },
-          { status: 400 },
-        );
-      }
-
-      if (!category.isActive) {
-        return NextResponse.json(
-          { error: "Эта категория недоступна" },
           { status: 400 },
         );
       }
@@ -71,19 +64,12 @@ export async function GET(req: Request) {
     } else if (categorySlug) {
       const category = await prisma.category.findUnique({
         where: { slug: categorySlug },
-        select: { id: true, isActive: true },
+        select: { id: true },
       });
 
       if (!category) {
         return NextResponse.json(
           { error: "Категория не найдена" },
-          { status: 400 },
-        );
-      }
-
-      if (!category.isActive) {
-        return NextResponse.json(
-          { error: "Эта категория недоступна" },
           { status: 400 },
         );
       }
