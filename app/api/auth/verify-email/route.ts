@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -7,7 +8,10 @@ import {
 } from "@/server/security/rate-limit";
 import {
   buildSessionToken,
+  clearEmailVerifyLoginCookie,
+  EMAIL_VERIFY_LOGIN_COOKIE_NAME,
   setSessionCookie,
+  verifyEmailVerifyLoginToken,
 } from "@/server/auth/session-token";
 import {
   cleanupExpiredPendingSignups,
@@ -270,6 +274,7 @@ export async function POST(req: Request) {
       where: { email },
       select: {
         id: true,
+        email: true,
         emailVerifiedAt: true,
         blockedUntil: true,
       },
@@ -300,16 +305,40 @@ export async function POST(req: Request) {
       );
     }
 
+    const store = await cookies();
+    const verifyLoginToken =
+      store.get(EMAIL_VERIFY_LOGIN_COOKIE_NAME)?.value ?? "";
+
+    const hasVerifiedPasswordStep = verifyEmailVerifyLoginToken(
+      verifyLoginToken,
+      {
+        userId: user.id,
+        email,
+      },
+      now,
+    );
+
+    if (!hasVerifiedPasswordStep) {
+      const res = NextResponse.json(
+        { error: GENERIC_VERIFY_ERROR },
+        { status: 400 },
+      );
+      clearEmailVerifyLoginCookie(res);
+      return res;
+    }
+
     const rec = await prisma.emailVerification.findUnique({
       where: { userId_email: { userId: user.id, email } },
       select: { codeHash: true, expiresAt: true, attempts: true },
     });
 
     if (!rec || rec.expiresAt < now || rec.attempts >= 5) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
       );
+      clearEmailVerifyLoginCookie(res);
+      return res;
     }
 
     const ok = isCodeHashMatch(code, rec.codeHash);
@@ -348,6 +377,7 @@ export async function POST(req: Request) {
     });
 
     const res = NextResponse.json({ ok: true });
+    clearEmailVerifyLoginCookie(res);
     setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
     return res;
   } catch (err: unknown) {

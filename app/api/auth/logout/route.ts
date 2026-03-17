@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/server/db/prisma";
 import {
+  clearEmailVerifyLoginCookie,
   SESSION_COOKIE_NAME,
   clearSessionCookie,
   hashSessionToken,
@@ -24,5 +25,6 @@ export async function POST() {
 
   const res = NextResponse.json({ ok: true });
   clearSessionCookie(res);
+  clearEmailVerifyLoginCookie(res);
   return res;
 }

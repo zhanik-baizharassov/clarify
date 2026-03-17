@@ -7,8 +7,11 @@ import {
   getRequestIp,
 } from "@/server/security/rate-limit";
 import {
+  buildEmailVerifyLoginToken,
   buildSessionToken,
+  clearEmailVerifyLoginCookie,
   maybeCleanupExpiredSessions,
+  setEmailVerifyLoginCookie,
   setSessionCookie,
 } from "@/server/auth/session-token";
 import { maybeRunMaintenanceCleanup } from "@/server/maintenance/cleanup";
@@ -127,7 +130,9 @@ export async function POST(req: Request) {
         where: { userId: user.id },
       });
 
-      return NextResponse.json(
+      const verifyLogin = buildEmailVerifyLoginToken(user.id, user.email, now);
+
+      const res = NextResponse.json(
         {
           error: "Подтвердите email, чтобы войти.",
           code: "EMAIL_NOT_VERIFIED",
@@ -136,6 +141,9 @@ export async function POST(req: Request) {
         },
         { status: 403 },
       );
+
+      setEmailVerifyLoginCookie(res, verifyLogin.token, verifyLogin.expiresAt);
+      return res;
     }
 
     const sessionToken = buildSessionToken(now);
@@ -149,6 +157,7 @@ export async function POST(req: Request) {
     });
 
     const res = NextResponse.json({ ok: true });
+    clearEmailVerifyLoginCookie(res);
     setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
 
     return res;
