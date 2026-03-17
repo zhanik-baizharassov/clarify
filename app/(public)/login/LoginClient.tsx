@@ -12,12 +12,35 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function resolveSafeNext(raw: string | null, fallback = "/") {
+  if (!raw) return fallback;
+
+  const value = raw.trim();
+  if (!value) return fallback;
+
+  if (/[\u0000-\u001F\u007F]/.test(value)) return fallback;
+  if (!value.startsWith("/")) return fallback;
+  if (value.startsWith("//")) return fallback;
+  if (value.startsWith("/\\")) return fallback;
+  if (value.includes("://")) return fallback;
+
+  try {
+    const url = new URL(value, "https://clarify.local");
+    if (url.origin !== "https://clarify.local") return fallback;
+
+    const safePath = `${url.pathname}${url.search}${url.hash}`;
+    return safePath.startsWith("/") ? safePath : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function LoginClient() {
   const router = useRouter();
   const search = useSearchParams();
 
   const nextRaw = search.get("next");
-  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/";
+  const next = resolveSafeNext(nextRaw, "/");
 
   const [step, setStep] = useState<"login" | "verify">("login");
 
@@ -206,7 +229,7 @@ export default function LoginClient() {
     if (v && i === OTP_LEN - 1) {
       setTimeout(() => {
         const full = [...otp.slice(0, i), v].join("");
-        if (/^\d{6}$/.test(full)) verifyCode();
+        if (/^\d{6}$/.test(full)) void verifyCode();
       }, 0);
     }
   }
@@ -255,7 +278,7 @@ export default function LoginClient() {
     setTimeout(() => focusOtp(nextIndex), 0);
 
     if (digits.length === OTP_LEN) {
-      setTimeout(() => verifyCode(), 0);
+      setTimeout(() => void verifyCode(), 0);
     }
   }
 
@@ -371,7 +394,7 @@ export default function LoginClient() {
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={verifyCode}
+                onClick={() => void verifyCode()}
                 disabled={verifyLoading || !/^\d{6}$/.test(otpValue)}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
               >
@@ -380,7 +403,7 @@ export default function LoginClient() {
 
               <button
                 type="button"
-                onClick={resendCode}
+                onClick={() => void resendCode()}
                 disabled={verifyLoading || resendLoading || cooldownSec > 0}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
