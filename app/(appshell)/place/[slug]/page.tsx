@@ -15,15 +15,13 @@ function getAuthorLabel(author: {
   nickname?: string | null;
   firstName?: string | null;
   lastName?: string | null;
-  name?: string | null;
 }) {
   const nick = author?.nickname ?? "";
   const fullName = [author?.firstName, author?.lastName]
     .filter(Boolean)
     .join(" ");
-  const name = author?.name ?? "";
 
-  return nick || fullName || name || "Пользователь";
+  return nick || fullName || "Пользователь";
 }
 
 function formatDurationFromSeconds(totalSec: number) {
@@ -65,7 +63,6 @@ export default async function PlacePage({
               nickname: true,
               firstName: true,
               lastName: true,
-              name: true,
             },
           },
           tags: { include: { tag: true } },
@@ -94,12 +91,10 @@ export default async function PlacePage({
     sessionUser = null;
   }
 
-  let myCompany:
-    | {
-        id: string;
-        name: string;
-      }
-    | null = null;
+  let myCompany: {
+    id: string;
+    name: string;
+  } | null = null;
 
   let isOwnerBranch = false;
   let myClaimStatus: ClaimStatus | null = null;
@@ -143,7 +138,9 @@ export default async function PlacePage({
 
           const retryAfterSec =
             CLAIM_RETRY_COOLDOWN_SEC -
-            Math.floor((Date.now() - latestRejected.createdAt.getTime()) / 1000);
+            Math.floor(
+              (Date.now() - latestRejected.createdAt.getTime()) / 1000,
+            );
 
           myClaimRetryAfterSec = Math.max(0, retryAfterSec);
         }
@@ -207,7 +204,9 @@ export default async function PlacePage({
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold">{place.avgRating.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              {place.avgRating.toFixed(2)}
+            </div>
             <div className="text-xs text-muted-foreground">
               {place.ratingCount} отзывов
             </div>
@@ -269,7 +268,9 @@ export default async function PlacePage({
           ) : sessionUser?.role === "COMPANY" && isCatalogCard ? (
             <div className="grid gap-3">
               <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-                <div className="font-medium">Вы можете заявить права на карточку</div>
+                <div className="font-medium">
+                  Вы можете заявить права на карточку
+                </div>
                 <div className="mt-1 text-muted-foreground">
                   Если это ваш бизнес, отправьте заявку на привязку карточки к
                   вашей компании. После проверки управление можно будет получить
@@ -288,7 +289,9 @@ export default async function PlacePage({
 
               {myClaimStatus === "REJECTED" ? (
                 <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-                  <div className="font-medium">Прошлая заявка была отклонена</div>
+                  <div className="font-medium">
+                    Прошлая заявка была отклонена
+                  </div>
                   <div className="mt-1 text-muted-foreground">
                     {myClaimRetryAfterSec > 0
                       ? `Повторную заявку можно отправить через ${formatDurationFromSeconds(

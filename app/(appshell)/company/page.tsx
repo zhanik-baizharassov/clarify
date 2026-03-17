@@ -35,7 +35,6 @@ function authorLabel(
         nickname: string | null;
         firstName: string | null;
         lastName: string | null;
-        name: string | null;
       }
     | null
     | undefined,
@@ -44,8 +43,7 @@ function authorLabel(
 
   const nick = a.nickname ?? "";
   const fullName = [a.firstName, a.lastName].filter(Boolean).join(" ");
-  const nm = a.name ?? "";
-  return nick || fullName || nm || "Пользователь";
+  return nick || fullName || "Пользователь";
 }
 
 function getSingleSearchParam(value?: string | string[]) {
@@ -288,7 +286,6 @@ export default async function CompanyPage({
                 nickname: true,
                 firstName: true,
                 lastName: true,
-                name: true,
               },
             },
             tags: { include: { tag: true } },

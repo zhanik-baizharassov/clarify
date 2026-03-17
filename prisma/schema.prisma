@@ -24,20 +24,8 @@ enum ClaimStatus {
   REJECTED
 }
 
-enum ReportTargetType {
-  PLACE
-  REVIEW
-}
-
-enum ReportStatus {
-  OPEN
-  RESOLVED
-  REJECTED
-}
-
 model User {
   id               String    @id @default(cuid())
-  name             String?
   firstName        String?
   lastName         String?
   nickname         String?   @unique
@@ -58,7 +46,6 @@ model User {
   emailVerifications EmailVerification[]
   companies          Company[]           @relation("CompanyOwner")
   reviews            Review[]
-  reports            Report[]
 }
 
 model Session {
@@ -136,17 +123,13 @@ model Category {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
-  parentId  String?
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children Category[] @relation("CategoryTree")
-  places   Place[]
+  places Place[]
 
-  @@index([parentId])
-  @@index([isActive, parentId, sortOrder])
+  @@index([isActive, sortOrder])
 }
 
 model Place {
@@ -172,31 +155,12 @@ model Place {
 
   company  Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  branches Branch[]
   reviews  Review[]
   claims   Claim[]
-  reports  Report[]
 
   @@index([categoryId])
   @@index([city])
   @@index([companyId])
-}
-
-model Branch {
-  id        String   @id @default(cuid())
-  placeId   String
-  name      String?
-  address   String?
-  city      String?
-  region    String?
-  lat       Float?
-  lng       Float?
-  phone     String?
-  createdAt DateTime @default(now())
-
-  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
-
-  @@index([placeId])
 }
 
 model Tag {
@@ -226,7 +190,6 @@ model Review {
   author  User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   tags    ReviewTag[]
   replies ReviewReply[]
-  reports Report[]
 
   @@index([placeId])
   @@index([authorId])
@@ -273,25 +236,6 @@ model Claim {
 
   @@index([placeId])
   @@index([companyId])
-}
-
-model Report {
-  id         String           @id @default(cuid())
-  reporterId String?
-  targetType ReportTargetType
-  placeId    String?
-  reviewId   String?
-  reason     String
-  status     ReportStatus     @default(OPEN)
-  createdAt  DateTime         @default(now())
-
-  reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
-  place    Place?  @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-
-  @@index([targetType])
-  @@index([status])
-  @@index([createdAt])
 }
 
 model EmailVerification {
