@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,8 @@ async function makeUniqueCategorySlug(name: string) {
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const admin = await requireAdmin();
     if (!admin.ok) return admin.response;
 

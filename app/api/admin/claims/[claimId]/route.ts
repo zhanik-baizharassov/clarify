@@ -3,6 +3,7 @@ import { ClaimStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export async function PATCH(
   { params }: { params: Promise<{ claimId: string }> },
 ) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const { claimId } = await params;
     const input = Schema.parse(await req.json());
 
@@ -95,10 +98,7 @@ export async function PATCH(
       const placeBindResult = await tx.place.updateMany({
         where: {
           id: currentClaim.placeId,
-          OR: [
-            { companyId: null },
-            { companyId: currentClaim.companyId },
-          ],
+          OR: [{ companyId: null }, { companyId: currentClaim.companyId }],
         },
         data: {
           companyId: currentClaim.companyId,
@@ -172,10 +172,7 @@ export async function PATCH(
     });
 
     if (result.type === "not_found") {
-      return NextResponse.json(
-        { error: "Заявка не найдена" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Заявка не найдена" }, { status: 404 });
     }
 
     if (result.type === "already_processed") {

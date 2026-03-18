@@ -8,6 +8,7 @@ import {
 } from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,8 @@ const CreateReviewSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([

@@ -7,6 +7,7 @@ import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { validateKzAddress } from "@/server/address/validate";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,6 +146,8 @@ function buildWorkHours(input: z.infer<typeof Schema>) {
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const input = Schema.parse(await req.json());
 
     const user = await getSessionUser();

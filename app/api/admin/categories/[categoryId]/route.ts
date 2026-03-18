@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +44,8 @@ export async function PATCH(
   { params }: { params: Promise<{ categoryId: string }> },
 ) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const admin = await requireAdmin();
     if (!admin.ok) return admin.response;
 

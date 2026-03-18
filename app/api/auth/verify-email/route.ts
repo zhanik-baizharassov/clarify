@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import {
   buildSessionToken,
   clearEmailVerifyLoginCookie,
@@ -18,12 +15,16 @@ import {
   maybeRunMaintenanceCleanup,
 } from "@/server/maintenance/cleanup";
 import { isCodeHashMatch } from "@/server/email/verification";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
 const Schema = z.object({
   email: z.string().trim().email(),
-  code: z.string().trim().regex(/^\d{6}$/, "Код должен быть из 6 цифр"),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Код должен быть из 6 цифр"),
 });
 
 const GENERIC_VERIFY_ERROR =
@@ -31,6 +32,8 @@ const GENERIC_VERIFY_ERROR =
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([

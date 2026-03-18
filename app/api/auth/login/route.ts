@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import {
   buildEmailVerifyLoginToken,
   buildSessionToken,
@@ -15,6 +12,7 @@ import {
   setSessionCookie,
 } from "@/server/auth/session-token";
 import { maybeRunMaintenanceCleanup } from "@/server/maintenance/cleanup";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -27,6 +25,8 @@ const GENERIC_LOGIN_ERROR = "Не удалось войти. Проверьте 
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -79,19 +79,13 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: GENERIC_LOGIN_ERROR },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
     }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!ok) {
-      return NextResponse.json(
-        { error: GENERIC_LOGIN_ERROR },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
     }
 
     if (user.blockedUntil && user.blockedUntil > now) {
@@ -99,10 +93,7 @@ export async function POST(req: Request) {
         where: { userId: user.id },
       });
 
-      return NextResponse.json(
-        { error: GENERIC_LOGIN_ERROR },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
     }
 
     if (user.role === "COMPANY") {

@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +58,8 @@ function isAppRouteError(err: unknown): err is AppRouteError {
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -132,7 +132,11 @@ export async function POST(req: Request) {
       });
 
       if (!place) {
-        throw createAppError("Карточка места не найдена", 404, "PLACE_NOT_FOUND");
+        throw createAppError(
+          "Карточка места не найдена",
+          404,
+          "PLACE_NOT_FOUND",
+        );
       }
 
       if (place.companyId) {

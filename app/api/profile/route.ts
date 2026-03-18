@@ -11,6 +11,7 @@ import {
   codeTtlMs,
 } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -128,6 +129,8 @@ function getPrismaTarget(err: unknown) {
 
 export async function PATCH(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const body = await readBody(req);
 
     const input = Schema.parse({
@@ -248,8 +251,7 @@ export async function PATCH(req: Request) {
       if (!input.currentPassword) {
         return NextResponse.json(
           {
-            error:
-              "Для смены email или пароля введите текущий пароль.",
+            error: "Для смены email или пароля введите текущий пароль.",
           },
           { status: 400 },
         );

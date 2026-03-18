@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import {
   cleanupExpiredPendingSignups,
   maybeRunMaintenanceCleanup,
@@ -14,6 +11,7 @@ import { assertNoProfanity } from "@/server/security/profanity";
 import { normalizeKzPhone } from "@/shared/kz/kz";
 import { generate6DigitCode, hashCode } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -83,12 +81,16 @@ function getPrismaTarget(err: unknown) {
 function getCooldownLeftSec(lastSentAt: Date) {
   return Math.max(
     0,
-    Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
+    Math.ceil(
+      (COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000,
+    ),
   );
 }
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -203,20 +205,14 @@ export async function POST(req: Request) {
     }
 
     if (existingUserByNickname) {
-      return NextResponse.json(
-        { error: "Никнейм уже занят" },
-        { status: 409 },
-      );
+      return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
     }
 
     if (
       pendingNicknameOwner &&
       pendingNicknameOwner.email.toLowerCase() !== email.toLowerCase()
     ) {
-      return NextResponse.json(
-        { error: "Никнейм уже занят" },
-        { status: 409 },
-      );
+      return NextResponse.json({ error: "Никнейм уже занят" }, { status: 409 });
     }
 
     if (

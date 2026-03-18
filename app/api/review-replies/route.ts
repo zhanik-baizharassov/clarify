@@ -2,12 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -18,6 +16,8 @@ const Schema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -52,7 +52,10 @@ export async function POST(req: Request) {
     });
 
     if (!company) {
-      return NextResponse.json({ error: "Компания не найдена" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Компания не найдена" },
+        { status: 404 },
+      );
     }
 
     const companyRateLimit = await enforceRateLimits([

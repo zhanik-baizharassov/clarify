@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import {
   cleanupExpiredPendingSignups,
   maybeRunMaintenanceCleanup,
@@ -15,6 +12,7 @@ import {
   hashCode,
   codeTtlMs,
 } from "@/server/email/verification";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +33,9 @@ const GENERIC_RESEND_MESSAGE =
 function getCooldownLeftSec(lastSentAt: Date) {
   return Math.max(
     0,
-    Math.ceil((COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000),
+    Math.ceil(
+      (COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000,
+    ),
   );
 }
 
@@ -53,6 +53,8 @@ function genericResendResponse(
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -188,7 +190,9 @@ export async function POST(req: Request) {
     });
 
     if (existingVerification) {
-      const cooldownLeftSec = getCooldownLeftSec(existingVerification.createdAt);
+      const cooldownLeftSec = getCooldownLeftSec(
+        existingVerification.createdAt,
+      );
 
       if (cooldownLeftSec > 0) {
         return genericResendResponse(cooldownLeftSec);
