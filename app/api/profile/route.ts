@@ -22,6 +22,8 @@ export const runtime = "nodejs";
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
 const GENERIC_EMAIL_CHANGE_CONFLICT_ERROR =
   "Этот email сейчас нельзя использовать. Укажите другой email.";
+const PROFILE_EDIT_ALREADY_USED_ERROR = "PROFILE_EDIT_ALREADY_USED";
+const PROFILE_EMAIL_DELIVERY_FAILED_ERROR = "PROFILE_EMAIL_DELIVERY_FAILED";
 
 const Schema = z.object({
   firstName: z.string().trim().min(2).max(50),
@@ -52,6 +54,18 @@ const Schema = z.object({
   password: z.string().min(8).max(200).optional(),
   currentPassword: z.string().min(1).max(200).optional(),
 });
+
+type EmailVerificationSnapshot = {
+  codeHash: string;
+  expiresAt: Date;
+  attempts: number;
+  createdAt: Date;
+} | null;
+
+type SessionSnapshot = {
+  tokenHash: string;
+  expiresAt: Date;
+};
 
 async function readBody(req: Request) {
   const ct = req.headers.get("content-type") || "";
@@ -119,6 +133,79 @@ function getPrismaTarget(err: unknown) {
   }
 
   return typeof target === "string" ? target : "";
+}
+
+async function rollbackEmailChange(params: {
+  userId: string;
+  prevEmail: string;
+  prevFirstName: string | null;
+  prevLastName: string | null;
+  prevNickname: string | null;
+  prevPasswordHash: string;
+  prevEmailVerifiedAt: Date | null;
+  prevProfileEditCount: number;
+  prevProfileEditedAt: Date | null;
+  nextEmail: string;
+  previousEmailVerification: EmailVerificationSnapshot;
+  previousSessions: SessionSnapshot[];
+}) {
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: params.userId },
+      data: {
+        firstName: params.prevFirstName,
+        lastName: params.prevLastName,
+        nickname: params.prevNickname,
+        email: params.prevEmail,
+        passwordHash: params.prevPasswordHash,
+        emailVerifiedAt: params.prevEmailVerifiedAt,
+        profileEditCount: params.prevProfileEditCount,
+        profileEditedAt: params.prevProfileEditedAt,
+      },
+    });
+
+    if (params.previousEmailVerification) {
+      await tx.emailVerification.upsert({
+        where: {
+          userId_email: {
+            userId: params.userId,
+            email: params.nextEmail,
+          },
+        },
+        update: {
+          codeHash: params.previousEmailVerification.codeHash,
+          expiresAt: params.previousEmailVerification.expiresAt,
+          attempts: params.previousEmailVerification.attempts,
+          createdAt: params.previousEmailVerification.createdAt,
+        },
+        create: {
+          userId: params.userId,
+          email: params.nextEmail,
+          codeHash: params.previousEmailVerification.codeHash,
+          expiresAt: params.previousEmailVerification.expiresAt,
+          attempts: params.previousEmailVerification.attempts,
+          createdAt: params.previousEmailVerification.createdAt,
+        },
+      });
+    } else {
+      await tx.emailVerification.deleteMany({
+        where: {
+          userId: params.userId,
+          email: params.nextEmail,
+        },
+      });
+    }
+
+    if (params.previousSessions.length > 0) {
+      await tx.session.createMany({
+        data: params.previousSessions.map((session) => ({
+          userId: params.userId,
+          tokenHash: session.tokenHash,
+          expiresAt: session.expiresAt,
+        })),
+      });
+    }
+  });
 }
 
 export async function PATCH(req: Request) {
@@ -209,11 +296,13 @@ export async function PATCH(req: Request) {
       where: { id: user.id },
       select: {
         email: true,
+        emailVerifiedAt: true,
         firstName: true,
         lastName: true,
         nickname: true,
         passwordHash: true,
         profileEditCount: true,
+        profileEditedAt: true,
       },
     });
 
@@ -304,22 +393,111 @@ export async function PATCH(req: Request) {
       }
     }
 
-    try {
-      const updateRes = await prisma.user.updateMany({
-        where: { id: user.id, profileEditCount: 0 },
-        data: {
-          firstName: input.firstName,
-          lastName: input.lastName,
-          nickname: input.nickname,
-          email: nextEmail,
-          ...(isEmailChanged ? { emailVerifiedAt: null } : {}),
-          ...(passwordHash ? { passwordHash } : {}),
-          profileEditCount: 1,
-          profileEditedAt: new Date(),
-        },
-      });
+    if (!isEmailChanged) {
+      try {
+        const updateRes = await prisma.user.updateMany({
+          where: { id: user.id, profileEditCount: 0 },
+          data: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            nickname: input.nickname,
+            ...(passwordHash ? { passwordHash } : {}),
+            profileEditCount: 1,
+            profileEditedAt: new Date(),
+          },
+        });
 
-      if (updateRes.count !== 1) {
+        if (updateRes.count !== 1) {
+          return NextResponse.json(
+            {
+              error:
+                "Основные данные профиля уже изменены. Их можно изменить только 1 раз.",
+            },
+            { status: 409 },
+          );
+        }
+      } catch (e: unknown) {
+        if (isLikelyPrismaUniqueErr(e)) {
+          const target = getPrismaTarget(e);
+
+          if (target.includes("nickname")) {
+            return NextResponse.json(
+              { error: "Никнейм уже занят" },
+              { status: 409 },
+            );
+          }
+
+          return NextResponse.json(
+            { error: "Уникальное значение уже занято" },
+            { status: 409 },
+          );
+        }
+        throw e;
+      }
+
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    const code = generate6DigitCode();
+    const codeHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + codeTtlMs());
+
+    const [previousEmailVerification, previousSessions] = await Promise.all([
+      prisma.emailVerification.findUnique({
+        where: {
+          userId_email: {
+            userId: user.id,
+            email: nextEmail,
+          },
+        },
+        select: {
+          codeHash: true,
+          expiresAt: true,
+          attempts: true,
+          createdAt: true,
+        },
+      }),
+      prisma.session.findMany({
+        where: { userId: user.id },
+        select: {
+          tokenHash: true,
+          expiresAt: true,
+        },
+      }),
+    ]);
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const updateRes = await tx.user.updateMany({
+          where: { id: user.id, profileEditCount: 0 },
+          data: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            nickname: input.nickname,
+            email: nextEmail,
+            emailVerifiedAt: null,
+            ...(passwordHash ? { passwordHash } : {}),
+            profileEditCount: 1,
+            profileEditedAt: new Date(),
+          },
+        });
+
+        if (updateRes.count !== 1) {
+          throw new Error(PROFILE_EDIT_ALREADY_USED_ERROR);
+        }
+
+        await tx.emailVerification.upsert({
+          where: { userId_email: { userId: user.id, email: nextEmail } },
+          update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
+          create: { userId: user.id, email: nextEmail, codeHash, expiresAt },
+        });
+
+        await tx.session.deleteMany({
+          where: { userId: user.id },
+        });
+      });
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === PROFILE_EDIT_ALREADY_USED_ERROR) {
         return NextResponse.json(
           {
             error:
@@ -328,7 +506,7 @@ export async function PATCH(req: Request) {
           { status: 409 },
         );
       }
-    } catch (e: unknown) {
+
       if (isLikelyPrismaUniqueErr(e)) {
         const target = getPrismaTarget(e);
 
@@ -351,42 +529,64 @@ export async function PATCH(req: Request) {
           { status: 409 },
         );
       }
+
       throw e;
     }
 
-    if (isEmailChanged) {
-      const code = generate6DigitCode();
-      const codeHash = hashCode(code);
-      const expiresAt = new Date(Date.now() + codeTtlMs());
-
-      await prisma.emailVerification.upsert({
-        where: { userId_email: { userId: user.id, email: nextEmail } },
-        update: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
-        create: { userId: user.id, email: nextEmail, codeHash, expiresAt },
-      });
-
+    try {
       await sendEmailVerificationCode(nextEmail, code);
+    } catch (mailErr) {
+      try {
+        await rollbackEmailChange({
+          userId: user.id,
+          prevEmail,
+          prevFirstName: current.firstName,
+          prevLastName: current.lastName,
+          prevNickname: current.nickname,
+          prevPasswordHash: current.passwordHash,
+          prevEmailVerifiedAt: current.emailVerifiedAt,
+          prevProfileEditCount: current.profileEditCount,
+          prevProfileEditedAt: current.profileEditedAt,
+          nextEmail,
+          previousEmailVerification,
+          previousSessions,
+        });
+      } catch (rollbackErr) {
+        console.error("PROFILE EMAIL CHANGE ROLLBACK ERROR:", rollbackErr);
+      }
 
-      await prisma.session.deleteMany({
-        where: { userId: user.id },
-      });
+      if (
+        mailErr instanceof Error &&
+        mailErr.message.startsWith("Mail: env")
+      ) {
+        return NextResponse.json(
+          { error: "Почта не настроена (SMTP env). Изменения не сохранены." },
+          { status: 500 },
+        );
+      }
 
-      const res = NextResponse.json(
+      return NextResponse.json(
         {
-          ok: true,
-          needsEmailVerification: true,
-          email: nextEmail,
-          message:
-            "Email изменён. Мы отправили код подтверждения на новую почту. Подтвердите email и войдите заново.",
+          error:
+            "Не удалось отправить код подтверждения. Изменения не сохранены.",
         },
-        { status: 200 },
+        { status: 500 },
       );
-
-      clearSessionCookie(res);
-      return res;
     }
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    const res = NextResponse.json(
+      {
+        ok: true,
+        needsEmailVerification: true,
+        email: nextEmail,
+        message:
+          "Email изменён. Мы отправили код подтверждения на новую почту. Подтвердите email и войдите заново.",
+      },
+      { status: 200 },
+    );
+
+    clearSessionCookie(res);
+    return res;
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       const issue = err.issues?.[0];
@@ -397,6 +597,16 @@ export async function PATCH(req: Request) {
 
     if (err instanceof Error && err.message.includes("недопустимые слова")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+
+    if (err instanceof Error && err.message === PROFILE_EMAIL_DELIVERY_FAILED_ERROR) {
+      return NextResponse.json(
+        {
+          error:
+            "Не удалось отправить код подтверждения. Изменения не сохранены.",
+        },
+        { status: 500 },
+      );
     }
 
     if (err instanceof Error && err.message.startsWith("Mail: env")) {
