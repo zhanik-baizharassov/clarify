@@ -12,10 +12,7 @@ import {
   codeTtlMs,
 } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
-import {
-  enforceRateLimits,
-  getRequestIp,
-} from "@/server/security/rate-limit";
+import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -334,8 +331,7 @@ export async function PATCH(req: Request) {
       if (!input.currentPassword) {
         return NextResponse.json(
           {
-            error:
-              "Для смены email или пароля введите текущий пароль.",
+            error: "Для смены email или пароля введите текущий пароль.",
           },
           { status: 400 },
         );
@@ -374,7 +370,7 @@ export async function PATCH(req: Request) {
     }
 
     if (isEmailChanged) {
-      const [exists, pendingCompany] = await Promise.all([
+      const [exists, pendingCompany, pendingUser] = await Promise.all([
         prisma.user.findUnique({
           where: { email: nextEmail },
           select: { id: true },
@@ -383,9 +379,13 @@ export async function PATCH(req: Request) {
           where: { email: nextEmail },
           select: { id: true },
         }),
+        prisma.pendingUserSignup.findUnique({
+          where: { email: nextEmail },
+          select: { id: true },
+        }),
       ]);
 
-      if ((exists && exists.id !== user.id) || pendingCompany) {
+      if ((exists && exists.id !== user.id) || pendingCompany || pendingUser) {
         return NextResponse.json(
           { error: GENERIC_EMAIL_CHANGE_CONFLICT_ERROR },
           { status: 409 },
@@ -555,10 +555,7 @@ export async function PATCH(req: Request) {
         console.error("PROFILE EMAIL CHANGE ROLLBACK ERROR:", rollbackErr);
       }
 
-      if (
-        mailErr instanceof Error &&
-        mailErr.message.startsWith("Mail: env")
-      ) {
+      if (mailErr instanceof Error && mailErr.message.startsWith("Mail: env")) {
         return NextResponse.json(
           { error: "Почта не настроена (SMTP env). Изменения не сохранены." },
           { status: 500 },
@@ -599,7 +596,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    if (err instanceof Error && err.message === PROFILE_EMAIL_DELIVERY_FAILED_ERROR) {
+    if (
+      err instanceof Error &&
+      err.message === PROFILE_EMAIL_DELIVERY_FAILED_ERROR
+    ) {
       return NextResponse.json(
         {
           error:
