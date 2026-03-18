@@ -4,6 +4,7 @@ import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { clearSessionCookie } from "@/server/auth/session-token";
+import { enforceSameOrigin } from "@/server/security/csrf";
 import { assertNoProfanity } from "@/server/security/profanity";
 import {
   generate6DigitCode,
@@ -11,13 +12,10 @@ import {
   codeTtlMs,
 } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
-import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
 const allowedTlds = ["ru", "com", "kz", "net", "org", "io"];
-const allowedAvatarTypes = ["image/jpeg", "image/png", "image/webp"];
-const maxAvatarBytes = 1_000_000;
 const GENERIC_EMAIL_CHANGE_CONFLICT_ERROR =
   "Этот email сейчас нельзя использовать. Укажите другой email.";
 
@@ -49,7 +47,6 @@ const Schema = z.object({
     ),
   password: z.string().min(8).max(200).optional(),
   currentPassword: z.string().min(1).max(200).optional(),
-  avatarClear: z.boolean().optional(),
 });
 
 async function readBody(req: Request) {
@@ -75,9 +72,6 @@ async function readBody(req: Request) {
         ? currentPasswordRaw
         : undefined;
 
-    const avatarClear = String(fd.get("avatarClear") ?? "") === "1";
-    const avatar = fd.get("avatar");
-
     return {
       firstName,
       lastName,
@@ -85,8 +79,6 @@ async function readBody(req: Request) {
       email,
       password,
       currentPassword,
-      avatarClear,
-      avatar,
     };
   }
 
@@ -97,8 +89,6 @@ async function readBody(req: Request) {
       typeof json?.currentPassword === "string" && json.currentPassword.trim()
         ? json.currentPassword
         : undefined,
-    avatarClear: Boolean(json?.avatarClear),
-    avatar: null,
   };
 }
 
@@ -131,6 +121,7 @@ export async function PATCH(req: Request) {
   try {
     const csrf = enforceSameOrigin(req);
     if (csrf) return csrf;
+
     const body = await readBody(req);
 
     const input = Schema.parse({
@@ -140,7 +131,6 @@ export async function PATCH(req: Request) {
       email: body.email,
       password: body.password,
       currentPassword: body.currentPassword,
-      avatarClear: body.avatarClear,
     });
 
     const user = await getSessionUser();
@@ -179,32 +169,6 @@ export async function PATCH(req: Request) {
       passwordHash = await bcrypt.hash(input.password, 10);
     }
 
-    let newAvatarUrl: string | null | undefined;
-
-    if (body.avatar && typeof body.avatar !== "string") {
-      const file = body.avatar as File;
-
-      if (!allowedAvatarTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: "Аватар: разрешены только JPG / PNG / WEBP" },
-          { status: 400 },
-        );
-      }
-
-      const ab = await file.arrayBuffer();
-      if (ab.byteLength > maxAvatarBytes) {
-        return NextResponse.json(
-          { error: "Аватар: файл слишком большой (макс. 1MB)" },
-          { status: 400 },
-        );
-      }
-
-      const b64 = Buffer.from(ab).toString("base64");
-      newAvatarUrl = `data:${file.type};base64,${b64}`;
-    } else if (input.avatarClear) {
-      newAvatarUrl = null;
-    }
-
     const current = await prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -212,7 +176,6 @@ export async function PATCH(req: Request) {
         firstName: true,
         lastName: true,
         nickname: true,
-        avatarUrl: true,
         passwordHash: true,
         profileEditCount: true,
       },
@@ -226,16 +189,11 @@ export async function PATCH(req: Request) {
     const nextEmail = input.email.trim().toLowerCase();
     const isEmailChanged = nextEmail !== prevEmail;
 
-    const isAvatarChanged =
-      Boolean(body.avatar && typeof body.avatar !== "string") ||
-      (input.avatarClear && current.avatarUrl !== null);
-
     const isMainChanged =
       input.firstName !== (current.firstName ?? "") ||
       input.lastName !== (current.lastName ?? "") ||
       input.nickname !== (current.nickname ?? "") ||
-      isEmailChanged ||
-      isAvatarChanged;
+      isEmailChanged;
 
     const isPasswordChanged = Boolean(passwordHash);
     const isSensitiveChange = isEmailChanged || isPasswordChanged;
@@ -251,7 +209,8 @@ export async function PATCH(req: Request) {
       if (!input.currentPassword) {
         return NextResponse.json(
           {
-            error: "Для смены email или пароля введите текущий пароль.",
+            error:
+              "Для смены email или пароля введите текущий пароль.",
           },
           { status: 400 },
         );
@@ -318,7 +277,6 @@ export async function PATCH(req: Request) {
           nickname: input.nickname,
           email: nextEmail,
           ...(isEmailChanged ? { emailVerifiedAt: null } : {}),
-          ...(isAvatarChanged ? { avatarUrl: newAvatarUrl ?? null } : {}),
           ...(passwordHash ? { passwordHash } : {}),
           profileEditCount: 1,
           profileEditedAt: new Date(),

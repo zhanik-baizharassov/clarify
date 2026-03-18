@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ProfileEditForm from "@/features/profile/components/profile-edit-form";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,6 @@ export default async function ProfilePage({
         nickname: true,
         phone: true,
         email: true,
-        avatarUrl: true,
         createdAt: true,
         profileEditCount: true,
         emailVerifiedAt: true,
@@ -129,7 +129,6 @@ export default async function ProfilePage({
     lastName: user.lastName ?? "",
     nickname: user.nickname ?? "",
     email: user.email,
-    avatarUrl: user.avatarUrl ?? null,
   };
 
   return (
@@ -165,15 +164,17 @@ export default async function ProfilePage({
         <section className="rounded-2xl border bg-background p-5">
           <div className="flex items-start gap-4">
             <div className="relative">
-              <img
-                src={user.avatarUrl || "/avatar-placeholder.png"}
-                alt="avatar"
-                width={96}
-                height={96}
-                className="h-24 w-24 rounded-2xl border object-cover"
+              <UserAvatar
+                size="lg"
+                user={{
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  nickname: user.nickname,
+                  email: user.email,
+                }}
               />
               <div className="mt-2 text-center text-xs text-muted-foreground">
-                Аватар
+                Системный аватар
               </div>
             </div>
 

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 type TabKey = "main" | "security";
 
@@ -12,65 +12,9 @@ type InitialVM = {
   lastName: string;
   nickname: string;
   email: string;
-  avatarUrl: string | null;
 };
 
 const NICK_RE = /^[a-zA-Z0-9_]+$/;
-const MAX_CLIENT_MB = 1;
-
-async function resizeToFile(
-  file: File,
-  maxSide = 512,
-  quality = 0.86,
-): Promise<File> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error("Не удалось прочитать файл"));
-    r.readAsDataURL(file);
-  });
-
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const i = new window.Image();
-    i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error("Не удалось загрузить изображение"));
-    i.src = dataUrl;
-  });
-
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-
-  const scale = Math.min(1, maxSide / Math.max(w, h));
-  const tw = Math.max(1, Math.round(w * scale));
-  const th = Math.max(1, Math.round(h * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = tw;
-  canvas.height = th;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas не поддерживается");
-
-  ctx.drawImage(img, 0, 0, tw, th);
-
-  const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
-  const ext = outType === "image/png" ? "png" : "jpg";
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("Не удалось обработать фото"))),
-      outType,
-      outType === "image/jpeg" ? quality : undefined,
-    );
-  });
-
-  if (blob.size > MAX_CLIENT_MB * 1024 * 1024) {
-    throw new Error(`Аватар: файл больше ${MAX_CLIENT_MB}MB`);
-  }
-
-  const nameBase = (file.name || "avatar").replace(/\.[^.]+$/, "");
-  return new File([blob], `${nameBase}.${ext}`, { type: outType });
-}
 
 export default function ProfileEditForm({
   tab = "main",
@@ -89,13 +33,6 @@ export default function ProfileEditForm({
   const [nickname, setNickname] = useState(initial.nickname ?? "");
   const [email, setEmail] = useState(initial.email ?? "");
 
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    initial.avatarUrl ?? null,
-  );
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarClear, setAvatarClear] = useState(false);
-
   const [changePassword, setChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
@@ -113,14 +50,6 @@ export default function ProfileEditForm({
     if (tab === "security") setChangePassword(true);
   }, [tab]);
 
-  useEffect(() => {
-    return () => {
-      if (avatarPreview?.startsWith("blob:")) {
-        URL.revokeObjectURL(avatarPreview);
-      }
-    };
-  }, [avatarPreview]);
-
   const normalizedInitialEmail = initial.email.trim().toLowerCase();
   const normalizedNextEmail = email.trim().toLowerCase();
   const isEmailChanged = normalizedNextEmail !== normalizedInitialEmail;
@@ -129,46 +58,6 @@ export default function ProfileEditForm({
     if (tab === "security") return "Сохранить пароль";
     return canEdit ? "Сохранить (1 раз)" : "Сохранить";
   }, [tab, canEdit]);
-
-  async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-
-    if (!/^image\/(png|jpeg|jpg|webp)$/.test(f.type)) {
-      setErr("Аватар: поддерживаются JPG/PNG/WEBP");
-      return;
-    }
-
-    setErr(null);
-    setOk(null);
-    setAvatarClear(false);
-
-    try {
-      const resized = await resizeToFile(f, 512, 0.86);
-
-      const url = URL.createObjectURL(resized);
-      if (avatarPreview?.startsWith("blob:")) {
-        URL.revokeObjectURL(avatarPreview);
-      }
-
-      setAvatarFile(resized);
-      setAvatarPreview(url);
-    } catch (e: any) {
-      setErr(e?.message ?? "Не удалось обработать изображение");
-      setAvatarFile(null);
-    } finally {
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
-  function onRemoveAvatar() {
-    if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
-    setAvatarPreview(null);
-    setAvatarFile(null);
-    setAvatarClear(true);
-    setErr(null);
-    setOk(null);
-  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -230,11 +119,6 @@ export default function ProfileEditForm({
 
       if (cp) fd.set("currentPassword", cp);
       if (changePassword && password.trim()) fd.set("password", password);
-
-      if (tab === "main") {
-        if (avatarClear) fd.set("avatarClear", "1");
-        if (avatarFile) fd.set("avatar", avatarFile);
-      }
 
       const res = await fetch("/api/profile", {
         method: "PATCH",
@@ -435,56 +319,23 @@ export default function ProfileEditForm({
       </div>
 
       <div className="rounded-2xl border bg-background p-5">
-        <div className="text-sm font-semibold">Аватар</div>
+        <div className="text-sm font-semibold">Системный аватар</div>
 
         <div className="mt-4 flex flex-wrap items-center gap-4">
-          <div className="relative h-16 w-16 overflow-hidden rounded-2xl border bg-muted/30">
-            {avatarPreview ? (
-              <Image
-                src={avatarPreview}
-                alt="avatar"
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <div className="h-full w-full" />
-            )}
+          <UserAvatar
+            size="md"
+            user={{
+              firstName,
+              lastName,
+              nickname,
+              email,
+            }}
+          />
+
+          <div className="text-sm text-muted-foreground">
+            Аватар формируется автоматически по вашим данным и не требует
+            загрузки изображений.
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              className="hidden"
-              onChange={onPickAvatar}
-              disabled={loading || !canEdit}
-            />
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
-              onClick={() => fileRef.current?.click()}
-              disabled={loading || !canEdit}
-            >
-              Выбрать фото
-            </button>
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center rounded-xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
-              onClick={onRemoveAvatar}
-              disabled={
-                loading || !canEdit || (!avatarPreview && !initial.avatarUrl)
-              }
-            >
-              Удалить фото
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-3 text-xs text-muted-foreground">
-          Форматы: JPG/PNG/WEBP. Лимит: до 1MB.
         </div>
       </div>
 
