@@ -1,4 +1,3 @@
-// server/email/mailer.ts
 import nodemailer from "nodemailer";
 
 type SendResult = { ok: true; messageId?: string };
@@ -12,10 +11,15 @@ function getMailMode(): MailMode {
   const raw = String(process.env.MAIL_MODE ?? "").trim().toLowerCase();
   if (raw === "smtp" || raw === "console" || raw === "disabled") return raw;
 
-  // ✅ стабильный дефолт:
-  // - в dev: console (не требует SMTP и всегда работает)
-  // - в prod: smtp
   return process.env.NODE_ENV === "production" ? "smtp" : "console";
+}
+
+function assertSafeMailModeForEnv(mode: MailMode) {
+  if (process.env.NODE_ENV === "production" && mode !== "smtp") {
+    throw new Error(
+      `Mail: insecure MAIL_MODE="${mode}" is not allowed in production`,
+    );
+  }
 }
 
 function boolFromEnv(v: string | undefined, fallback: boolean) {
@@ -43,6 +47,9 @@ function getFromAddress() {
   const fallback = `"${appName}" <${process.env.SMTP_USER}>`;
   return from || fallback;
 }
+
+const mailMode = getMailMode();
+assertSafeMailModeForEnv(mailMode);
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -77,22 +84,17 @@ export async function sendEmailVerificationCode(
   const safeCode = String(code).replace(/\D/g, "").slice(0, 6);
   if (safeCode.length !== 6) throw new Error("Mail: invalid verification code");
 
-  const mode = getMailMode();
-
-  // ✅ режим "ничего не отправлять" (например тесты)
-  if (mode === "disabled") {
+  if (mailMode === "disabled") {
     return { ok: true, messageId: "disabled" };
   }
 
-  // ✅ режим "в консоль" — стабилен для всех девов, не требует SMTP
-  if (mode === "console") {
+  if (mailMode === "console") {
     console.log(
       `[MAIL_MODE=console] Email verification code for ${safeTo}: ${safeCode} (ttl ${ttlMinutes}m)`,
     );
     return { ok: true, messageId: "console" };
   }
 
-  // mode === "smtp"
   const subject = `Подтверждение email для ${appName}`;
 
   const text =
