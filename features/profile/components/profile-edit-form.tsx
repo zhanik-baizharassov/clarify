@@ -319,6 +319,27 @@ export default function ProfileEditForm({
       </div>
 
       <div className="rounded-2xl border bg-background p-5">
+        <div className="text-sm font-semibold">Системный аватар</div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <UserAvatar
+            size="md"
+            user={{
+              firstName,
+              lastName,
+              nickname,
+              email,
+            }}
+          />
+
+          <div className="text-sm text-muted-foreground">
+            Аватар формируется автоматически по вашим данным и не требует
+            загрузки изображений.
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-background p-5">
         <div className="text-sm font-semibold">Основные данные</div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
