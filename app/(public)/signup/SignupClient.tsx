@@ -216,6 +216,15 @@ export default function SignupPage() {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 410) {
+        resetVerifyStep(
+          data?.error ??
+            "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+        );
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(data?.error ?? "Не удалось подтвердить email");
       }

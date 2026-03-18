@@ -259,7 +259,7 @@ export default function BusinessSignupPage() {
       if (res.status === 410) {
         resetVerifyStep(
           data?.error ??
-            "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+            "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново.",
         );
         return;
       }

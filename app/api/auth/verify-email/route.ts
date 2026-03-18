@@ -16,7 +16,13 @@ import {
 } from "@/server/maintenance/cleanup";
 import { isCodeHashMatch } from "@/server/email/verification";
 import { enforceSameOrigin } from "@/server/security/csrf";
-import { clearPendingSignupCookie } from "@/server/auth/pending-signup";
+import {
+  clearPendingSignupCookie,
+  COMPANY_PENDING_SIGNUP_COOKIE_NAME,
+  PendingSignupFlow,
+  USER_PENDING_SIGNUP_COOKIE_NAME,
+  isPendingSignupTokenMatch,
+} from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
 
@@ -30,6 +36,38 @@ const Schema = z.object({
 
 const GENERIC_VERIFY_ERROR =
   "Не удалось подтвердить email. Запросите новый код и попробуйте снова.";
+
+function inferExclusivePendingFlow(
+  userPendingToken: string,
+  companyPendingToken: string,
+): PendingSignupFlow | null {
+  const hasUserToken = Boolean(userPendingToken);
+  const hasCompanyToken = Boolean(companyPendingToken);
+
+  if (hasCompanyToken && !hasUserToken) return "company";
+  if (hasUserToken && !hasCompanyToken) return "user";
+
+  return null;
+}
+
+function pendingGoneMessage(flow: PendingSignupFlow) {
+  return flow === "company"
+    ? "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново."
+    : "Срок подтверждения аккаунта истёк. Заполните форму заново.";
+}
+
+function createPendingGoneResponse(flow: PendingSignupFlow) {
+  const res = NextResponse.json(
+    {
+      error: pendingGoneMessage(flow),
+      code: "PENDING_SIGNUP_GONE",
+    },
+    { status: 410 },
+  );
+
+  clearPendingSignupCookie(res, flow);
+  return res;
+}
 
 export async function POST(req: Request) {
   try {
@@ -76,6 +114,19 @@ export async function POST(req: Request) {
     await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
+    const store = await cookies();
+    const companyPendingToken =
+      store.get(COMPANY_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
+    const userPendingToken =
+      store.get(USER_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
+    const verifyLoginToken =
+      store.get(EMAIL_VERIFY_LOGIN_COOKIE_NAME)?.value ?? "";
+
+    const exclusivePendingFlow = inferExclusivePendingFlow(
+      userPendingToken,
+      companyPendingToken,
+    );
+
     const pendingCompany = await prisma.pendingCompanySignup.findUnique({
       where: { email },
       select: {
@@ -90,11 +141,23 @@ export async function POST(req: Request) {
         codeHash: true,
         expiresAt: true,
         attempts: true,
+        pendingTokenHash: true,
       },
     });
 
     if (pendingCompany) {
+      const ownsCompanyPendingFlow =
+        !pendingCompany.pendingTokenHash ||
+        isPendingSignupTokenMatch(
+          companyPendingToken,
+          pendingCompany.pendingTokenHash,
+        );
+
       if (pendingCompany.expiresAt < now || pendingCompany.attempts >= 5) {
+        if (ownsCompanyPendingFlow) {
+          return createPendingGoneResponse("company");
+        }
+
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
@@ -192,11 +255,20 @@ export async function POST(req: Request) {
         codeHash: true,
         expiresAt: true,
         attempts: true,
+        pendingTokenHash: true,
       },
     });
 
     if (pendingUser) {
+      const ownsUserPendingFlow =
+        !pendingUser.pendingTokenHash ||
+        isPendingSignupTokenMatch(userPendingToken, pendingUser.pendingTokenHash);
+
       if (pendingUser.expiresAt < now || pendingUser.attempts >= 5) {
+        if (ownsUserPendingFlow) {
+          return createPendingGoneResponse("user");
+        }
+
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
@@ -287,6 +359,10 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
+      if (exclusivePendingFlow && !verifyLoginToken) {
+        return createPendingGoneResponse(exclusivePendingFlow);
+      }
+
       return NextResponse.json(
         { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
@@ -310,10 +386,6 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-
-    const store = await cookies();
-    const verifyLoginToken =
-      store.get(EMAIL_VERIFY_LOGIN_COOKIE_NAME)?.value ?? "";
 
     const hasVerifiedPasswordStep = verifyEmailVerifyLoginToken(
       verifyLoginToken,

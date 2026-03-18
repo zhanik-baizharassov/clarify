@@ -8,6 +8,10 @@ import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { validateKzAddress } from "@/server/address/validate";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,7 +152,23 @@ export async function POST(req: Request) {
   try {
     const csrf = enforceSameOrigin(req);
     if (csrf) return csrf;
-    const input = Schema.parse(await req.json());
+
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "company:branches:create:ip",
+        key: ip,
+        limit: 10,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много запросов на создание филиалов. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
 
     const user = await getSessionUser();
     if (!user) {
@@ -157,6 +177,23 @@ export async function POST(req: Request) {
     if (user.role !== "COMPANY") {
       return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
     }
+
+    const actorRateLimit = await enforceRateLimits([
+      {
+        scope: "company:branches:create:user",
+        key: user.id,
+        limit: 6,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много запросов на создание филиалов. Попробуйте позже.",
+      },
+    ]);
+
+    if (actorRateLimit) {
+      return actorRateLimit;
+    }
+
+    const input = Schema.parse(await req.json());
 
     const company = await prisma.company.findUnique({
       where: { ownerId: user.id },
@@ -168,6 +205,21 @@ export async function POST(req: Request) {
         { error: "Компания не найдена" },
         { status: 404 },
       );
+    }
+
+    const companyRateLimit = await enforceRateLimits([
+      {
+        scope: "company:branches:create:company",
+        key: company.id,
+        limit: 6,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много запросов на создание филиалов. Попробуйте позже.",
+      },
+    ]);
+
+    if (companyRateLimit) {
+      return companyRateLimit;
     }
 
     const category = await prisma.category.findUnique({

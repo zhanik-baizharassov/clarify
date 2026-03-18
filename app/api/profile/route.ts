@@ -12,6 +12,10 @@ import {
   codeTtlMs,
 } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
+import {
+  enforceRateLimits,
+  getRequestIp,
+} from "@/server/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -122,6 +126,46 @@ export async function PATCH(req: Request) {
     const csrf = enforceSameOrigin(req);
     if (csrf) return csrf;
 
+    const ip = getRequestIp(req);
+
+    const ipRateLimit = await enforceRateLimits([
+      {
+        scope: "profile:patch:ip",
+        key: ip,
+        limit: 10,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток изменить профиль. Попробуйте позже.",
+      },
+    ]);
+
+    if (ipRateLimit) {
+      return ipRateLimit;
+    }
+
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (user.role !== "USER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const actorRateLimit = await enforceRateLimits([
+      {
+        scope: "profile:patch:user",
+        key: user.id,
+        limit: 6,
+        windowSec: 10 * 60,
+        errorMessage:
+          "Слишком много попыток изменить профиль. Попробуйте позже.",
+      },
+    ]);
+
+    if (actorRateLimit) {
+      return actorRateLimit;
+    }
+
     const body = await readBody(req);
 
     const input = Schema.parse({
@@ -132,14 +176,6 @@ export async function PATCH(req: Request) {
       password: body.password,
       currentPassword: body.currentPassword,
     });
-
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (user.role !== "USER") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     assertNoProfanity(input.firstName, "Имя");
     assertNoProfanity(input.lastName, "Фамилия");

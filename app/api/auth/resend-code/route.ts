@@ -15,7 +15,9 @@ import {
 } from "@/server/email/verification";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import {
+  clearPendingSignupCookie,
   COMPANY_PENDING_SIGNUP_COOKIE_NAME,
+  PendingSignupFlow,
   USER_PENDING_SIGNUP_COOKIE_NAME,
   isPendingSignupTokenMatch,
 } from "@/server/auth/pending-signup";
@@ -55,6 +57,38 @@ function genericResendResponse(
     ...(typeof ttlMinutes === "number" ? { ttlMinutes } : {}),
     message: GENERIC_RESEND_MESSAGE,
   });
+}
+
+function inferExclusivePendingFlow(
+  userPendingToken: string,
+  companyPendingToken: string,
+): PendingSignupFlow | null {
+  const hasUserToken = Boolean(userPendingToken);
+  const hasCompanyToken = Boolean(companyPendingToken);
+
+  if (hasCompanyToken && !hasUserToken) return "company";
+  if (hasUserToken && !hasCompanyToken) return "user";
+
+  return null;
+}
+
+function pendingGoneMessage(flow: PendingSignupFlow) {
+  return flow === "company"
+    ? "Срок подтверждения бизнес-регистрации истёк. Заполните форму заново."
+    : "Срок подтверждения аккаунта истёк. Заполните форму заново.";
+}
+
+function createPendingGoneResponse(flow: PendingSignupFlow) {
+  const res = NextResponse.json(
+    {
+      error: pendingGoneMessage(flow),
+      code: "PENDING_SIGNUP_GONE",
+    },
+    { status: 410 },
+  );
+
+  clearPendingSignupCookie(res, flow);
+  return res;
 }
 
 type PendingSnapshot = {
@@ -145,6 +179,10 @@ export async function POST(req: Request) {
       store.get(COMPANY_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
     const userPendingToken =
       store.get(USER_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
+    const exclusivePendingFlow = inferExclusivePendingFlow(
+      userPendingToken,
+      companyPendingToken,
+    );
 
     const [pendingCompany, pendingUser] = await Promise.all([
       prisma.pendingCompanySignup.findUnique({
@@ -269,6 +307,10 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
+      if (exclusivePendingFlow) {
+        return createPendingGoneResponse(exclusivePendingFlow);
+      }
+
       return genericResendResponse();
     }
 
