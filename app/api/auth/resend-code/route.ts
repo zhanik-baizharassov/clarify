@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
@@ -13,6 +14,11 @@ import {
   codeTtlMs,
 } from "@/server/email/verification";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  COMPANY_PENDING_SIGNUP_COOKIE_NAME,
+  USER_PENDING_SIGNUP_COOKIE_NAME,
+  isPendingSignupTokenMatch,
+} from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +55,45 @@ function genericResendResponse(
     ...(typeof ttlMinutes === "number" ? { ttlMinutes } : {}),
     message: GENERIC_RESEND_MESSAGE,
   });
+}
+
+type PendingSnapshot = {
+  codeHash: string;
+  expiresAt: Date;
+  attempts: number;
+  lastSentAt: Date;
+};
+
+async function rollbackPendingUser(id: string, snapshot: PendingSnapshot) {
+  try {
+    await prisma.pendingUserSignup.update({
+      where: { id },
+      data: {
+        codeHash: snapshot.codeHash,
+        expiresAt: snapshot.expiresAt,
+        attempts: snapshot.attempts,
+        lastSentAt: snapshot.lastSentAt,
+      },
+    });
+  } catch (err) {
+    console.error("ROLLBACK PENDING USER ERROR:", err);
+  }
+}
+
+async function rollbackPendingCompany(id: string, snapshot: PendingSnapshot) {
+  try {
+    await prisma.pendingCompanySignup.update({
+      where: { id },
+      data: {
+        codeHash: snapshot.codeHash,
+        expiresAt: snapshot.expiresAt,
+        attempts: snapshot.attempts,
+        lastSentAt: snapshot.lastSentAt,
+      },
+    });
+  } catch (err) {
+    console.error("ROLLBACK PENDING COMPANY ERROR:", err);
+  }
 }
 
 export async function POST(req: Request) {
@@ -95,15 +140,45 @@ export async function POST(req: Request) {
     await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
-    const pendingCompany = await prisma.pendingCompanySignup.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        lastSentAt: true,
-      },
-    });
+    const store = await cookies();
+    const companyPendingToken =
+      store.get(COMPANY_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
+    const userPendingToken =
+      store.get(USER_PENDING_SIGNUP_COOKIE_NAME)?.value ?? "";
 
-    if (pendingCompany) {
+    const [pendingCompany, pendingUser] = await Promise.all([
+      prisma.pendingCompanySignup.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          codeHash: true,
+          expiresAt: true,
+          attempts: true,
+          lastSentAt: true,
+          pendingTokenHash: true,
+        },
+      }),
+      prisma.pendingUserSignup.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          codeHash: true,
+          expiresAt: true,
+          attempts: true,
+          lastSentAt: true,
+          pendingTokenHash: true,
+        },
+      }),
+    ]);
+
+    if (
+      pendingCompany &&
+      (!pendingCompany.pendingTokenHash ||
+        isPendingSignupTokenMatch(
+          companyPendingToken,
+          pendingCompany.pendingTokenHash,
+        ))
+    ) {
       const cooldownLeftSec = getCooldownLeftSec(pendingCompany.lastSentAt);
 
       if (cooldownLeftSec > 0) {
@@ -111,6 +186,12 @@ export async function POST(req: Request) {
       }
 
       const code = generate6DigitCode();
+      const snapshot: PendingSnapshot = {
+        codeHash: pendingCompany.codeHash,
+        expiresAt: pendingCompany.expiresAt,
+        attempts: pendingCompany.attempts,
+        lastSentAt: pendingCompany.lastSentAt,
+      };
 
       await prisma.pendingCompanySignup.update({
         where: { id: pendingCompany.id },
@@ -122,22 +203,26 @@ export async function POST(req: Request) {
         },
       });
 
-      await sendEmailVerificationCode(email, code, {
-        ttlMinutes: COMPANY_PENDING_TTL_MIN,
-      });
+      try {
+        await sendEmailVerificationCode(email, code, {
+          ttlMinutes: COMPANY_PENDING_TTL_MIN,
+        });
+      } catch (err) {
+        await rollbackPendingCompany(pendingCompany.id, snapshot);
+        throw err;
+      }
 
       return genericResendResponse(COOLDOWN_SEC, COMPANY_PENDING_TTL_MIN);
     }
 
-    const pendingUser = await prisma.pendingUserSignup.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        lastSentAt: true,
-      },
-    });
-
-    if (pendingUser) {
+    if (
+      pendingUser &&
+      (!pendingUser.pendingTokenHash ||
+        isPendingSignupTokenMatch(
+          userPendingToken,
+          pendingUser.pendingTokenHash,
+        ))
+    ) {
       const cooldownLeftSec = getCooldownLeftSec(pendingUser.lastSentAt);
 
       if (cooldownLeftSec > 0) {
@@ -145,6 +230,12 @@ export async function POST(req: Request) {
       }
 
       const code = generate6DigitCode();
+      const snapshot: PendingSnapshot = {
+        codeHash: pendingUser.codeHash,
+        expiresAt: pendingUser.expiresAt,
+        attempts: pendingUser.attempts,
+        lastSentAt: pendingUser.lastSentAt,
+      };
 
       await prisma.pendingUserSignup.update({
         where: { id: pendingUser.id },
@@ -156,9 +247,14 @@ export async function POST(req: Request) {
         },
       });
 
-      await sendEmailVerificationCode(email, code, {
-        ttlMinutes: USER_PENDING_TTL_MIN,
-      });
+      try {
+        await sendEmailVerificationCode(email, code, {
+          ttlMinutes: USER_PENDING_TTL_MIN,
+        });
+      } catch (err) {
+        await rollbackPendingUser(pendingUser.id, snapshot);
+        throw err;
+      }
 
       return genericResendResponse(COOLDOWN_SEC, USER_PENDING_TTL_MIN);
     }
@@ -186,7 +282,12 @@ export async function POST(req: Request) {
 
     const existingVerification = await prisma.emailVerification.findUnique({
       where: { userId_email: { userId: user.id, email } },
-      select: { createdAt: true },
+      select: {
+        codeHash: true,
+        expiresAt: true,
+        attempts: true,
+        createdAt: true,
+      },
     });
 
     if (existingVerification) {
@@ -202,25 +303,48 @@ export async function POST(req: Request) {
     const code = generate6DigitCode();
     const ttlMs = codeTtlMs();
     const ttlMinutes = Math.max(1, Math.round(ttlMs / 60_000));
+    const nextData = {
+      codeHash: hashCode(code),
+      expiresAt: new Date(now.getTime() + ttlMs),
+      attempts: 0,
+      createdAt: now,
+    };
 
     await prisma.emailVerification.upsert({
       where: { userId_email: { userId: user.id, email } },
       create: {
         userId: user.id,
         email,
-        codeHash: hashCode(code),
-        expiresAt: new Date(now.getTime() + ttlMs),
-        attempts: 0,
+        ...nextData,
       },
-      update: {
-        codeHash: hashCode(code),
-        expiresAt: new Date(now.getTime() + ttlMs),
-        attempts: 0,
-        createdAt: now,
-      },
+      update: nextData,
     });
 
-    await sendEmailVerificationCode(email, code, { ttlMinutes });
+    try {
+      await sendEmailVerificationCode(email, code, { ttlMinutes });
+    } catch (err) {
+      try {
+        if (existingVerification) {
+          await prisma.emailVerification.update({
+            where: { userId_email: { userId: user.id, email } },
+            data: {
+              codeHash: existingVerification.codeHash,
+              expiresAt: existingVerification.expiresAt,
+              attempts: existingVerification.attempts,
+              createdAt: existingVerification.createdAt,
+            },
+          });
+        } else {
+          await prisma.emailVerification.delete({
+            where: { userId_email: { userId: user.id, email } },
+          });
+        }
+      } catch (rollbackErr) {
+        console.error("ROLLBACK EMAIL VERIFICATION ERROR:", rollbackErr);
+      }
+
+      throw err;
+    }
 
     return genericResendResponse(COOLDOWN_SEC, ttlMinutes);
   } catch (err: unknown) {

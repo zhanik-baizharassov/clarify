@@ -71,8 +71,10 @@ export default function BusinessSignupPage() {
   const [pendingEmail, setPendingEmail] = useState<string>("");
 
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LEN).fill(""));
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -100,17 +102,19 @@ export default function BusinessSignupPage() {
     setTimeout(() => focusOtp(0), 0);
   }
 
-  function resetVerifyStep(message?: string) {
+  function resetVerifyStep(message?: string, nextNotice?: string) {
     setStep("form");
     setPendingEmail("");
     setCooldownSec(0);
     setOtp(Array(OTP_LEN).fill(""));
     setErr(message ?? null);
+    setNotice(nextNotice ?? null);
   }
 
   async function submitCompanySignup(payload: CompanySignupPayload) {
     setLoading(true);
     setErr(null);
+    setNotice(null);
 
     try {
       const res = await fetch("/api/auth/company-signup", {
@@ -129,7 +133,11 @@ export default function BusinessSignupPage() {
           typeof data?.cooldownSec === "number" ? data.cooldownSec : 60,
         );
         resetOtp();
-        setErr(typeof data?.notice === "string" ? data.notice : null);
+        setNotice(
+          typeof data?.notice === "string"
+            ? data.notice
+            : "Бизнес-регистрация ожидает подтверждения email. Данные зафиксированы до завершения регистрации.",
+        );
         return;
       }
 
@@ -145,6 +153,7 @@ export default function BusinessSignupPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    setNotice(null);
 
     const cn = companyName.trim();
     const b = bin.trim();
@@ -193,6 +202,7 @@ export default function BusinessSignupPage() {
 
   async function verifyCode() {
     setErr(null);
+    setNotice(null);
 
     if (!pendingEmail) return setErr("Email для подтверждения не найден");
     if (!/^\d{6}$/.test(otpValue)) return setErr("Введите 6-значный код");
@@ -231,6 +241,7 @@ export default function BusinessSignupPage() {
 
   async function resendCode() {
     setErr(null);
+    setNotice(null);
 
     if (cooldownSec > 0) return;
     if (!pendingEmail) return setErr("Email для отправки кода не найден");
@@ -260,11 +271,44 @@ export default function BusinessSignupPage() {
 
       setCooldownSec(nextCooldown);
       resetOtp();
-      setErr("Код отправлен. Проверьте почту.");
+      setNotice(
+        typeof data?.message === "string"
+          ? data.message
+          : "Код отправлен. Проверьте почту.",
+      );
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
     } finally {
       setVerifyLoading(false);
+    }
+  }
+
+  async function cancelPendingSignup() {
+    setErr(null);
+    setNotice(null);
+    setCancelLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/cancel-pending-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flow: "company" }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось начать регистрацию заново");
+      }
+
+      resetVerifyStep(
+        undefined,
+        "Можно изменить email или другие данные и отправить форму заново.",
+      );
+    } catch (e: any) {
+      setErr(e?.message ?? "Ошибка");
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -473,7 +517,8 @@ export default function BusinessSignupPage() {
 
           {formDisabled ? (
             <div className="text-xs text-muted-foreground">
-              Регистрация сохранена как неподтверждённая — завершите её кодом из письма.
+              Данные зафиксированы до подтверждения email. Чтобы изменить email
+              или другие данные, начните регистрацию заново.
             </div>
           ) : null}
         </form>
@@ -531,19 +576,23 @@ export default function BusinessSignupPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  resetVerifyStep();
-                }}
-                disabled={verifyLoading}
+                onClick={() => void cancelPendingSignup()}
+                disabled={verifyLoading || cancelLoading}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
-                Изменить email
+                Изменить email / начать заново
               </button>
             </div>
 
             <div className="mt-3 text-xs text-muted-foreground">
               Можно вставить код целиком (Ctrl+V) в первое поле.
             </div>
+          </div>
+        ) : null}
+
+        {notice ? (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+            {notice}
           </div>
         ) : null}
 
@@ -571,9 +620,7 @@ function Field({
       <div className="flex items-end justify-between gap-3">
         <span className="text-sm font-medium">{label}</span>
         {hint ? (
-          <span className="text-xs text-muted-foreground">
-            {hint}
-          </span>
+          <span className="text-xs text-muted-foreground">{hint}</span>
         ) : null}
       </div>
       {children}

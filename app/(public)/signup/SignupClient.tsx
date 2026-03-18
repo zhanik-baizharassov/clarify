@@ -71,8 +71,10 @@ export default function SignupPage() {
   const [pendingEmail, setPendingEmail] = useState<string>("");
 
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LEN).fill(""));
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -88,6 +90,15 @@ export default function SignupPage() {
   function resetOtp() {
     setOtp(Array(OTP_LEN).fill(""));
     setTimeout(() => focusOtp(0), 0);
+  }
+
+  function resetVerifyStep(nextNotice?: string) {
+    setStep("form");
+    setPendingEmail("");
+    setCooldownSec(0);
+    setOtp(Array(OTP_LEN).fill(""));
+    setErr(null);
+    setNotice(nextNotice ?? null);
   }
 
   useEffect(() => {
@@ -113,6 +124,7 @@ export default function SignupPage() {
   async function submitSignup(payload: SignupPayload) {
     setLoading(true);
     setErr(null);
+    setNotice(null);
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -131,7 +143,11 @@ export default function SignupPage() {
           typeof data?.cooldownSec === "number" ? data.cooldownSec : 60,
         );
         resetOtp();
-        setErr(typeof data?.notice === "string" ? data.notice : null);
+        setNotice(
+          typeof data?.notice === "string"
+            ? data.notice
+            : "Регистрация ожидает подтверждения email. Данные зафиксированы до завершения регистрации.",
+        );
         return;
       }
 
@@ -147,6 +163,7 @@ export default function SignupPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    setNotice(null);
 
     const fn = firstName.trim();
     const ln = lastName.trim();
@@ -185,6 +202,7 @@ export default function SignupPage() {
 
   async function verifyCode() {
     setErr(null);
+    setNotice(null);
 
     if (!pendingEmail) return setErr("Email для подтверждения не найден");
     if (!/^\d{6}$/.test(otpValue)) return setErr("Введите 6-значный код");
@@ -214,6 +232,7 @@ export default function SignupPage() {
 
   async function resendCode() {
     setErr(null);
+    setNotice(null);
 
     if (cooldownSec > 0) return;
     if (!pendingEmail) return setErr("Email для отправки кода не найден");
@@ -229,12 +248,9 @@ export default function SignupPage() {
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 410) {
-        setStep("form");
-        setPendingEmail("");
-        setCooldownSec(0);
-        setOtp(Array(OTP_LEN).fill(""));
-        setErr(
-          data?.error ?? "Срок подтверждения аккаунта истёк. Заполните форму заново.",
+        resetVerifyStep(
+          data?.error ??
+            "Срок подтверждения аккаунта истёк. Заполните форму заново.",
         );
         return;
       }
@@ -246,11 +262,43 @@ export default function SignupPage() {
 
       setCooldownSec(nextCooldown);
       resetOtp();
-      setErr("Код отправлен. Проверьте почту.");
+      setNotice(
+        typeof data?.message === "string"
+          ? data.message
+          : "Код отправлен. Проверьте почту.",
+      );
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
     } finally {
       setVerifyLoading(false);
+    }
+  }
+
+  async function cancelPendingSignup() {
+    setErr(null);
+    setNotice(null);
+    setCancelLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/cancel-pending-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flow: "user" }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Не удалось начать регистрацию заново");
+      }
+
+      resetVerifyStep(
+        "Можно изменить email или другие данные и отправить форму заново.",
+      );
+    } catch (e: any) {
+      setErr(e?.message ?? "Ошибка");
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -438,7 +486,8 @@ export default function SignupPage() {
 
           {formDisabled ? (
             <div className="text-xs text-muted-foreground">
-              Данные зафиксированы — подтвердите email кодом ниже.
+              Данные зафиксированы до подтверждения email. Чтобы изменить email
+              или другие данные, начните регистрацию заново.
             </div>
           ) : null}
         </form>
@@ -496,23 +545,23 @@ export default function SignupPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setStep("form");
-                  setPendingEmail("");
-                  setCooldownSec(0);
-                  setOtp(Array(OTP_LEN).fill(""));
-                  setErr(null);
-                }}
-                disabled={verifyLoading}
+                onClick={() => void cancelPendingSignup()}
+                disabled={verifyLoading || cancelLoading}
                 className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
               >
-                Изменить email
+                Изменить email / начать заново
               </button>
             </div>
 
             <div className="mt-3 text-xs text-muted-foreground">
               Можно вставить код целиком (Ctrl+V) в первое поле.
             </div>
+          </div>
+        ) : null}
+
+        {notice ? (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+            {notice}
           </div>
         ) : null}
 

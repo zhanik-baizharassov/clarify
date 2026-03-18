@@ -12,6 +12,10 @@ import { normalizeKzPhone } from "@/shared/kz/kz";
 import { generate6DigitCode, hashCode } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  buildPendingSignupToken,
+  setPendingSignupCookie,
+} from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
 
@@ -85,6 +89,22 @@ function getCooldownLeftSec(lastSentAt: Date) {
       (COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000,
     ),
   );
+}
+
+function buildPendingUserLockedResponse(email: string, lastSentAt: Date) {
+  const cooldownSec = getCooldownLeftSec(lastSentAt);
+
+  return NextResponse.json({
+    ok: true,
+    needsEmailVerification: true,
+    email,
+    cooldownSec,
+    ttlMinutes: USER_PENDING_TTL_MIN,
+    notice:
+      cooldownSec > 0
+        ? "Регистрация уже ожидает подтверждения. Данные зафиксированы до подтверждения email. Чтобы изменить email или другие данные, начните регистрацию заново."
+        : "Регистрация уже ожидает подтверждения. Данные зафиксированы до подтверждения email. Можно подтвердить email текущим кодом или запросить новый. Чтобы изменить email или другие данные, начните регистрацию заново.",
+  });
 }
 
 export async function POST(req: Request) {
@@ -190,6 +210,13 @@ export async function POST(req: Request) {
       }),
     ]);
 
+    if (existingPendingByEmail) {
+      return buildPendingUserLockedResponse(
+        email,
+        existingPendingByEmail.lastSentAt,
+      );
+    }
+
     if (pendingCompanyByEmail || pendingCompanyByPhone) {
       return NextResponse.json(
         { error: GENERIC_SIGNUP_CONFLICT_ERROR },
@@ -226,60 +253,22 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(raw.password, 10);
-    const cooldownLeftSec = existingPendingByEmail
-      ? getCooldownLeftSec(existingPendingByEmail.lastSentAt)
-      : 0;
 
-    if (existingPendingByEmail) {
-      await prisma.pendingUserSignup.update({
-        where: { email },
+    const code = generate6DigitCode();
+    const expiresAt = new Date(now.getTime() + USER_PENDING_TTL_MS);
+    const pendingToken = buildPendingSignupToken();
+
+    try {
+      await prisma.pendingUserSignup.create({
         data: {
           firstName: raw.firstName,
           lastName: raw.lastName,
           nickname,
           phone,
-          passwordHash,
-        },
-      });
-
-      if (cooldownLeftSec > 0) {
-        return NextResponse.json({
-          ok: true,
-          needsEmailVerification: true,
-          email,
-          cooldownSec: cooldownLeftSec,
-          ttlMinutes: USER_PENDING_TTL_MIN,
-          notice:
-            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
-        });
-      }
-    }
-
-    const code = generate6DigitCode();
-    const expiresAt = new Date(now.getTime() + USER_PENDING_TTL_MS);
-
-    try {
-      await prisma.pendingUserSignup.upsert({
-        where: { email },
-        update: {
-          firstName: raw.firstName,
-          lastName: raw.lastName,
-          nickname,
-          phone,
-          passwordHash,
-          codeHash: hashCode(code),
-          expiresAt,
-          attempts: 0,
-          lastSentAt: now,
-        },
-        create: {
-          firstName: raw.firstName,
-          lastName: raw.lastName,
-          nickname,
-          phone,
           email,
           passwordHash,
           codeHash: hashCode(code),
+          pendingTokenHash: pendingToken.tokenHash,
           expiresAt,
           attempts: 0,
           lastSentAt: now,
@@ -296,7 +285,23 @@ export async function POST(req: Request) {
           );
         }
 
-        if (target.includes("email") || target.includes("phone")) {
+        if (target.includes("email")) {
+          const pending = await prisma.pendingUserSignup.findUnique({
+            where: { email },
+            select: { lastSentAt: true },
+          });
+
+          if (pending) {
+            return buildPendingUserLockedResponse(email, pending.lastSentAt);
+          }
+
+          return NextResponse.json(
+            { error: GENERIC_SIGNUP_CONFLICT_ERROR },
+            { status: 409 },
+          );
+        }
+
+        if (target.includes("phone")) {
           return NextResponse.json(
             { error: GENERIC_SIGNUP_CONFLICT_ERROR },
             { status: 409 },
@@ -312,17 +317,33 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    await sendEmailVerificationCode(email, code, {
-      ttlMinutes: USER_PENDING_TTL_MIN,
-    });
+    try {
+      await sendEmailVerificationCode(email, code, {
+        ttlMinutes: USER_PENDING_TTL_MIN,
+      });
+    } catch (e) {
+      await prisma.pendingUserSignup
+        .deleteMany({
+          where: { email },
+        })
+        .catch((cleanupErr) => {
+          console.error("SIGNUP PENDING CLEANUP ERROR:", cleanupErr);
+        });
 
-    return NextResponse.json({
+      throw e;
+    }
+
+    const res = NextResponse.json({
       ok: true,
       needsEmailVerification: true,
       email,
       cooldownSec: COOLDOWN_SEC,
       ttlMinutes: USER_PENDING_TTL_MIN,
     });
+
+    setPendingSignupCookie(res, "user", pendingToken.rawToken, expiresAt);
+
+    return res;
   } catch (err: unknown) {
     if (err instanceof Error && err.message) {
       if (err.message.includes("номер") || err.message.includes("Телефон")) {

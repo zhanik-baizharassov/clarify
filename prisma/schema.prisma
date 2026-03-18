@@ -73,7 +73,7 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner   User          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner   User      @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   claims  Claim[]
   replies ReviewReply[]
   places  Place[]
@@ -82,38 +82,40 @@ model Company {
 }
 
 model PendingCompanySignup {
-  id           String   @id @default(cuid())
-  companyName  String
-  bin          String   @unique
-  city         String
-  phone        String   @unique
-  email        String   @unique
-  address      String
-  passwordHash String
-  codeHash     String
-  expiresAt    DateTime
-  attempts     Int      @default(0)
-  lastSentAt   DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  companyName      String
+  bin              String   @unique
+  city             String
+  phone            String   @unique
+  email            String   @unique
+  address          String
+  passwordHash     String
+  codeHash         String
+  pendingTokenHash String?  @unique
+  expiresAt        DateTime
+  attempts         Int      @default(0)
+  lastSentAt       DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([expiresAt])
 }
 
 model PendingUserSignup {
-  id           String   @id @default(cuid())
-  firstName    String
-  lastName     String
-  nickname     String   @unique
-  phone        String   @unique
-  email        String   @unique
-  passwordHash String
-  codeHash     String
-  expiresAt    DateTime
-  attempts     Int      @default(0)
-  lastSentAt   DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  firstName        String
+  lastName         String
+  nickname         String   @unique
+  phone            String   @unique
+  email            String   @unique
+  passwordHash     String
+  codeHash         String
+  pendingTokenHash String?  @unique
+  expiresAt        DateTime
+  attempts         Int      @default(0)
+  lastSentAt       DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([expiresAt])
 }

@@ -13,6 +13,10 @@ import { generate6DigitCode, hashCode } from "@/server/email/verification";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 import { validateKzAddress } from "@/server/address/validate";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  buildPendingSignupToken,
+  setPendingSignupCookie,
+} from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
 
@@ -85,6 +89,22 @@ function getCooldownLeftSec(lastSentAt: Date) {
       (COOLDOWN_SEC * 1000 - (Date.now() - lastSentAt.getTime())) / 1000,
     ),
   );
+}
+
+function buildPendingCompanyLockedResponse(email: string, lastSentAt: Date) {
+  const cooldownSec = getCooldownLeftSec(lastSentAt);
+
+  return NextResponse.json({
+    ok: true,
+    needsEmailVerification: true,
+    email,
+    cooldownSec,
+    ttlMinutes: COMPANY_PENDING_TTL_MIN,
+    notice:
+      cooldownSec > 0
+        ? "Бизнес-регистрация уже ожидает подтверждения. Данные зафиксированы до подтверждения email. Чтобы изменить email или другие данные, начните регистрацию заново."
+        : "Бизнес-регистрация уже ожидает подтверждения. Данные зафиксированы до подтверждения email. Можно подтвердить email текущим кодом или запросить новый. Чтобы изменить email или другие данные, начните регистрацию заново.",
+  });
 }
 
 export async function POST(req: Request) {
@@ -160,6 +180,8 @@ export async function POST(req: Request) {
     });
 
     const [
+      pendingUserByEmail,
+      pendingUserByPhone,
       existsEmail,
       phoneOwner,
       binOwner,
@@ -167,6 +189,14 @@ export async function POST(req: Request) {
       pendingBinOwner,
       existingPending,
     ] = await Promise.all([
+      prisma.pendingUserSignup.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      prisma.pendingUserSignup.findUnique({
+        where: { phone },
+        select: { id: true },
+      }),
       prisma.user.findUnique({
         where: { email },
         select: { id: true },
@@ -193,6 +223,17 @@ export async function POST(req: Request) {
       }),
     ]);
 
+    if (existingPending) {
+      return buildPendingCompanyLockedResponse(email, existingPending.lastSentAt);
+    }
+
+    if (pendingUserByEmail || pendingUserByPhone) {
+      return NextResponse.json(
+        { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
+        { status: 409 },
+      );
+    }
+
     if (existsEmail || phoneOwner || binOwner) {
       return NextResponse.json(
         { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
@@ -216,61 +257,22 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
-    if (existingPending) {
-      const cooldownLeftSec = getCooldownLeftSec(existingPending.lastSentAt);
+    const code = generate6DigitCode();
+    const expiresAt = new Date(now.getTime() + COMPANY_PENDING_TTL_MS);
+    const pendingToken = buildPendingSignupToken();
 
-      await prisma.pendingCompanySignup.update({
-        where: { email },
+    try {
+      await prisma.pendingCompanySignup.create({
         data: {
           companyName: input.companyName,
           bin: input.bin,
           city,
           phone,
-          address: normalizedAddress,
-          passwordHash,
-        },
-      });
-
-      if (cooldownLeftSec > 0) {
-        return NextResponse.json({
-          ok: true,
-          needsEmailVerification: true,
-          email,
-          cooldownSec: cooldownLeftSec,
-          ttlMinutes: COMPANY_PENDING_TTL_MIN,
-          notice:
-            "Данные обновлены. Если подтверждение доступно, используйте уже отправленный код или дождитесь окончания таймера.",
-        });
-      }
-    }
-
-    const code = generate6DigitCode();
-    const expiresAt = new Date(now.getTime() + COMPANY_PENDING_TTL_MS);
-
-    try {
-      await prisma.pendingCompanySignup.upsert({
-        where: { email },
-        update: {
-          companyName: input.companyName,
-          bin: input.bin,
-          city,
-          phone,
-          address: normalizedAddress,
-          passwordHash,
-          codeHash: hashCode(code),
-          expiresAt,
-          attempts: 0,
-          lastSentAt: now,
-        },
-        create: {
-          companyName: input.companyName,
-          bin: input.bin,
-          city,
-          phone,
           email,
           address: normalizedAddress,
           passwordHash,
           codeHash: hashCode(code),
+          pendingTokenHash: pendingToken.tokenHash,
           expiresAt,
           attempts: 0,
           lastSentAt: now,
@@ -280,11 +282,23 @@ export async function POST(req: Request) {
       if (isP2002(err)) {
         const target = getPrismaTarget(err);
 
-        if (
-          target.includes("email") ||
-          target.includes("phone") ||
-          target.includes("bin")
-        ) {
+        if (target.includes("email")) {
+          const pending = await prisma.pendingCompanySignup.findUnique({
+            where: { email },
+            select: { lastSentAt: true },
+          });
+
+          if (pending) {
+            return buildPendingCompanyLockedResponse(email, pending.lastSentAt);
+          }
+
+          return NextResponse.json(
+            { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
+            { status: 409 },
+          );
+        }
+
+        if (target.includes("phone") || target.includes("bin")) {
           return NextResponse.json(
             { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
             { status: 409 },
@@ -300,17 +314,36 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    await sendEmailVerificationCode(email, code, {
-      ttlMinutes: COMPANY_PENDING_TTL_MIN,
-    });
+    try {
+      await sendEmailVerificationCode(email, code, {
+        ttlMinutes: COMPANY_PENDING_TTL_MIN,
+      });
+    } catch (e) {
+      await prisma.pendingCompanySignup
+        .deleteMany({
+          where: { email },
+        })
+        .catch((cleanupErr) => {
+          console.error(
+            "COMPANY SIGNUP PENDING CLEANUP ERROR:",
+            cleanupErr,
+          );
+        });
 
-    return NextResponse.json({
+      throw e;
+    }
+
+    const res = NextResponse.json({
       ok: true,
       needsEmailVerification: true,
       email,
       cooldownSec: COOLDOWN_SEC,
       ttlMinutes: COMPANY_PENDING_TTL_MIN,
     });
+
+    setPendingSignupCookie(res, "company", pendingToken.rawToken, expiresAt);
+
+    return res;
   } catch (err: unknown) {
     if (err instanceof Error && err.message) {
       if (

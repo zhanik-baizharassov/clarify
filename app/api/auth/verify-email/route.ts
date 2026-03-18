@@ -16,6 +16,7 @@ import {
 } from "@/server/maintenance/cleanup";
 import { isCodeHashMatch } from "@/server/email/verification";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { clearPendingSignupCookie } from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
 
@@ -173,6 +174,7 @@ export async function POST(req: Request) {
       });
 
       const res = NextResponse.json({ ok: true });
+      clearPendingSignupCookie(res, "company");
       setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
       return res;
     }
@@ -269,6 +271,7 @@ export async function POST(req: Request) {
       });
 
       const res = NextResponse.json({ ok: true });
+      clearPendingSignupCookie(res, "user");
       setSessionCookie(res, sessionToken.rawToken, sessionToken.expiresAt);
       return res;
     }
