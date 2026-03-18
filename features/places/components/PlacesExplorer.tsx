@@ -63,9 +63,7 @@ function parsePlacesMeta(
     typeof raw?.page === "number" && raw.page > 0 ? raw.page : requestedPage;
 
   const limit =
-    typeof raw?.limit === "number" && raw.limit > 0
-      ? raw.limit
-      : DEFAULT_LIMIT;
+    typeof raw?.limit === "number" && raw.limit > 0 ? raw.limit : DEFAULT_LIMIT;
 
   const total =
     typeof raw?.total === "number" && raw.total >= 0 ? raw.total : itemCount;
@@ -643,10 +641,9 @@ function SearchCard({
           <div className="md:col-span-8">
             <input
               className="h-12 w-full rounded-2xl border bg-background px-5 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14 sm:text-lg"
-              placeholder="Например: Coffee, СТО, доставка…"
+              placeholder="Например: Coffee Boom"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              disabled={loading}
             />
           </div>
 

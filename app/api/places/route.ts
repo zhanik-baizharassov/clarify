@@ -81,11 +81,7 @@ export async function GET(req: Request) {
 
     if (q) {
       and.push({
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { address: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
-        ],
+        name: { startsWith: q, mode: "insensitive" },
       });
     }
 
