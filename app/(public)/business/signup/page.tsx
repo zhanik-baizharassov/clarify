@@ -1,6 +1,12 @@
-//app/(public)/business/signup/page.tsx
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import BusinessSignupClient from "./BusinessSignupClient";
+
+export const metadata: Metadata = {
+  title: "Регистрация компании",
+  description:
+    "Создайте бизнес-аккаунт Clarify, чтобы управлять карточкой компании, добавлять филиалы и отвечать на отзывы.",
+};
 
 function Loading() {
   return (
