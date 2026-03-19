@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   BadgeCheck,
   Building2,
-  ChevronRight,
   FileCheck2,
   MessageCircleReply,
   ShieldCheck,
@@ -41,21 +40,21 @@ export const metadata: Metadata = {
 const valueCards = [
   {
     icon: <MessageCircleReply className="h-5 w-5" />,
-    title: "Официальные ответы от лица компании",
+    title: "Официальные ответы компании",
     description:
-      "Отвечайте на отзывы верифицированно и выстраивайте понятную коммуникацию с клиентами прямо в карточке места.",
+      "Отвечайте на отзывы от имени бизнеса и поддерживайте открытую коммуникацию с клиентами прямо в карточке места.",
   },
   {
     icon: <Store className="h-5 w-5" />,
-    title: "Управление филиалами в одном кабинете",
+    title: "Управление филиалами",
     description:
-      "Собирайте карточки ваших точек в одном месте и работайте с отзывами по каждому филиалу отдельно.",
+      "Работайте с несколькими точками из одного кабинета и отслеживайте отзывы по каждому филиалу отдельно.",
   },
   {
     icon: <FileCheck2 className="h-5 w-5" />,
-    title: "Подтверждение карточек бизнеса",
+    title: "Подтверждение карточек",
     description:
-      "Если карточка уже есть в каталоге, компания может подать заявку и получить над ней управление после проверки.",
+      "Если карточка бизнеса уже есть в каталоге, компания может подать заявку и получить управление после проверки.",
   },
 ];
 
@@ -68,22 +67,16 @@ const steps = [
   },
   {
     step: "02",
-    title: "Подтвердите существующую карточку или добавьте филиал",
+    title: "Свяжите бизнес с карточками",
     description:
-      "Можно заявить права на уже созданную карточку из каталога или завести новую карточку филиала через кабинет.",
+      "Подтвердите существующую карточку из каталога или добавьте новый филиал через кабинет компании.",
   },
   {
     step: "03",
-    title: "Работайте с обратной связью",
+    title: "Работайте с отзывами",
     description:
-      "Просматривайте отзывы, отвечайте от имени компании и поддерживайте актуальное присутствие бизнеса на платформе.",
+      "Просматривайте отзывы пользователей, отвечайте официально и поддерживайте актуальное присутствие бизнеса на платформе.",
   },
-];
-
-const trustPoints = [
-  "Ответ компании отображается как официальный, а не как обычный пользовательский комментарий.",
-  "Работа с карточками бизнеса отделена от публичной части платформы и вынесена в отдельный кабинет.",
-  "Модерация и правила платформы помогают сохранять корректную и прозрачную среду для пользователей и компаний.",
 ];
 
 const featureList = [
@@ -93,6 +86,24 @@ const featureList = [
   "Claim-заявки на существующие карточки",
   "Просмотр отзывов по конкретным точкам",
   "Основа для будущей бизнес-аналитики",
+];
+
+const useCases = [
+  {
+    title: "Если у бизнеса несколько филиалов",
+    description:
+      "Clarify помогает держать карточки точек в одном месте и не смешивать отзывы разных филиалов.",
+  },
+  {
+    title: "Если важно отвечать клиентам официально",
+    description:
+      "Компания может показывать, что она действительно присутствует на платформе и реагирует на обратную связь.",
+  },
+  {
+    title: "Если карточка уже есть в каталоге",
+    description:
+      "Не нужно создавать всё заново — можно подать заявку на подтверждение и получить управление существующей карточкой.",
+  },
 ];
 
 export default function BusinessPage() {
@@ -119,10 +130,10 @@ export default function BusinessPage() {
           </h1>
 
           <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-            Clarify помогает компании присутствовать на платформе не формально, а
-            по делу: подтверждать карточки, управлять филиалами и отвечать на
-            отзывы от имени бизнеса. Это удобный способ быть ближе к клиентам и
-            держать публичную информацию о компании под контролем.
+            Clarify помогает компании не просто присутствовать на платформе, а
+            полноценно работать с карточками мест, филиалами и отзывами. Это
+            удобный способ держать информацию о бизнесе в порядке и быть ближе к
+            клиентам.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
@@ -131,13 +142,6 @@ export default function BusinessPage() {
               className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
             >
               Зарегистрировать компанию
-            </Link>
-
-            <Link
-              href="/company"
-              className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30"
-            >
-              Войти в кабинет компании
             </Link>
           </div>
 
@@ -182,9 +186,9 @@ export default function BusinessPage() {
             Как компания начинает работу
           </h2>
           <p className="mt-2 text-sm leading-7 text-muted-foreground">
-            Процесс построен просто и логично: сначала бизнес получает доступ к
-            кабинету, затем связывает с собой карточки мест, а после этого может
-            официально работать с отзывами пользователей.
+            Логика простая: сначала бизнес получает доступ к кабинету, затем
+            связывает с собой карточки мест, а после этого уже может официально
+            работать с отзывами пользователей.
           </p>
         </div>
 
@@ -231,62 +235,50 @@ export default function BusinessPage() {
 
         <aside className="rounded-3xl border bg-muted/20 p-6 md:p-8">
           <h2 className="text-2xl font-semibold tracking-tight">
-            Почему это вписывается в концепцию Clarify
+            Когда Clarify особенно полезен
           </h2>
 
           <div className="mt-5 grid gap-3">
-            {trustPoints.map((item) => (
+            {useCases.map((item) => (
               <div
-                key={item}
-                className="rounded-2xl border bg-background/70 p-4 text-sm leading-7 text-muted-foreground"
+                key={item.title}
+                className="rounded-2xl border bg-background/70 p-4"
               >
-                {item}
+                <div className="text-sm font-medium">{item.title}</div>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             ))}
-          </div>
-
-          <div className="mt-6 rounded-2xl border bg-background/70 p-4">
-            <div className="text-sm font-medium">Важно</div>
-            <p className="mt-2 text-sm leading-7 text-muted-foreground">
-              Публичная страница для бизнеса нужна, чтобы компания сразу
-              понимала, зачем ей Clarify. Регистрация и рабочие действия при
-              этом остаются в отдельных служебных маршрутах, что сохраняет
-              чистую структуру продукта и не смешивает маркетинговую страницу с
-              кабинетом.
-            </p>
           </div>
         </aside>
       </section>
 
       <section className="mt-6 rounded-3xl border bg-background p-6 md:p-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-2xl">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              Подключите компанию к Clarify
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-muted-foreground">
-              Создайте бизнес-аккаунт, получите доступ к кабинету компании и
-              начните работать с карточками мест и отзывами в более официальном
-              и понятном формате.
-            </p>
-          </div>
+        <div className="max-w-2xl">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Подключите компанию к Clarify
+          </h2>
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            Создайте бизнес-аккаунт, чтобы получить доступ к кабинету компании и
+            работать с карточками мест и отзывами в более официальном формате.
+          </p>
+        </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/business/signup"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-            >
-              Зарегистрировать компанию
-            </Link>
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <Link
+            href="/business/signup"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+          >
+            Начать регистрацию
+          </Link>
 
-            <Link
-              href="/company"
-              className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30"
-            >
-              Перейти в кабинет
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
+          <Link
+            href="/company"
+            className="text-sm font-medium text-primary underline underline-offset-4"
+          >
+            Уже есть бизнес-аккаунт? Перейти в кабинет
+          </Link>
         </div>
       </section>
     </main>
