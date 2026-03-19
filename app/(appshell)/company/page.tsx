@@ -104,7 +104,7 @@ export default async function CompanyPage({
     user = null;
   }
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/company");
   if (user.role !== "COMPANY") redirect("/");
 
   const company = await prisma.company.findUnique({

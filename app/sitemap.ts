@@ -1,4 +1,3 @@
-// app/sitemap.ts
 import type { MetadataRoute } from "next";
 import { prisma } from "@/server/db/prisma";
 
@@ -30,6 +29,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
+      url: `${base}/business`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
       url: `${base}/charts`,
       lastModified: new Date(),
       changeFrequency: "daily",
@@ -40,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const placePages: MetadataRoute.Sitemap = places.map((place) => ({
     url: `${base}/place/${place.slug}`,
     lastModified: place.updatedAt,
-    changeFrequency: "weekly",
+    changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
 
