@@ -145,33 +145,14 @@ export default async function CompanyPage({
       : "all";
 
   const [
-    categories,
-    branches,
+    branchesCount,
     reviewCount,
     pendingClaimsCount,
     approvedClaimsCount,
     rejectedClaimsCount,
   ] = await Promise.all([
-    prisma.category.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-
-    prisma.place.findMany({
+    prisma.place.count({
       where: { companyId: company.id },
-      orderBy: [{ city: "asc" }, { createdAt: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        city: true,
-        address: true,
-        phone: true,
-        workHours: true,
-        avgRating: true,
-        ratingCount: true,
-      },
     }),
 
     prisma.review.count({
@@ -202,6 +183,34 @@ export default async function CompanyPage({
       },
     }),
   ]);
+
+  const categories =
+    activeTab === "create-branch"
+      ? await prisma.category.findMany({
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        })
+      : [];
+
+  const branches =
+    activeTab === "branches"
+      ? await prisma.place.findMany({
+          where: { companyId: company.id },
+          orderBy: [{ city: "asc" }, { createdAt: "desc" }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            city: true,
+            address: true,
+            phone: true,
+            workHours: true,
+            avgRating: true,
+            ratingCount: true,
+          },
+        })
+      : [];
 
   const totalClaimsCount =
     pendingClaimsCount + approvedClaimsCount + rejectedClaimsCount;
@@ -326,9 +335,10 @@ export default async function CompanyPage({
         })
       : [];
 
-  const defaultBranchesHref = activeCity
-    ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}`
-    : "/company?tab=branches";
+  const defaultBranchesHref =
+    activeTab === "branches" && activeCity
+      ? `/company?tab=branches&city=${encodeURIComponent(activeCity)}`
+      : "/company?tab=branches";
 
   const emptyClaimsText =
     activeClaimFilter === "all"
@@ -353,7 +363,7 @@ export default async function CompanyPage({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <TopStat label="Филиалов" value={String(branches.length)} />
+          <TopStat label="Филиалов" value={String(branchesCount)} />
           <TopStat label="Отзывы" value={String(reviewCount)} />
           <TopStat label="Заявок" value={String(totalClaimsCount)} />
         </div>
@@ -383,7 +393,7 @@ export default async function CompanyPage({
           title="Мои филиалы"
           description="Сначала выберите город, затем филиал и только потом тип отзывов."
           icon={<Store className="h-5 w-5" />}
-          badge={`${branches.length}`}
+          badge={`${branchesCount}`}
           active={activeTab === "branches"}
         />
 
@@ -427,7 +437,7 @@ export default async function CompanyPage({
             />
             <MiniInfoCard
               label="Филиалы"
-              value={String(branches.length)}
+              value={String(branchesCount)}
               subvalue="Карточки мест компании"
             />
             <MiniInfoCard
@@ -496,7 +506,7 @@ export default async function CompanyPage({
             <div className="rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
               Всего филиалов:{" "}
               <span className="font-medium text-foreground">
-                {branches.length}
+                {branchesCount}
               </span>
             </div>
           </div>

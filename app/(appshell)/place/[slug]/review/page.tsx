@@ -32,8 +32,81 @@ export default async function AddReviewPage({
     redirect(`/place/${slug}`);
   }
 
-  const place = await prisma.place.findUnique({ where: { slug } });
+  const place = await prisma.place.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+    },
+  });
+
   if (!place) return notFound();
+
+  const existingReview = await prisma.review.findUnique({
+    where: {
+      placeId_authorId: {
+        placeId: place.id,
+        authorId: user.id,
+      },
+    },
+    select: {
+      id: true,
+      rating: true,
+      createdAt: true,
+    },
+  });
+
+  if (existingReview) {
+    const dtf = new Intl.DateTimeFormat("ru-RU", {
+      dateStyle: "medium",
+    });
+
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <Link
+          href={`/place/${place.slug}`}
+          className="text-sm text-muted-foreground transition hover:text-foreground hover:underline"
+        >
+          ← Назад к месту
+        </Link>
+
+        <section className="mt-6 rounded-3xl border bg-background p-6 md:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Вы уже оставляли отзыв
+          </h1>
+
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+            Для места <span className="font-medium text-foreground">{place.name}</span>{" "}
+            у вас уже есть опубликованный отзыв. Повторно отправить новый отзыв
+            для этого же места нельзя.
+          </p>
+
+          <div className="mt-5 rounded-2xl border bg-muted/20 p-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Оценка:</span>{" "}
+              <span className="font-medium">{existingReview.rating}/5</span>
+            </div>
+            <div className="mt-1">
+              <span className="text-muted-foreground">Дата:</span>{" "}
+              <span className="font-medium">
+                {dtf.format(existingReview.createdAt)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href={`/place/${place.slug}`}
+              className="inline-flex items-center rounded-xl border bg-background px-4 py-2 text-sm font-medium transition hover:bg-muted/40"
+            >
+              Вернуться к месту
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const tags = await prisma.tag.findMany({
     where: { isActive: true },

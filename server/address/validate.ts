@@ -7,6 +7,33 @@ export type AddressCheckResult = {
   provider: "2gis";
 };
 
+export type AddressValidationErrorCode =
+  | "INVALID_CITY"
+  | "ADDRESS_TOO_SHORT"
+  | "HOUSE_REQUIRED"
+  | "ADDRESS_NOT_CONFIRMED"
+  | "GEOCODER_NOT_CONFIGURED"
+  | "GEOCODER_REJECTED"
+  | "GEOCODER_RATE_LIMITED"
+  | "GEOCODER_UNAVAILABLE"
+  | "GEOCODER_TIMEOUT";
+
+export class AddressValidationError extends Error {
+  code: AddressValidationErrorCode;
+  status: number;
+
+  constructor(
+    code: AddressValidationErrorCode,
+    message: string,
+    status: number,
+  ) {
+    super(message);
+    this.name = "AddressValidationError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 const VALIDATION_CACHE_TTL_MS = 10 * 60_000;
 const MAX_VALIDATION_CACHE_SIZE = 300;
 
@@ -36,7 +63,7 @@ function normalizeHouseToken(value: string) {
 // Сначала ищем явное "дом 111" / "д. 111".
 // Если нет — берём ПОСЛЕДНИЙ числовой блок, а не первый.
 // Это важно для адресов вроде "мкр Самал-2, дом 111".
-function extractDesiredHouse(address: string): string | null {
+function extractDesiredHouse(address: string) {
   const a = norm(address);
 
   const explicit =
@@ -152,10 +179,7 @@ function readValidationCache(cacheKey: string): AddressCheckResult | null {
   return entry.value;
 }
 
-function writeValidationCache(
-  cacheKey: string,
-  value: AddressCheckResult,
-) {
+function writeValidationCache(cacheKey: string, value: AddressCheckResult) {
   cleanupValidationCache();
   validationCache.set(cacheKey, {
     expiresAt: Date.now() + VALIDATION_CACHE_TTL_MS,
@@ -171,8 +195,10 @@ async function geocode2gis(params: {
 }): Promise<AddressCheckResult | null> {
   const key = process.env.TWOGIS_GEOCODER_API_KEY;
   if (!key) {
-    throw new Error(
+    throw new AddressValidationError(
+      "GEOCODER_NOT_CONFIGURED",
       "Адрес: не настроен ключ 2GIS. Добавьте TWOGIS_GEOCODER_API_KEY в .env.local",
+      500,
     );
   }
 
@@ -194,18 +220,26 @@ async function geocode2gis(params: {
 
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
-        throw new Error(
+        throw new AddressValidationError(
+          "GEOCODER_REJECTED",
           "Адрес: 2GIS отклонил запрос. Проверьте TWOGIS_GEOCODER_API_KEY.",
+          502,
         );
       }
 
       if (res.status === 429) {
-        throw new Error(
+        throw new AddressValidationError(
+          "GEOCODER_RATE_LIMITED",
           "Адрес: 2GIS временно ограничил запросы. Попробуйте ещё раз чуть позже.",
+          503,
         );
       }
 
-      throw new Error("Адрес: сервис 2GIS временно недоступен.");
+      throw new AddressValidationError(
+        "GEOCODER_UNAVAILABLE",
+        "Адрес: сервис 2GIS временно недоступен.",
+        503,
+      );
     }
 
     const data = (await res.json().catch(() => null)) as
@@ -274,9 +308,6 @@ async function geocode2gis(params: {
 
     if (!best) return null;
 
-    // Принимаем только если:
-    // - либо найдено хорошее building-совпадение,
-    // - либо в целом адрес совпал достаточно уверенно.
     if (best.score >= 6) {
       return {
         lat: best.lat,
@@ -289,8 +320,10 @@ async function geocode2gis(params: {
     return null;
   } catch (e: any) {
     if (String(e?.name) === "AbortError") {
-      throw new Error(
+      throw new AddressValidationError(
+        "GEOCODER_TIMEOUT",
         "Адрес: 2GIS слишком долго отвечает, попробуйте ещё раз.",
+        504,
       );
     }
     throw e;
@@ -337,16 +370,30 @@ export async function validateKzAddress(params: {
   const city = norm(params.city);
   const address = norm(params.address);
 
-  assertKzCity(city, "Город");
+  try {
+    assertKzCity(city, "Город");
+  } catch (err) {
+    throw new AddressValidationError(
+      "INVALID_CITY",
+      err instanceof Error ? err.message : "Город указан некорректно",
+      400,
+    );
+  }
 
   if (address.length < 5) {
-    throw new Error("Адрес: минимум 5 символов");
+    throw new AddressValidationError(
+      "ADDRESS_TOO_SHORT",
+      "Адрес: минимум 5 символов",
+      400,
+    );
   }
 
   const desiredHouse = extractDesiredHouse(address);
   if (!desiredHouse) {
-    throw new Error(
+    throw new AddressValidationError(
+      "HOUSE_REQUIRED",
       "Адрес: укажите номер дома (например «Сейфуллина 34» или «Абиша Кекилбайулы 151»).",
+      400,
     );
   }
 
@@ -360,8 +407,10 @@ export async function validateKzAddress(params: {
   });
 
   if (!result) {
-    throw new Error(
+    throw new AddressValidationError(
+      "ADDRESS_NOT_CONFIRMED",
       "Адрес: 2GIS не смог уверенно подтвердить этот адрес. Проверьте улицу и номер дома.",
+      422,
     );
   }
 

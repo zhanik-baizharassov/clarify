@@ -4,7 +4,11 @@ import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
-import { validateKzAddress } from "@/server/address/validate";
+import {
+  AddressValidationError,
+  validateKzAddress,
+} from "@/server/address/validate";
+import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -15,6 +19,8 @@ const Schema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const csrf = enforceSameOrigin(req);
+    if (csrf) return csrf;    
     const ip = getRequestIp(req);
 
     const ipRateLimit = await enforceRateLimits([
@@ -47,12 +53,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: msg }, { status: 400 });
     }
 
+    if (e instanceof AddressValidationError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: e.message,
+          code: e.code,
+        },
+        { status: e.status },
+      );
+    }
+
+    console.error("ADDRESS VALIDATE ROUTE ERROR:", e);
     return NextResponse.json(
       {
         ok: false,
-        error: e instanceof Error ? e.message : "Ошибка",
+        error: "Ошибка сервера",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }
