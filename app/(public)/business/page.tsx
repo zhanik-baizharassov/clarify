@@ -13,14 +13,14 @@ import {
 export const metadata: Metadata = {
   title: "Для бизнеса",
   description:
-    "Clarify для бизнеса: регистрируйте компанию, управляйте карточками и филиалами, отвечайте на отзывы и работайте с репутацией в Казахстане.",
+    "Clarify для бизнеса: официальный профиль компании, управление филиалами, ответы на отзывы и работа с карточками мест в Казахстане.",
   alternates: {
     canonical: "/business",
   },
   openGraph: {
     title: "Для бизнеса — Clarify",
     description:
-      "Регистрация компании, управление карточками и филиалами, официальные ответы на отзывы и развитие репутации бизнеса в Clarify.",
+      "Официальный профиль компании, ответы на отзывы, управление филиалами и работа с карточками мест на Clarify.",
     url: "/business",
     type: "website",
     locale: "ru_RU",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Для бизнеса — Clarify",
     description:
-      "Регистрация компании, управление карточками и филиалами, официальные ответы на отзывы и развитие репутации бизнеса в Clarify.",
+      "Официальный профиль компании, ответы на отзывы, управление филиалами и работа с карточками мест на Clarify.",
   },
   robots: {
     index: true,
@@ -38,24 +38,24 @@ export const metadata: Metadata = {
   },
 };
 
-const benefits = [
+const valueCards = [
   {
     icon: <MessageCircleReply className="h-5 w-5" />,
-    title: "Официальные ответы на отзывы",
+    title: "Официальные ответы от лица компании",
     description:
-      "Компания может отвечать на отзывы от имени бизнеса и выстраивать прозрачную коммуникацию с клиентами.",
+      "Отвечайте на отзывы верифицированно и выстраивайте понятную коммуникацию с клиентами прямо в карточке места.",
   },
   {
     icon: <Store className="h-5 w-5" />,
-    title: "Управление филиалами",
+    title: "Управление филиалами в одном кабинете",
     description:
-      "Добавляйте филиалы, отслеживайте отзывы по точкам и работайте с карточками мест из одного кабинета.",
+      "Собирайте карточки ваших точек в одном месте и работайте с отзывами по каждому филиалу отдельно.",
   },
   {
     icon: <FileCheck2 className="h-5 w-5" />,
-    title: "Claim и подтверждение карточек",
+    title: "Подтверждение карточек бизнеса",
     description:
-      "Если карточка вашего бизнеса уже есть в каталоге, можно подать заявку на получение управления.",
+      "Если карточка уже есть в каталоге, компания может подать заявку и получить над ней управление после проверки.",
   },
 ];
 
@@ -64,29 +64,35 @@ const steps = [
     step: "01",
     title: "Создайте бизнес-аккаунт",
     description:
-      "Зарегистрируйте компанию, чтобы получить доступ к бизнес-функциям платформы.",
+      "После регистрации компания получает доступ к кабинету и инструментам для работы с публичными карточками.",
   },
   {
     step: "02",
-    title: "Подтвердите карточку или добавьте филиал",
+    title: "Подтвердите существующую карточку или добавьте филиал",
     description:
-      "Подайте заявку на существующую карточку в каталоге или создайте новую карточку филиала через кабинет.",
+      "Можно заявить права на уже созданную карточку из каталога или завести новую карточку филиала через кабинет.",
   },
   {
     step: "03",
-    title: "Работайте с отзывами",
+    title: "Работайте с обратной связью",
     description:
-      "Отвечайте на отзывы пользователей, повышайте доверие и следите за репутацией бизнеса.",
+      "Просматривайте отзывы, отвечайте от имени компании и поддерживайте актуальное присутствие бизнеса на платформе.",
   },
 ];
 
-const features = [
-  "Официальный статус ответа компании на отзывы",
-  "Управление филиалами из одного кабинета",
-  "Claim-заявки на карточки бизнеса из каталога",
-  "Просмотр отзывов по филиалам",
-  "Раздел бизнес-аналитики как будущая точка роста",
-  "Прозрачная модерация и правила платформы",
+const trustPoints = [
+  "Ответ компании отображается как официальный, а не как обычный пользовательский комментарий.",
+  "Работа с карточками бизнеса отделена от публичной части платформы и вынесена в отдельный кабинет.",
+  "Модерация и правила платформы помогают сохранять корректную и прозрачную среду для пользователей и компаний.",
+];
+
+const featureList = [
+  "Официальный профиль компании на платформе",
+  "Ответы на отзывы от имени бизнеса",
+  "Работа с филиалами из одного кабинета",
+  "Claim-заявки на существующие карточки",
+  "Просмотр отзывов по конкретным точкам",
+  "Основа для будущей бизнес-аналитики",
 ];
 
 export default function BusinessPage() {
@@ -95,28 +101,28 @@ export default function BusinessPage() {
       <section className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
         />
 
         <div className="relative max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground">
             <Building2 className="h-3.5 w-3.5 text-primary" />
-            Решение для компаний и филиалов
+            Clarify для компаний и филиалов
           </div>
 
           <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
-            Clarify для бизнеса
+            Представляйте бизнес официально в Clarify
           </h1>
 
           <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-            Подключайте компанию к Clarify, управляйте карточками мест,
-            добавляйте филиалы и отвечайте на отзывы пользователей официально.
-            Это помогает укреплять доверие, улучшать коммуникацию с клиентами и
-            работать с репутацией бизнеса в одном кабинете.
+            Clarify помогает компании присутствовать на платформе не формально, а
+            по делу: подтверждать карточки, управлять филиалами и отвечать на
+            отзывы от имени бизнеса. Это удобный способ быть ближе к клиентам и
+            держать публичную информацию о компании под контролем.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
@@ -131,7 +137,7 @@ export default function BusinessPage() {
               href="/company"
               className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30"
             >
-              Открыть кабинет компании
+              Войти в кабинет компании
             </Link>
           </div>
 
@@ -142,7 +148,7 @@ export default function BusinessPage() {
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              Платформа с модерацией
+              Верифицированный бизнес-поток
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1">
               <Store className="h-3.5 w-3.5 text-primary" />
@@ -153,7 +159,7 @@ export default function BusinessPage() {
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
-        {benefits.map((item) => (
+        {valueCards.map((item) => (
           <article
             key={item.title}
             className="rounded-2xl border bg-background p-5"
@@ -173,12 +179,12 @@ export default function BusinessPage() {
       <section className="mt-6 rounded-3xl border bg-background p-6 md:p-8">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-semibold tracking-tight">
-            Как это работает
+            Как компания начинает работу
           </h2>
           <p className="mt-2 text-sm leading-7 text-muted-foreground">
-            Логика проста: сначала компания получает доступ к бизнес-аккаунту,
-            затем подтверждает свои карточки или создаёт филиалы, после чего
-            может официально работать с отзывами на платформе.
+            Процесс построен просто и логично: сначала бизнес получает доступ к
+            кабинету, затем связывает с собой карточки мест, а после этого может
+            официально работать с отзывами пользователей.
           </p>
         </div>
 
@@ -200,14 +206,14 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="rounded-3xl border bg-background p-6 md:p-8">
           <h2 className="text-2xl font-semibold tracking-tight">
-            Что получает бизнес в Clarify
+            Что получает бизнес
           </h2>
 
           <div className="mt-5 grid gap-3">
-            {features.map((item) => (
+            {featureList.map((item) => (
               <div
                 key={item}
                 className="flex items-start gap-3 rounded-2xl border bg-muted/10 p-4"
@@ -225,44 +231,29 @@ export default function BusinessPage() {
 
         <aside className="rounded-3xl border bg-muted/20 p-6 md:p-8">
           <h2 className="text-2xl font-semibold tracking-tight">
-            Важный принцип платформы
+            Почему это вписывается в концепцию Clarify
           </h2>
 
-          <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>
-              Clarify разделяет публичную часть платформы и рабочие кабинеты.
-              Публичная страница <span className="font-medium text-foreground">/business</span>{" "}
-              объясняет возможности для компаний, а регистрация и рабочие
-              действия происходят уже в защищённых маршрутах.
-            </p>
-
-            <p>
-              Это помогает сохранить понятную структуру продукта: пользователи и
-              поисковые системы видят отдельную страницу для бизнеса, а сама
-              регистрация компании и кабинет остаются транзакционными,
-              служебными зонами.
-            </p>
-
-            <p>
-              Уже есть бизнес-аккаунт? Тогда используйте кабинет компании для
-              работы с филиалами, claim-заявками и ответами на отзывы.
-            </p>
+          <div className="mt-5 grid gap-3">
+            {trustPoints.map((item) => (
+              <div
+                key={item}
+                className="rounded-2xl border bg-background/70 p-4 text-sm leading-7 text-muted-foreground"
+              >
+                {item}
+              </div>
+            ))}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/business/signup"
-              className="inline-flex h-11 items-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-            >
-              Начать регистрацию
-            </Link>
-
-            <Link
-              href="/company"
-              className="inline-flex h-11 items-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30"
-            >
-              Кабинет компании
-            </Link>
+          <div className="mt-6 rounded-2xl border bg-background/70 p-4">
+            <div className="text-sm font-medium">Важно</div>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              Публичная страница для бизнеса нужна, чтобы компания сразу
+              понимала, зачем ей Clarify. Регистрация и рабочие действия при
+              этом остаются в отдельных служебных маршрутах, что сохраняет
+              чистую структуру продукта и не смешивает маркетинговую страницу с
+              кабинетом.
+            </p>
           </div>
         </aside>
       </section>
@@ -274,9 +265,9 @@ export default function BusinessPage() {
               Подключите компанию к Clarify
             </h2>
             <p className="mt-2 text-sm leading-7 text-muted-foreground">
-              Создайте бизнес-аккаунт, чтобы официально представлять компанию на
-              платформе, управлять карточками мест и выстраивать доверительную
-              коммуникацию с клиентами.
+              Создайте бизнес-аккаунт, получите доступ к кабинету компании и
+              начните работать с карточками мест и отзывами в более официальном
+              и понятном формате.
             </p>
           </div>
 
