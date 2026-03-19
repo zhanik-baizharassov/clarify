@@ -71,13 +71,13 @@ export default function BusinessShowcase() {
     <div className="relative">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 scale-[0.94] rounded-[36px] bg-white/25 blur-3xl"
+        className="pointer-events-none absolute inset-0 scale-[0.94] rounded-[36px] bg-primary/10 blur-3xl"
       />
 
-      <div className="relative overflow-hidden rounded-[30px] border border-white/25 bg-white/12 shadow-[0_20px_70px_rgba(255,255,255,0.12)] backdrop-blur-xl">
-        <div className="border-b border-white/15 px-4 py-3">
+      <div className="relative overflow-hidden rounded-[30px] border bg-background/72 shadow-xl shadow-primary/10 backdrop-blur-md">
+        <div className="border-b bg-muted/25 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex rounded-2xl border border-white/15 bg-white/10 p-1">
+            <div className="inline-flex rounded-2xl border bg-background/85 p-1">
               {tabs.map((tab) => {
                 const active = mode === tab.id;
 
@@ -89,8 +89,8 @@ export default function BusinessShowcase() {
                     className={[
                       "rounded-xl px-3 py-2 text-sm font-medium transition",
                       active
-                        ? "bg-white text-[#418fe4] shadow-[0_10px_24px_rgba(255,255,255,0.22)]"
-                        : "text-white/80 hover:text-white",
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
                     ].join(" ")}
                   >
                     {tab.label}
@@ -99,54 +99,58 @@ export default function BusinessShowcase() {
               })}
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90">
-              <BadgeCheck className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground">
+              <BadgeCheck className="h-3.5 w-3.5 text-primary" />
               Бизнес-поток Clarify
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 p-4 md:grid-cols-[1.08fr_0.92fr]">
-          <div className="rounded-[24px] border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(240,248,255,0.82)_100%)] p-4 text-slate-950">
+          <div className="rounded-[24px] border bg-gradient-to-b from-card to-accent/20 p-4 text-card-foreground">
             {mode === "replies" && <RepliesPreview />}
             {mode === "claims" && <ClaimsPreview />}
             {mode === "branches" && <BranchesPreview />}
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-[24px] border border-white/20 bg-white/12 p-4 text-white backdrop-blur">
-              <div className="text-xs font-medium uppercase tracking-[0.16em] text-white/75">
+            <div className="rounded-[24px] border bg-background/80 p-4 backdrop-blur">
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 Сейчас показан сценарий
               </div>
-              <div className="mt-2 text-lg font-semibold">{current.title}</div>
-              <p className="mt-2 text-sm leading-7 text-white/88">
+              <div className="mt-2 text-lg font-semibold text-foreground">
+                {current.title}
+              </div>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
                 {current.description}
               </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/20 bg-white/12 p-4 text-white backdrop-blur">
-              <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90">
+            <div className="rounded-[24px] border bg-accent/40 p-4">
+              <div className="inline-flex items-center rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-primary">
                 {current.badge}
               </div>
 
               <div className="mt-4 space-y-3">
                 {current.bullets.map((item) => (
                   <div key={item} className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-white" />
-                    <p className="text-sm leading-6 text-white/88">{item}</p>
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      {item}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.10)_100%)] p-4 text-white">
-              <div className="text-sm font-semibold">
-                Зачем этот блок нужен на странице
+            <div className="rounded-[24px] border bg-secondary/35 p-4">
+              <div className="text-sm font-semibold text-foreground">
+                Почему это важно бизнесу
               </div>
-              <p className="mt-2 text-sm leading-7 text-white/86">
-                Вместо сухого набора одинаковых карточек пользователь сразу
-                видит, как выглядит бизнес-логика Clarify: ответы, claim и
-                филиалы. Это делает страницу живее и дороже по ощущению.
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                Компания получает не просто место в каталоге, а понятный
+                сценарий присутствия: подтвердить карточку, отвечать на отзывы и
+                держать филиалы в одной системе без путаницы.
               </p>
             </div>
           </div>
@@ -161,48 +165,48 @@ function RepliesPreview() {
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-slate-950">
+          <div className="text-sm font-semibold text-foreground">
             Работа с отзывами
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted-foreground">
             Официальный ответ от лица бизнеса
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#d7eaff] bg-[#eef7ff] px-3 py-1 text-xs font-medium text-[#3f90e5]">
-          <MessageCircleReply className="h-3.5 w-3.5" />
+        <span className="inline-flex items-center gap-2 rounded-full border bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+          <MessageCircleReply className="h-3.5 w-3.5 text-primary" />
           Ответ доступен
         </span>
       </div>
 
       <div className="mt-4 space-y-3">
-        <div className="rounded-[20px] border border-[#d8eaff] bg-white p-4">
-          <div className="text-sm font-medium text-slate-950">
+        <div className="rounded-[20px] border bg-background p-4">
+          <div className="text-sm font-medium text-foreground">
             Отзыв о филиале
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Пользователь оставил отзыв о сервисе и компании важно не
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Пользователь оставил отзыв о сервисе, и компании важно не
             игнорировать обратную связь публично.
           </p>
         </div>
 
-        <div className="rounded-[20px] border border-[#cfe5ff] bg-[linear-gradient(180deg,#f8fcff_0%,#edf6ff_100%)] p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-950">
-            <BadgeCheck className="h-4 w-4 text-[#4292e6]" />
+        <div className="rounded-[20px] border bg-accent/35 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <BadgeCheck className="h-4 w-4 text-primary" />
             Официальный ответ компании
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Спасибо за обратную связь. Мы передали комментарий команде и
             дополнительно проверим ситуацию внутри точки.
           </p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-[20px] border border-dashed border-[#cfe5ff] bg-[#f8fcff] p-4">
-        <div className="text-sm font-medium text-slate-950">
+      <div className="mt-4 rounded-[20px] border border-dashed bg-muted/20 p-4">
+        <div className="text-sm font-medium text-foreground">
           Что получает бизнес
         </div>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Ответ выглядит не как случайный комментарий, а как официальный сигнал,
           что компания присутствует на платформе и работает с клиентским опытом.
         </p>
@@ -216,16 +220,16 @@ function ClaimsPreview() {
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-slate-950">
+          <div className="text-sm font-semibold text-foreground">
             Подтверждение карточки
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted-foreground">
             Если место уже есть в каталоге
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#d7eaff] bg-[#eef7ff] px-3 py-1 text-xs font-medium text-[#3f90e5]">
-          <FileCheck2 className="h-3.5 w-3.5" />
+        <span className="inline-flex items-center gap-2 rounded-full border bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+          <FileCheck2 className="h-3.5 w-3.5 text-primary" />
           Claim-сценарий
         </span>
       </div>
@@ -247,16 +251,16 @@ function ClaimsPreview() {
         ].map((item, index) => (
           <div
             key={item.title}
-            className="flex items-start gap-3 rounded-[20px] border border-[#d8eaff] bg-white p-4"
+            className="flex items-start gap-3 rounded-[20px] border bg-background p-4"
           >
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6ab7ff_0%,#4e9df2_100%)] text-xs font-semibold text-white">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
               {index + 1}
             </span>
             <div>
-              <div className="text-sm font-medium text-slate-950">
+              <div className="text-sm font-medium text-foreground">
                 {item.title}
               </div>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {item.text}
               </p>
             </div>
@@ -272,16 +276,16 @@ function BranchesPreview() {
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-slate-950">
+          <div className="text-sm font-semibold text-foreground">
             Управление филиалами
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted-foreground">
             Когда у бизнеса несколько точек
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#d7eaff] bg-[#eef7ff] px-3 py-1 text-xs font-medium text-[#3f90e5]">
-          <Store className="h-3.5 w-3.5" />
+        <span className="inline-flex items-center gap-2 rounded-full border bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+          <Store className="h-3.5 w-3.5 text-primary" />
           Единый кабинет
         </span>
       </div>
@@ -306,23 +310,23 @@ function BranchesPreview() {
         ].map((item) => (
           <div
             key={item.title}
-            className="flex items-center justify-between gap-3 rounded-[20px] border border-[#d8eaff] bg-white p-4"
+            className="flex items-center justify-between gap-3 rounded-[20px] border bg-background p-4"
           >
             <div className="min-w-0">
-              <div className="text-sm font-medium text-slate-950">
+              <div className="text-sm font-medium text-foreground">
                 {item.title}
               </div>
-              <div className="text-xs text-slate-500">{item.meta}</div>
+              <div className="text-xs text-muted-foreground">{item.meta}</div>
             </div>
 
             <span
               className={[
                 "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium",
                 item.state === "Подключён"
-                  ? "bg-[#eaf6ff] text-[#3f90e5]"
+                  ? "bg-primary/10 text-primary"
                   : item.state === "В работе"
-                    ? "bg-[#f2f8ff] text-slate-600"
-                    : "bg-[#fff5df] text-[#b57a00]",
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-secondary text-secondary-foreground",
               ].join(" ")}
             >
               {item.state}
@@ -332,23 +336,23 @@ function BranchesPreview() {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-[20px] border border-[#d8eaff] bg-[#f8fcff] p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-950">
-            <Building2 className="h-4 w-4 text-[#4292e6]" />
+        <div className="rounded-[20px] border bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Building2 className="h-4 w-4 text-primary" />
             Один кабинет
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             У компании остаётся единая точка входа для работы с присутствием на
             платформе.
           </p>
         </div>
 
-        <div className="rounded-[20px] border border-[#d8eaff] bg-[#f8fcff] p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-950">
-            <BadgeCheck className="h-4 w-4 text-[#4292e6]" />
+        <div className="rounded-[20px] border bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <BadgeCheck className="h-4 w-4 text-primary" />
             Без путаницы
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Отзывы и карточки филиалов не смешиваются в один хаотичный поток.
           </p>
         </div>

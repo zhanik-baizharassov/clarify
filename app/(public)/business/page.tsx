@@ -136,39 +136,39 @@ const faqs = [
   {
     question: "Подходит ли Clarify для бизнеса с несколькими филиалами?",
     answer:
-      "Да. Страница для бизнеса и логика кабинета рассчитаны на сценарий, где у компании несколько точек и важно держать их в одной системе без путаницы.",
+      "Да. Логика кабинета рассчитана на сценарий, где у компании несколько точек и важно держать их в одной системе без путаницы.",
   },
 ];
 
 export default function BusinessPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-[36px] border border-[#9fd1ff] bg-[linear-gradient(135deg,#7cc2ff_0%,#61b0fb_45%,#5aa7f3_100%)] px-6 py-8 text-slate-950 shadow-[0_24px_80px_rgba(74,152,236,0.22)] md:px-8 md:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[36px] border bg-gradient-to-br from-accent/70 via-background to-secondary/45 px-6 py-8 shadow-sm md:px-8 md:py-10 lg:px-10 lg:py-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-white/20 blur-3xl"
+          className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-white/20 blur-3xl"
+          className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-accent blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-[#bfe3ff]/40 blur-2xl"
+          className="pointer-events-none absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-secondary/70 blur-2xl"
         />
 
         <div className="relative grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
-              <Building2 className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
               Clarify для компаний и филиалов
             </div>
 
-            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
               Управляйте присутствием компании в Clarify официально
             </h1>
 
-            <p className="mt-5 max-w-xl text-sm leading-7 text-white/92 md:text-base">
+            <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground md:text-base">
               Подключайте бизнес к платформе, подтверждайте существующие
               карточки, отвечайте на отзывы и держите филиалы в одном кабинете.
               Clarify помогает компании выглядеть не просто найденной в
@@ -178,7 +178,7 @@ export default function BusinessPage() {
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link
                 href="/business/signup"
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-medium text-[#3d8fe5] shadow-[0_12px_30px_rgba(255,255,255,0.28)] transition hover:-translate-y-0.5 hover:bg-white/95"
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-95"
               >
                 Зарегистрировать компанию
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -186,23 +186,23 @@ export default function BusinessPage() {
 
               <Link
                 href="/company"
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
+                className="inline-flex h-12 items-center justify-center rounded-2xl border bg-background/80 px-5 text-sm font-medium text-foreground backdrop-blur transition hover:bg-background"
               >
                 Уже есть кабинет
               </Link>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-2 text-xs text-white/90">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
-                <BadgeCheck className="h-3.5 w-3.5" />
+            <div className="mt-7 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
+                <BadgeCheck className="h-3.5 w-3.5 text-primary" />
                 Официальные ответы компании
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
-                <ShieldCheck className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                 Claim и подтверждение карточек
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
-                <Store className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
+                <Store className="h-3.5 w-3.5 text-primary" />
                 Работа с филиалами
               </span>
             </div>
@@ -213,36 +213,35 @@ export default function BusinessPage() {
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-        <article className="rounded-[32px] border border-[#d7ebff] bg-[linear-gradient(180deg,#f7fbff_0%,#edf6ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.12)] md:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#cfe6ff] bg-white/80 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+        <article className="rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-accent/55 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
             Что получает бизнес
           </div>
 
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-            Реальные инструменты под текущую логику Clarify
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
+            Инструменты для работы с карточками, филиалами и отзывами
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            Здесь нет лишних обещаний. Страница говорит только о том, что
-            действительно укладывается в продуктовую логику платформы уже
-            сейчас: бизнес-аккаунт, claim существующих карточек, филиалы и
-            официальные ответы на отзывы.
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
+            Бизнес-страница Clarify создана для компаний, которые хотят
+            присутствовать на платформе официально, работать с отзывами
+            публично и аккуратно управлять своими точками.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {capabilities.map((item) => (
               <article
                 key={item.title}
-                className="rounded-[24px] border border-[#d6eaff] bg-white/90 p-5 shadow-[0_10px_30px_rgba(126,190,255,0.10)]"
+                className="rounded-[24px] border bg-muted/30 p-5"
               >
-                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#dff0ff_0%,#cde7ff_100%)] text-[#3f90e5]">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   {item.icon}
                 </div>
 
-                <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   {item.title}
                 </h3>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   {item.description}
                 </p>
               </article>
@@ -250,8 +249,8 @@ export default function BusinessPage() {
           </div>
         </article>
 
-        <aside className="rounded-[32px] border border-[#c9e3ff] bg-[linear-gradient(180deg,#ecf6ff_0%,#dff0ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.14)] md:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#c5e0ff] bg-white/70 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+        <aside className="rounded-[32px] border bg-gradient-to-b from-accent/40 via-background to-secondary/35 p-6 shadow-sm md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-background/75 px-3 py-1 text-xs font-medium text-primary">
             <Waypoints className="h-3.5 w-3.5" />
             Когда Clarify особенно полезен
           </div>
@@ -260,12 +259,12 @@ export default function BusinessPage() {
             {useCases.map((item) => (
               <div
                 key={item.title}
-                className="rounded-[24px] border border-[#d5e9ff] bg-white/85 p-5"
+                className="rounded-[24px] border bg-background/85 p-5 backdrop-blur"
               >
-                <div className="text-sm font-semibold text-slate-950">
+                <div className="text-sm font-semibold text-foreground">
                   {item.title}
                 </div>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -274,16 +273,15 @@ export default function BusinessPage() {
         </aside>
       </section>
 
-      <section className="mt-6 rounded-[32px] border border-[#d7ebff] bg-white p-6 shadow-[0_16px_50px_rgba(124,194,255,0.08)] md:p-8">
+      <section className="mt-6 rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
         <div className="max-w-2xl">
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             Как компания начинает работу в Clarify
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
-            Важно, чтобы на странице был не только красивый визуал, но и
-            понятный сценарий. Поэтому здесь логика выстроена вокруг реального
-            бизнес-потока: регистрация, связь с карточкой места и дальнейшая
-            работа с отзывами и филиалами.
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            Сценарий простой: компания создаёт бизнес-аккаунт, связывает себя с
+            карточкой места и после этого переходит к работе с отзывами и
+            филиалами в одном кабинете.
           </p>
         </div>
 
@@ -291,20 +289,20 @@ export default function BusinessPage() {
           {steps.map((item) => (
             <article
               key={item.step}
-              className="relative overflow-hidden rounded-[28px] border border-[#dcecff] bg-[linear-gradient(180deg,#f8fcff_0%,#eef7ff_100%)] p-5"
+              className="relative overflow-hidden rounded-[28px] border bg-gradient-to-b from-accent/30 to-background p-5"
             >
               <div
                 aria-hidden
-                className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#cfe8ff]/50 blur-2xl"
+                className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
               />
               <div className="relative">
-                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6ab7ff_0%,#4e9df2_100%)] text-sm font-semibold text-white shadow-[0_12px_26px_rgba(74,152,236,0.22)]">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-primary/10 text-sm font-semibold text-primary">
                   {item.step}
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   {item.title}
                 </h3>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -314,11 +312,11 @@ export default function BusinessPage() {
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
-        <article className="rounded-[32px] border border-[#d7ebff] bg-[linear-gradient(180deg,#f8fcff_0%,#f1f8ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.08)] md:p-8">
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+        <article className="rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             Для каких бизнесов это особенно актуально
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
             Clarify особенно хорошо раскрывается там, где пользователи выбирают
             место, читают отзывы и сравнивают разные точки до принятия решения.
           </p>
@@ -327,54 +325,54 @@ export default function BusinessPage() {
             {industries.map((item) => (
               <span
                 key={item}
-                className="inline-flex items-center rounded-full border border-[#cfe5ff] bg-white px-4 py-2 text-sm text-slate-600 transition hover:border-[#7dbfff] hover:text-slate-950"
+                className="inline-flex items-center rounded-full border bg-muted/20 px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
               >
                 {item}
               </span>
             ))}
           </div>
 
-          <div className="mt-6 rounded-[24px] border border-[#d8eaff] bg-white/90 p-5">
+          <div className="mt-6 rounded-[24px] border bg-secondary/35 p-5">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#4594e8]" />
-              <p className="text-sm leading-7 text-slate-600">
-                Смысл страницы для бизнеса не только в регистрации. Она должна
-                сразу объяснять, зачем компании присутствовать на платформе
-                официально и как это помогает не терять доверие клиентов.
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <p className="text-sm leading-7 text-muted-foreground">
+                Для бизнеса важно не просто быть в каталоге, а выглядеть
+                официально и понятно для клиента: отвечать на отзывы, держать
+                карточки в порядке и не смешивать разные точки в один поток.
               </p>
             </div>
           </div>
         </article>
 
-        <article className="rounded-[32px] border border-[#c9e3ff] bg-[linear-gradient(180deg,#ecf6ff_0%,#e4f2ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.12)] md:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#c5e0ff] bg-white/70 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+        <article className="rounded-[32px] border bg-gradient-to-b from-muted/55 via-background to-accent/25 p-6 shadow-sm md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-background/75 px-3 py-1 text-xs font-medium text-primary">
             <BadgeCheck className="h-3.5 w-3.5" />
             FAQ для бизнеса
           </div>
 
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
             Часто задаваемые вопросы
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
-            Этот блок полезен и для пользователя, и для SEO: он снимает
-            возражения и добавляет на страницу нормальный индексируемый слой.
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            Этот блок помогает быстрее понять бизнес-сценарий Clarify и закрывает
+            самые частые вопросы до регистрации.
           </p>
 
           <div className="mt-6 space-y-3">
             {faqs.map((item) => (
               <details
                 key={item.question}
-                className="group rounded-[22px] border border-[#d7eaff] bg-white px-5 py-4"
+                className="group rounded-[22px] border bg-background px-5 py-4"
               >
-                <summary className="cursor-pointer list-none pr-8 text-sm font-medium text-slate-950">
+                <summary className="cursor-pointer list-none pr-8 text-sm font-medium text-foreground">
                   <span className="relative block">
                     {item.question}
-                    <span className="absolute right-0 top-0 text-slate-400 transition group-open:rotate-45">
+                    <span className="absolute right-0 top-0 text-muted-foreground transition group-open:rotate-45">
                       +
                     </span>
                   </span>
                 </summary>
-                <p className="pt-3 text-sm leading-7 text-slate-600">
+                <p className="pt-3 text-sm leading-7 text-muted-foreground">
                   {item.answer}
                 </p>
               </details>
@@ -383,22 +381,26 @@ export default function BusinessPage() {
         </article>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-[36px] border border-[#9fd1ff] bg-[linear-gradient(135deg,#7cc2ff_0%,#61b0fb_45%,#5aa7f3_100%)] px-6 py-8 text-slate-950 shadow-[0_24px_80px_rgba(74,152,236,0.22)] md:px-8 md:py-10">
+      <section className="mt-6 overflow-hidden rounded-[36px] border bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/40 px-6 py-8 shadow-sm md:px-8 md:py-10">
         <div
           aria-hidden
-          className="pointer-events-none absolute hidden h-0 w-0"
+          className="pointer-events-none absolute -left-10 top-10 h-52 w-52 rounded-full bg-primary/10 blur-3xl"
         />
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-secondary/60 blur-3xl"
+        />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
-              <BadgeCheck className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+              <BadgeCheck className="h-3.5 w-3.5 text-primary" />
               Для компаний, которые хотят выглядеть официально
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               Подключите компанию к Clarify и работайте с репутацией публично
             </h2>
-            <p className="mt-3 text-sm leading-7 text-white/92 md:text-base">
+            <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
               Создайте бизнес-аккаунт, свяжите компанию с карточками мест и
               отвечайте на отзывы от имени бизнеса в более понятном и
               официальном формате.
@@ -408,13 +410,13 @@ export default function BusinessPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/business/signup"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-medium text-[#3d8fe5] shadow-[0_12px_30px_rgba(255,255,255,0.28)] transition hover:-translate-y-0.5 hover:bg-white/95"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-95"
             >
               Начать регистрацию
             </Link>
             <Link
               href="/company"
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
+              className="inline-flex h-12 items-center justify-center rounded-2xl border bg-background/80 px-5 text-sm font-medium text-foreground backdrop-blur transition hover:bg-background"
             >
               Уже есть кабинет
             </Link>
