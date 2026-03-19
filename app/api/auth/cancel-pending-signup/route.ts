@@ -3,10 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
-import {
-  cleanupExpiredPendingSignups,
-  maybeRunMaintenanceCleanup,
-} from "@/server/maintenance/cleanup";
+import { cleanupExpiredPendingSignups } from "@/server/maintenance/cleanup";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import {
   clearPendingSignupCookie,
@@ -47,7 +44,6 @@ export async function POST(req: Request) {
     const body = BodySchema.parse(await req.json().catch(() => ({})));
     const now = new Date();
 
-    await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
     const store = await cookies();

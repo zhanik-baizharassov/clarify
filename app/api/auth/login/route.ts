@@ -11,7 +11,6 @@ import {
   setEmailVerifyLoginCookie,
   setSessionCookie,
 } from "@/server/auth/session-token";
-import { maybeRunMaintenanceCleanup } from "@/server/maintenance/cleanup";
 import { enforceSameOrigin } from "@/server/security/csrf";
 
 export const runtime = "nodejs";
@@ -63,7 +62,6 @@ export async function POST(req: Request) {
 
     const now = new Date();
 
-    await maybeRunMaintenanceCleanup(now);
     await maybeCleanupExpiredSessions(now);
 
     const user = await prisma.user.findUnique({
