@@ -6,7 +6,7 @@ type HeaderUser = {
   role: "USER" | "COMPANY" | "ADMIN";
 } | null;
 
-export default async function Header({
+export default function Header({
   user = null,
 }: {
   user?: HeaderUser;
