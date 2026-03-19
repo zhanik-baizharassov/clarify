@@ -27,32 +27,41 @@ function resolveMetadataBase() {
 
 const metadataBase = resolveMetadataBase();
 
+const defaultTitle = "Clarify — отзывы о местах и компаниях Казахстана";
+const defaultDescription =
+  "Clarify — платформа отзывов по Казахстану. Ищите места и компании, читайте реальные отзывы, сравнивайте рейтинг и выбирайте сервисы осознанно.";
+
 export const metadata: Metadata = {
   metadataBase,
+  applicationName: "Clarify",
   title: {
-    default: "Clarify — отзывы о местах и компаниях Казахстана",
+    default: defaultTitle,
     template: "%s — Clarify",
   },
-  description:
-    "Clarify — платформа отзывов по Казахстану. Ищите места, читайте реальные отзывы, сравнивайте рейтинг и выбирайте сервисы осознанно.",
+  description: defaultDescription,
   openGraph: {
     type: "website",
     locale: "ru_RU",
     siteName: "Clarify",
-    title: "Clarify — отзывы о местах и компаниях Казахстана",
-    description:
-      "Платформа отзывов по Казахстану: реальные оценки, карточки мест, ответы компаний и удобный поиск.",
+    title: defaultTitle,
+    description: defaultDescription,
     url: "/",
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Clarify — отзывы о местах и компаниях Казахстана",
-    description:
-      "Платформа отзывов по Казахстану: реальные оценки, карточки мест, ответы компаний и удобный поиск.",
+    card: "summary",
+    title: defaultTitle,
+    description: defaultDescription,
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 
