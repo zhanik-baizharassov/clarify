@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
@@ -10,6 +11,74 @@ export const runtime = "nodejs";
 type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 const CLAIM_RETRY_COOLDOWN_SEC = 3 * 60 * 60;
+
+type PlaceSeoData = {
+  slug: string;
+  name: string;
+  city: string;
+  address: string | null;
+  description: string | null;
+  avgRating: number;
+  ratingCount: number;
+  category: {
+    name: string;
+  };
+};
+
+function trimSeoDescription(input: string, max = 170) {
+  if (input.length <= max) return input;
+  return `${input.slice(0, max - 1).trimEnd()}…`;
+}
+
+function buildPlaceTitle(place: Pick<PlaceSeoData, "name" | "city">) {
+  return `${place.name} — отзывы и рейтинг${place.city ? `, ${place.city}` : ""}`;
+}
+
+function buildPlaceDescription(
+  place: Pick<
+    PlaceSeoData,
+    | "name"
+    | "city"
+    | "address"
+    | "description"
+    | "avgRating"
+    | "ratingCount"
+    | "category"
+  >,
+) {
+  const location = [place.city, place.address].filter(Boolean).join(", ");
+
+  const ratingPart =
+    place.ratingCount > 0
+      ? `Рейтинг ${Number(place.avgRating).toFixed(2)} из 5 на основе ${place.ratingCount} отзывов.`
+      : "Пока без отзывов.";
+
+  const raw = place.description?.trim()
+    ? `${place.name} — ${place.category.name}${location ? `, ${location}` : ""}. ${place.description.trim()} ${ratingPart} Смотрите карточку места на Clarify.`
+    : `${place.name} — ${place.category.name}${location ? `, ${location}` : ""}. ${ratingPart} Смотрите карточку места на Clarify.`;
+
+  return trimSeoDescription(raw.replace(/\s+/g, " ").trim());
+}
+
+async function getPlaceSeoData(slug: string): Promise<PlaceSeoData | null> {
+  return prisma.place.findUnique({
+    where: { slug },
+    select: {
+      slug: true,
+      name: true,
+      city: true,
+      address: true,
+      description: true,
+      avgRating: true,
+      ratingCount: true,
+      category: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+}
 
 function getAuthorLabel(author: {
   nickname?: string | null;
@@ -38,6 +107,65 @@ function formatDurationFromSeconds(totalSec: number) {
   }
 
   return `${seconds} с`;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+
+  if (!slug) {
+    return {
+      title: "Место не найдено",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const place = await getPlaceSeoData(slug);
+
+  if (!place) {
+    return {
+      title: "Место не найдено",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const title = buildPlaceTitle(place);
+  const description = buildPlaceDescription(place);
+  const canonical = `/place/${place.slug}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      locale: "ru_RU",
+      siteName: "Clarify",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
 }
 
 export default async function PlacePage({
