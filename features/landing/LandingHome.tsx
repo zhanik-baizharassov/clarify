@@ -151,11 +151,11 @@ export default function LandingHome({
       {/* BUSINESS CTA */}
       <section
         id="business"
-        className="mt-8 rounded-3xl border bg-muted/20 p-7 md:p-10"
+        className="mt-8 rounded-3xl border bg-muted/20 p-5 sm:p-7 md:p-10"
       >
-        <div className="grid gap-6 lg:grid-cols-12 lg:items-center">
+        <div className="grid gap-5 lg:grid-cols-12 lg:items-center lg:gap-6">
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
               <Building2 className="h-3.5 w-3.5 text-primary" />
               Для бизнеса
             </div>
@@ -170,24 +170,28 @@ export default function LandingHome({
               доверие к вашему бренду.
             </p>
 
-            <ul className="mt-5 grid gap-3 text-sm text-muted-foreground md:text-base">
+            <ul className="mt-5 grid max-w-3xl gap-3 text-sm text-muted-foreground md:text-base">
               <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
-                  <Building2 className="h-5 w-5" />
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+                  <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
-                <span>Все филиалы компании в одном кабинете</span>
+                <span className="leading-6">
+                  Все филиалы компании в одном кабинете
+                </span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
-                  <MessageCircle className="h-5 w-5" />
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
-                <span>Публичные ответы помогают укреплять доверие клиентов</span>
+                <span className="leading-6">
+                  Публичные ответы помогают укреплять доверие клиентов
+                </span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border bg-background/60 text-primary">
-                  <ShieldCheck className="h-5 w-5" />
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+                  <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
-                <span>
+                <span className="leading-6">
                   Обратная связь помогает быстрее находить точки роста сервиса
                 </span>
               </li>
@@ -196,13 +200,13 @@ export default function LandingHome({
 
           <div className="lg:col-span-5">
             {!isCompany ? (
-              <div className="relative overflow-hidden rounded-2xl border bg-background p-6">
+              <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-background p-5 sm:p-6 lg:max-w-none">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
                   <Building2 className="h-3.5 w-3.5" />
                   Новый кабинет компании
                 </div>
@@ -227,21 +231,21 @@ export default function LandingHome({
 
                 <div className="mt-5 grid gap-2">
                   <Link
-                    href="/business/signup"
-                    className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
+                    href="/business"
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-center text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
                   >
-                    {isAuthed ? "Подключить компанию" : "Регистрация компании"}
+                    Подробнее для компаний
                   </Link>
                 </div>
               </div>
             ) : (
-              <div className="relative overflow-hidden rounded-2xl border bg-background p-6">
+              <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-background p-5 sm:p-6 lg:max-w-none">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="inline-flex items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
                   <Building2 className="h-3.5 w-3.5" />
                   Вы вошли как компания
                 </div>
