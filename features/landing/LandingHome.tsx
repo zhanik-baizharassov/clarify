@@ -18,10 +18,7 @@ type LandingHomeProps = {
   role?: "USER" | "COMPANY" | "ADMIN" | null;
 };
 
-export default function LandingHome({
-  isAuthed,
-  role,
-}: LandingHomeProps) {
+export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
   const isCompany = role === "COMPANY";
 
   return (
@@ -171,24 +168,26 @@ export default function LandingHome({
             </p>
 
             <ul className="mt-5 grid max-w-3xl gap-3 text-sm text-muted-foreground md:text-base">
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+              <li className="flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
                   <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <span className="leading-6">
                   Все филиалы компании в одном кабинете
                 </span>
               </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+
+              <li className="flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
                   <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <span className="leading-6">
                   Публичные ответы помогают укреплять доверие клиентов
                 </span>
               </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
+
+              <li className="flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
                   <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <span className="leading-6">
