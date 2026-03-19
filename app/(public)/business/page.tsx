@@ -45,48 +45,69 @@ export const metadata: Metadata = {
 const capabilities = [
   {
     icon: <Building2 className="h-5 w-5" />,
-    title: "Официальный профиль компании",
+    title: "Официальный кабинет компании",
     description:
-      "Бизнес получает отдельный кабинет и работает с публичным присутствием на платформе в более официальном формате.",
+      "Компания получает отдельный бизнес-кабинет и работает с присутствием на платформе уже не как случайная карточка, а как подтверждённый участник системы.",
   },
   {
     icon: <FileCheck2 className="h-5 w-5" />,
-    title: "Подтверждение существующих карточек",
+    title: "Claim вместо создания дублей",
     description:
-      "Если место уже есть в каталоге Clarify, компания может подать claim-заявку и получить управление после проверки.",
+      "Если место уже есть в каталоге Clarify, логичнее подтвердить существующую карточку и взять её в управление, а не создавать новую копию.",
   },
   {
     icon: <MessageCircleReply className="h-5 w-5" />,
-    title: "Ответы на отзывы от имени бизнеса",
+    title: "Официальные ответы на отзывы",
     description:
-      "Компания может официально отвечать на отзывы и показывать клиентам, что она действительно вовлечена в обратную связь.",
+      "Бизнес может отвечать от имени компании и показывать клиентам, что обратная связь читается, обрабатывается и не остаётся без реакции.",
   },
   {
     icon: <Store className="h-5 w-5" />,
-    title: "Работа с филиалами",
+    title: "Единая работа с филиалами",
     description:
-      "Когда у бизнеса несколько точек, карточки и отзывы можно держать в одном кабинете, не смешивая филиалы между собой.",
+      "Если у компании несколько точек, их можно держать в одном кабинете, сохраняя порядок в карточках, отзывах и логике каждого филиала.",
   },
 ];
 
-const steps = [
+const flowBlocks = [
+  {
+    icon: <Building2 className="h-4 w-4" />,
+    title: "Auth flow",
+    description:
+      "Сначала компания создаёт бизнес-аккаунт и получает доступ к кабинету. Это отдельный вход для официальной работы на платформе.",
+  },
+  {
+    icon: <FileCheck2 className="h-4 w-4" />,
+    title: "Claim flow",
+    description:
+      "Если карточка уже присутствует в каталоге, компания подаёт заявку на подтверждение и связывает существующее место со своим кабинетом.",
+  },
+  {
+    icon: <ShieldCheck className="h-4 w-4" />,
+    title: "Admin / moderation flow",
+    description:
+      "Платформа проверяет сценарий подключения, чтобы каталог оставался аккуратным, а доступ к карточкам и филиалам получал именно тот бизнес, который имеет на это право.",
+  },
+];
+
+const nextSteps = [
   {
     step: "01",
-    title: "Создайте бизнес-аккаунт",
+    title: "Работайте с отзывами официально",
     description:
-      "После регистрации компания получает доступ к кабинету и базовому бизнес-потоку внутри Clarify.",
+      "После подключения компания может отвечать от имени бизнеса, а для пользователя это выглядит как более понятный и официальный диалог.",
   },
   {
     step: "02",
-    title: "Свяжите компанию с карточкой места",
+    title: "Держите филиалы в одном кабинете",
     description:
-      "Если карточка уже есть в каталоге — подайте claim-заявку. Если точки ещё нет, начните работу через кабинет компании.",
+      "Когда у бизнеса несколько точек, Clarify помогает собрать их в одной системе и не смешивать отзывы и карточки разных филиалов.",
   },
   {
     step: "03",
-    title: "Работайте с филиалами и отзывами",
+    title: "Поддерживайте порядок в присутствии",
     description:
-      "После подтверждения бизнес может официально отвечать на отзывы и поддерживать более аккуратное присутствие на платформе.",
+      "Карточки, отзывы, claim-сценарии и права доступа выстраиваются в более чистую структуру, без дублей и лишней путаницы.",
   },
 ];
 
@@ -94,17 +115,17 @@ const useCases = [
   {
     title: "Когда карточка уже есть в каталоге",
     description:
-      "Clarify не заставляет бизнес создавать дубликаты. Логичнее подтвердить существующую карточку и взять её в управление.",
+      "В этом случае бизнесу не нужен лишний дубль. Более логичный путь — подтвердить существующую карточку и взять её в управление через claim.",
   },
   {
-    title: "Когда у бизнеса несколько филиалов",
+    title: "Когда у компании несколько филиалов",
     description:
-      "У каждой точки свой контекст, свои отзывы и своя репутация. Поэтому важно не смешивать филиалы внутри одного общего потока.",
+      "У каждой точки свой контекст, свой поток отзывов и своя репутация. Поэтому Clarify помогает держать филиалы в одной системе, но не смешивать их между собой.",
   },
   {
-    title: "Когда важно отвечать клиентам официально",
+    title: "Когда важно выглядеть официально для клиента",
     description:
-      "Публичный ответ от имени компании выглядит сильнее, чем полное молчание, и помогает укреплять доверие к бизнесу.",
+      "Публичный ответ от имени компании воспринимается сильнее, чем молчание или случайный комментарий, и помогает укреплять доверие к бизнесу.",
   },
 ];
 
@@ -126,17 +147,22 @@ const faqs = [
   {
     question: "Что делать, если карточка места уже есть в каталоге?",
     answer:
-      "В таком случае не нужно создавать её заново. Компания может подать claim-заявку на существующую карточку и получить управление после проверки.",
+      "Создавать её заново не нужно. Компания может пройти claim-сценарий, чтобы связать существующую карточку со своим кабинетом и получить управление после проверки.",
+  },
+  {
+    question: "Зачем нужен этап проверки и модерации?",
+    answer:
+      "Он нужен для порядка внутри платформы: чтобы не плодить дубликаты, аккуратно связывать компании с карточками и не открывать доступ к управлению без проверки сценария.",
   },
   {
     question: "Можно ли отвечать на отзывы от имени бизнеса?",
     answer:
-      "Да. После подключения бизнес-аккаунта и прохождения нужного сценария компания может официально отвечать на отзывы на платформе.",
+      "Да. После подключения компании и прохождения нужного сценария Clarify позволяет публиковать официальные ответы от имени бизнеса.",
   },
   {
-    question: "Подходит ли Clarify для бизнеса с несколькими филиалами?",
+    question: "Подходит ли Clarify для компаний с несколькими филиалами?",
     answer:
-      "Да. Логика кабинета рассчитана на сценарий, где у компании несколько точек и важно держать их в одной системе без путаницы.",
+      "Да. Логика кабинета рассчитана на сценарий, где у компании несколько точек и важно держать их в одной системе без смешивания карточек и отзывов.",
   },
 ];
 
@@ -169,10 +195,11 @@ export default function BusinessPage() {
             </h1>
 
             <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground md:text-base">
-              Подключайте бизнес к платформе, подтверждайте существующие
-              карточки, отвечайте на отзывы и держите филиалы в одном кабинете.
-              Clarify помогает компании выглядеть не просто найденной в
-              каталоге, а действительно активной и официальной.
+              Clarify помогает бизнесу не просто появиться в каталоге, а
+              выстроить понятное присутствие на платформе: войти в
+              бизнес-кабинет, связать компанию с карточкой места, пройти нужную
+              проверку и уже после этого работать с отзывами и филиалами в одном
+              кабинете.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -199,7 +226,7 @@ export default function BusinessPage() {
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                Claim и подтверждение карточек
+                Claim и проверка карточек
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
                 <Store className="h-3.5 w-3.5 text-primary" />
@@ -220,12 +247,13 @@ export default function BusinessPage() {
           </div>
 
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-            Инструменты для работы с карточками, филиалами и отзывами
+            Инструменты для аккуратной работы с карточками, филиалами и отзывами
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-            Бизнес-страница Clarify создана для компаний, которые хотят
-            присутствовать на платформе официально, работать с отзывами
-            публично и аккуратно управлять своими точками.
+            На этой странице важно не перегружать бизнес десятком разрозненных
+            обещаний. Суть Clarify проще: кабинет компании, понятный сценарий
+            подтверждения карточек, официальный диалог с клиентами и единая
+            логика работы с несколькими точками.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -252,19 +280,31 @@ export default function BusinessPage() {
         <aside className="rounded-[32px] border bg-gradient-to-b from-accent/40 via-background to-secondary/35 p-6 shadow-sm md:p-8">
           <div className="inline-flex items-center gap-2 rounded-full border bg-background/75 px-3 py-1 text-xs font-medium text-primary">
             <Waypoints className="h-3.5 w-3.5" />
-            Когда Clarify особенно полезен
+            Как проходит подключение
           </div>
 
-          <div className="mt-5 grid gap-3">
-            {useCases.map((item) => (
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
+            Auth flow, claim flow и moderation flow без лишней путаницы
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            Вместо хаотичного набора состояний страница должна объяснять бизнесу
+            три вещи: как войти в кабинет, как связать компанию с карточкой и
+            зачем платформа проверяет этот сценарий.
+          </p>
+
+          <div className="mt-6 grid gap-3">
+            {flowBlocks.map((item) => (
               <div
                 key={item.title}
                 className="rounded-[24px] border bg-background/85 p-5 backdrop-blur"
               >
-                <div className="text-sm font-semibold text-foreground">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    {item.icon}
+                  </span>
                   {item.title}
                 </div>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -276,17 +316,17 @@ export default function BusinessPage() {
       <section className="mt-6 rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Как компания начинает работу в Clarify
+            Что компания делает после подключения
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Сценарий простой: компания создаёт бизнес-аккаунт, связывает себя с
-            карточкой места и после этого переходит к работе с отзывами и
-            филиалами в одном кабинете.
+            Когда кабинет уже подключён и нужный сценарий пройден, Clarify
+            становится рабочим инструментом: помогает отвечать на отзывы,
+            поддерживать порядок в карточках и держать филиалы в одной системе.
           </p>
         </div>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
-          {steps.map((item) => (
+          {nextSteps.map((item) => (
             <article
               key={item.step}
               className="relative overflow-hidden rounded-[28px] border bg-gradient-to-b from-accent/30 to-background p-5"
@@ -317,8 +357,9 @@ export default function BusinessPage() {
             Для каких бизнесов это особенно актуально
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Clarify особенно хорошо раскрывается там, где пользователи выбирают
-            место, читают отзывы и сравнивают разные точки до принятия решения.
+            Clarify особенно полезен там, где клиент читает отзывы до выбора,
+            сравнивает точки между собой и ожидает увидеть не просто карточку
+            места, а признаки реального присутствия бизнеса на платформе.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -336,14 +377,49 @@ export default function BusinessPage() {
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <p className="text-sm leading-7 text-muted-foreground">
-                Для бизнеса важно не просто быть в каталоге, а выглядеть
-                официально и понятно для клиента: отвечать на отзывы, держать
-                карточки в порядке и не смешивать разные точки в один поток.
+                Для бизнеса важно не просто числиться в каталоге, а выглядеть
+                официально и понятно для клиента: держать карточки в порядке,
+                отвечать на отзывы и не смешивать разные филиалы в один общий
+                поток.
               </p>
             </div>
           </div>
         </article>
 
+        <article className="rounded-[32px] border bg-gradient-to-b from-muted/55 via-background to-accent/25 p-6 shadow-sm md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-background/75 px-3 py-1 text-xs font-medium text-primary">
+            <BadgeCheck className="h-3.5 w-3.5" />
+            Когда Clarify особенно полезен
+          </div>
+
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
+            Типовые сценарии использования
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            Этот блок продолжает основную мысль страницы и показывает, в каких
+            реальных ситуациях бизнес быстрее всего понимает ценность кабинета
+            компании и claim-сценария.
+          </p>
+
+          <div className="mt-6 space-y-3">
+            {useCases.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-[22px] border bg-background px-5 py-4"
+              >
+                <div className="text-sm font-semibold text-foreground">
+                  {item.title}
+                </div>
+                <p className="pt-3 text-sm leading-7 text-muted-foreground">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="mt-6 grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
         <article className="rounded-[32px] border bg-gradient-to-b from-muted/55 via-background to-accent/25 p-6 shadow-sm md:p-8">
           <div className="inline-flex items-center gap-2 rounded-full border bg-background/75 px-3 py-1 text-xs font-medium text-primary">
             <BadgeCheck className="h-3.5 w-3.5" />
@@ -354,8 +430,8 @@ export default function BusinessPage() {
             Часто задаваемые вопросы
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Этот блок помогает быстрее понять бизнес-сценарий Clarify и закрывает
-            самые частые вопросы до регистрации.
+            Здесь собраны самые частые вопросы о регистрации компании, claim,
+            модерации и работе с филиалами до старта в Clarify.
           </p>
 
           <div className="mt-6 space-y-3">
@@ -379,9 +455,45 @@ export default function BusinessPage() {
             ))}
           </div>
         </article>
+
+        <article className="rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            Коротко о логике страницы
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            Этот лендинг должен объяснять бизнесу одну последовательную мысль:
+            сначала компания входит в систему, затем связывает себя с карточкой,
+            проходит нужную проверку и только после этого начинает официально
+            работать с отзывами и филиалами.
+          </p>
+
+          <div className="mt-6 space-y-4">
+            <div className="rounded-[24px] border bg-muted/25 p-5">
+              <div className="text-sm font-semibold text-foreground">
+                Почему это лучше для восприятия
+              </div>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                Когда на странице слишком много мелких интерактивных форм, смысл
+                распадается. Когда блоки связаны логически, бизнес быстрее
+                понимает, что именно он получает и зачем нужен каждый этап.
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border bg-muted/25 p-5">
+              <div className="text-sm font-semibold text-foreground">
+                Что важно сохранить дальше
+              </div>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                Спокойную подачу, меньше лишней кликабельности, меньше повторов и
+                больше последовательности: кабинет → claim → проверка → отзывы и
+                филиалы.
+              </p>
+            </div>
+          </div>
+        </article>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-[36px] border bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/40 px-6 py-8 shadow-sm md:px-8 md:py-10">
+      <section className="relative mt-6 overflow-hidden rounded-[36px] border bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/40 px-6 py-8 shadow-sm md:px-8 md:py-10">
         <div
           aria-hidden
           className="pointer-events-none absolute -left-10 top-10 h-52 w-52 rounded-full bg-primary/10 blur-3xl"
@@ -398,12 +510,13 @@ export default function BusinessPage() {
             </div>
 
             <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-              Подключите компанию к Clarify и работайте с репутацией публично
+              Подключите компанию к Clarify и выстройте понятное присутствие на
+              платформе
             </h2>
             <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
-              Создайте бизнес-аккаунт, свяжите компанию с карточками мест и
-              отвечайте на отзывы от имени бизнеса в более понятном и
-              официальном формате.
+              Создайте бизнес-аккаунт, пройдите нужный сценарий подключения,
+              свяжите компанию с карточками мест и начните официально работать с
+              отзывами и филиалами без лишней путаницы.
             </p>
           </div>
 
