@@ -170,11 +170,6 @@ export async function POST(req: Request) {
 
     await cleanupExpiredPendingSignups(now);
 
-    const { normalizedAddress } = await validateKzAddress({
-      city,
-      address: input.address,
-    });
-
     const [
       pendingUserByEmail,
       pendingUserByPhone,
@@ -250,6 +245,11 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
+
+    const { normalizedAddress } = await validateKzAddress({
+      city,
+      address: input.address,
+    });
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
