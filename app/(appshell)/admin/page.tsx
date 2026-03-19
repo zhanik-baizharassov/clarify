@@ -18,6 +18,15 @@ import UserModerationActions from "@/features/admin/components/user-moderation-a
 import CompanyModerationActions from "@/features/admin/components/company-moderation-actions";
 import CategoryManagementPanel from "@/features/admin/components/category-management-panel";
 import TagManagementPanel from "@/features/admin/components/tag-management-panel";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Админ-панель",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const runtime = "nodejs";
 

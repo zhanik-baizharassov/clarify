@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "Регистрация компании",
   description:
     "Создайте бизнес-аккаунт Clarify, чтобы управлять карточкой компании, добавлять филиалы и отвечать на отзывы.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 function Loading() {

@@ -4,6 +4,15 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ProfileEditForm from "@/features/profile/components/profile-edit-form";
 import UserAvatar from "@/components/ui/UserAvatar";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Профиль",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const runtime = "nodejs";
 

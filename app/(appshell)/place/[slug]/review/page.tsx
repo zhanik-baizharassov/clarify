@@ -4,6 +4,15 @@ import { PencilLine, ShieldCheck, Star } from "lucide-react";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import ReviewForm from "@/features/reviews/components/review-form";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Оставить отзыв",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const runtime = "nodejs";
 

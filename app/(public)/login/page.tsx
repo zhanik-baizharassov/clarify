@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "Вход",
   description:
     "Войдите в аккаунт Clarify, чтобы оставлять отзывы, управлять профилем и пользоваться возможностями платформы.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function LoginPage() {

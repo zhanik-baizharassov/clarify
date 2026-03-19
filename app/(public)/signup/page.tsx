@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "Регистрация",
   description:
     "Создайте аккаунт Clarify, чтобы оставлять отзывы, оценивать компании и пользоваться профилем на платформе.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function SignupPage() {

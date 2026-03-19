@@ -30,21 +30,25 @@ const metadataBase = resolveMetadataBase();
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "Clarify",
+    default: "Clarify — отзывы о местах и компаниях Казахстана",
     template: "%s — Clarify",
   },
-  description: "Отзывы о компаниях и местах в Казахстане",
+  description:
+    "Clarify — платформа отзывов по Казахстану. Ищите места, читайте реальные отзывы, сравнивайте рейтинг и выбирайте сервисы осознанно.",
   openGraph: {
     type: "website",
     locale: "ru_RU",
     siteName: "Clarify",
-    title: "Clarify",
-    description: "Отзывы о компаниях и местах в Казахстане",
+    title: "Clarify — отзывы о местах и компаниях Казахстана",
+    description:
+      "Платформа отзывов по Казахстану: реальные оценки, карточки мест, ответы компаний и удобный поиск.",
+    url: "/",
   },
   twitter: {
-    card: "summary",
-    title: "Clarify",
-    description: "Отзывы о компаниях и местах в Казахстане",
+    card: "summary_large_image",
+    title: "Clarify — отзывы о местах и компаниях Казахстана",
+    description:
+      "Платформа отзывов по Казахстану: реальные оценки, карточки мест, ответы компаний и удобный поиск.",
   },
   robots: {
     index: true,

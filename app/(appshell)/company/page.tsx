@@ -13,6 +13,15 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import CreateBranchForm from "@/features/company/components/create-branch-form";
 import ReplyForm from "@/features/reviews/components/reply-form";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Кабинет компании",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
