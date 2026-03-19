@@ -3,10 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
-import {
-  cleanupExpiredPendingSignups,
-  maybeRunMaintenanceCleanup,
-} from "@/server/maintenance/cleanup";
+import { cleanupExpiredPendingSignups } from "@/server/maintenance/cleanup";
 import { sendEmailVerificationCode } from "@/server/email/mailer";
 import {
   generate6DigitCode,
@@ -171,7 +168,6 @@ export async function POST(req: Request) {
 
     const now = new Date();
 
-    await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
     const store = await cookies();

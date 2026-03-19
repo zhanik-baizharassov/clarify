@@ -3,10 +3,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
-import {
-  cleanupExpiredPendingSignups,
-  maybeRunMaintenanceCleanup,
-} from "@/server/maintenance/cleanup";
+import { cleanupExpiredPendingSignups } from "@/server/maintenance/cleanup";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { generate6DigitCode, hashCode } from "@/server/email/verification";
@@ -171,7 +168,6 @@ export async function POST(req: Request) {
 
     const now = new Date();
 
-    await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
     const { normalizedAddress } = await validateKzAddress({

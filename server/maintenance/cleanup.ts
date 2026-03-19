@@ -1,7 +1,4 @@
-import crypto from "crypto";
 import { prisma } from "@/server/db/prisma";
-
-const MAINTENANCE_CLEANUP_SAMPLE_PERCENT = 2;
 
 export type MaintenanceCleanupSummary = {
   pendingUserSignups: number;
@@ -61,17 +58,4 @@ export async function runMaintenanceCleanup(
     emailVerifications: emailVerifications.count,
     rateLimitBuckets: rateLimitBuckets.count,
   };
-}
-
-export async function maybeRunMaintenanceCleanup(now = new Date()) {
-  if (crypto.randomInt(100) >= MAINTENANCE_CLEANUP_SAMPLE_PERCENT) {
-    return null;
-  }
-
-  try {
-    return await runMaintenanceCleanup(now);
-  } catch (err) {
-    console.error("MAINTENANCE CLEANUP ERROR:", err);
-    return null;
-  }
 }

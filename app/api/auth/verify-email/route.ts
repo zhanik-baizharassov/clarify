@@ -10,10 +10,7 @@ import {
   setSessionCookie,
   verifyEmailVerifyLoginToken,
 } from "@/server/auth/session-token";
-import {
-  cleanupExpiredPendingSignups,
-  maybeRunMaintenanceCleanup,
-} from "@/server/maintenance/cleanup";
+import { cleanupExpiredPendingSignups } from "@/server/maintenance/cleanup";
 import { isCodeHashMatch } from "@/server/email/verification";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import {
@@ -111,7 +108,6 @@ export async function POST(req: Request) {
 
     const now = new Date();
 
-    await maybeRunMaintenanceCleanup(now);
     await cleanupExpiredPendingSignups(now);
 
     const store = await cookies();
