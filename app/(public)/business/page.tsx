@@ -6,7 +6,6 @@ import {
   Building2,
   CheckCircle2,
   FileCheck2,
-  LayoutDashboard,
   MessageCircleReply,
   ShieldCheck,
   Sparkles,
@@ -18,14 +17,14 @@ import BusinessShowcase from "@/features/business/components/BusinessShowcase";
 export const metadata: Metadata = {
   title: "Для бизнеса",
   description:
-    "Clarify для бизнеса: официальный профиль компании, управление филиалами, ответы на отзывы и работа с карточками мест в Казахстане.",
+    "Clarify для бизнеса: официальный профиль компании, управление филиалами, ответы на отзывы и подтверждение карточек мест в Казахстане.",
   alternates: {
     canonical: "/business",
   },
   openGraph: {
     title: "Для бизнеса — Clarify",
     description:
-      "Официальный профиль компании, ответы на отзывы, управление филиалами и работа с карточками мест на Clarify.",
+      "Официальный профиль компании, ответы на отзывы, управление филиалами и подтверждение карточек мест на Clarify.",
     url: "/business",
     type: "website",
     locale: "ru_RU",
@@ -35,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Для бизнеса — Clarify",
     description:
-      "Официальный профиль компании, ответы на отзывы, управление филиалами и работа с карточками мест на Clarify.",
+      "Официальный профиль компании, ответы на отзывы, управление филиалами и подтверждение карточек мест на Clarify.",
   },
   robots: {
     index: true,
@@ -43,28 +42,76 @@ export const metadata: Metadata = {
   },
 };
 
-const journey = [
+const capabilities = [
   {
+    icon: <Building2 className="h-5 w-5" />,
+    title: "Официальный профиль компании",
+    description:
+      "Бизнес получает отдельный кабинет и работает с публичным присутствием на платформе в более официальном формате.",
+  },
+  {
+    icon: <FileCheck2 className="h-5 w-5" />,
+    title: "Подтверждение существующих карточек",
+    description:
+      "Если место уже есть в каталоге Clarify, компания может подать claim-заявку и получить управление после проверки.",
+  },
+  {
+    icon: <MessageCircleReply className="h-5 w-5" />,
+    title: "Ответы на отзывы от имени бизнеса",
+    description:
+      "Компания может официально отвечать на отзывы и показывать клиентам, что она действительно вовлечена в обратную связь.",
+  },
+  {
+    icon: <Store className="h-5 w-5" />,
+    title: "Работа с филиалами",
+    description:
+      "Когда у бизнеса несколько точек, карточки и отзывы можно держать в одном кабинете, не смешивая филиалы между собой.",
+  },
+];
+
+const steps = [
+  {
+    step: "01",
     title: "Создайте бизнес-аккаунт",
     description:
-      "Компания получает доступ к отдельному кабинету и стартовым инструментам для работы с присутствием на платформе.",
+      "После регистрации компания получает доступ к кабинету и базовому бизнес-потоку внутри Clarify.",
   },
   {
-    title: "Подтвердите связь с бизнесом",
+    step: "02",
+    title: "Свяжите компанию с карточкой места",
     description:
-      "Можно заявить права на существующую карточку или добавить новый филиал, если бизнеса ещё нет в каталоге.",
+      "Если карточка уже есть в каталоге — подайте claim-заявку. Если точки ещё нет, начните работу через кабинет компании.",
   },
   {
-    title: "Управляйте репутацией публично",
+    step: "03",
+    title: "Работайте с филиалами и отзывами",
     description:
-      "После подтверждения компания отвечает на отзывы официально и держит карточки точек в аккуратном состоянии.",
+      "После подтверждения бизнес может официально отвечать на отзывы и поддерживать более аккуратное присутствие на платформе.",
+  },
+];
+
+const useCases = [
+  {
+    title: "Когда карточка уже есть в каталоге",
+    description:
+      "Clarify не заставляет бизнес создавать дубликаты. Логичнее подтвердить существующую карточку и взять её в управление.",
+  },
+  {
+    title: "Когда у бизнеса несколько филиалов",
+    description:
+      "У каждой точки свой контекст, свои отзывы и своя репутация. Поэтому важно не смешивать филиалы внутри одного общего потока.",
+  },
+  {
+    title: "Когда важно отвечать клиентам официально",
+    description:
+      "Публичный ответ от имени компании выглядит сильнее, чем полное молчание, и помогает укреплять доверие к бизнесу.",
   },
 ];
 
 const industries = [
   "Рестораны и кафе",
-  "Салоны и бьюти",
   "Клиники и медцентры",
+  "Салоны и бьюти",
   "Магазины и шоурумы",
   "Сервисы и услуги",
   "Отели и гостевые объекты",
@@ -74,65 +121,64 @@ const faqs = [
   {
     question: "Кто может зарегистрировать компанию в Clarify?",
     answer:
-      "Регистрацию проходит представитель бизнеса, который планирует работать с карточкой компании, филиалами и отзывами от имени бренда.",
+      "Регистрацию проходит представитель бизнеса, который планирует работать с карточкой компании, филиалами и отзывами на платформе.",
   },
   {
-    question: "Что даёт подтверждение карточки?",
+    question: "Что делать, если карточка места уже есть в каталоге?",
     answer:
-      "Подтверждение связывает компанию с её карточкой на платформе и открывает официальный формат управления: ответы на отзывы, работа с филиалами и дальнейшее развитие бизнес-кабинета.",
+      "В таком случае не нужно создавать её заново. Компания может подать claim-заявку на существующую карточку и получить управление после проверки.",
   },
   {
-    question: "Можно ли работать с несколькими филиалами?",
+    question: "Можно ли отвечать на отзывы от имени бизнеса?",
     answer:
-      "Да. Страница для бизнеса изначально объясняет сценарий работы с несколькими точками, чтобы компания не смешивала отзывы и управление разными филиалами.",
+      "Да. После подключения бизнес-аккаунта и прохождения нужного сценария компания может официально отвечать на отзывы на платформе.",
   },
   {
-    question: "Если карточка уже есть в каталоге, нужно создавать её заново?",
+    question: "Подходит ли Clarify для бизнеса с несколькими филиалами?",
     answer:
-      "Нет. В таком случае логичнее подать заявку на подтверждение существующей карточки, а не дублировать её заново.",
+      "Да. Страница для бизнеса и логика кабинета рассчитаны на сценарий, где у компании несколько точек и важно держать их в одной системе без путаницы.",
   },
 ];
 
 export default function BusinessPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-[32px] border bg-gradient-to-br from-background via-background to-primary/[0.06] px-6 py-8 shadow-sm md:px-8 md:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[36px] border border-[#9fd1ff] bg-[linear-gradient(135deg,#7cc2ff_0%,#61b0fb_45%,#5aa7f3_100%)] px-6 py-8 text-slate-950 shadow-[0_24px_80px_rgba(74,152,236,0.22)] md:px-8 md:py-10 lg:px-10 lg:py-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-white/20 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-white/20 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-primary/10 blur-2xl"
+          className="pointer-events-none absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-[#bfe3ff]/40 blur-2xl"
         />
 
         <div className="relative grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
+              <Building2 className="h-3.5 w-3.5" />
               Clarify для компаний и филиалов
             </div>
 
-            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-balance md:text-5xl">
-              Не просто присутствуйте в каталоге —
-              <span className="text-primary"> управляйте репутацией бизнеса</span>
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              Управляйте присутствием компании в Clarify официально
             </h1>
 
-            <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground md:text-base">
-              Clarify помогает компаниям официально работать с карточками мест,
-              филиалами и отзывами. Страница для бизнеса должна не просто вести
-              на регистрацию, а сразу показывать, зачем бизнесу быть активным на
-              платформе и как это выглядит на практике.
+            <p className="mt-5 max-w-xl text-sm leading-7 text-white/92 md:text-base">
+              Подключайте бизнес к платформе, подтверждайте существующие
+              карточки, отвечайте на отзывы и держите филиалы в одном кабинете.
+              Clarify помогает компании выглядеть не просто найденной в
+              каталоге, а действительно активной и официальной.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link
                 href="/business/signup"
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-95"
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-medium text-[#3d8fe5] shadow-[0_12px_30px_rgba(255,255,255,0.28)] transition hover:-translate-y-0.5 hover:bg-white/95"
               >
                 Зарегистрировать компанию
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -140,24 +186,24 @@ export default function BusinessPage() {
 
               <Link
                 href="/company"
-                className="inline-flex h-12 items-center justify-center rounded-2xl border bg-background/80 px-5 text-sm font-medium transition hover:bg-muted/50"
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
               >
-                Перейти в кабинет
+                Уже есть кабинет
               </Link>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1">
-                <BadgeCheck className="h-3.5 w-3.5 text-primary" />
+            <div className="mt-7 flex flex-wrap gap-2 text-xs text-white/90">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
+                <BadgeCheck className="h-3.5 w-3.5" />
                 Официальные ответы компании
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                Подтверждение связи с бизнесом
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Claim и подтверждение карточек
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1">
-                <Store className="h-3.5 w-3.5 text-primary" />
-                Управление филиалами
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 backdrop-blur">
+                <Store className="h-3.5 w-3.5" />
+                Работа с филиалами
               </span>
             </div>
           </div>
@@ -166,143 +212,99 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <article className="relative overflow-hidden rounded-[28px] border bg-background p-6 md:p-8">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
-          />
+      <section className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+        <article className="rounded-[32px] border border-[#d7ebff] bg-[linear-gradient(180deg,#f7fbff_0%,#edf6ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.12)] md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#cfe6ff] bg-white/80 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+            <Sparkles className="h-3.5 w-3.5" />
+            Что получает бизнес
+          </div>
 
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-primary/5 px-3 py-1 text-xs text-primary">
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              Единый ритм работы
-            </div>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+            Реальные инструменты под текущую логику Clarify
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+            Здесь нет лишних обещаний. Страница говорит только о том, что
+            действительно укладывается в продуктовую логику платформы уже
+            сейчас: бизнес-аккаунт, claim существующих карточек, филиалы и
+            официальные ответы на отзывы.
+          </p>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-              Бизнесу нужен не просто профиль, а понятный центр управления
-            </h2>
-
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-              В обычных лендингах всё заканчивается кнопкой “зарегистрироваться”.
-              Здесь логика другая: компания должна сразу понимать, как выглядит
-              её путь внутри платформы — от карточки места до официального
-              ответа на отзыв.
-            </p>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border bg-muted/20 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <MessageCircleReply className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      Ответы выглядят официально
-                    </h3>
-                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                      Компания может реагировать публично и показывать, что
-                      действительно присутствует на платформе, а не просто
-                      числится в каталоге.
-                    </p>
-                  </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {capabilities.map((item) => (
+              <article
+                key={item.title}
+                className="rounded-[24px] border border-[#d6eaff] bg-white/90 p-5 shadow-[0_10px_30px_rgba(126,190,255,0.10)]"
+              >
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#dff0ff_0%,#cde7ff_100%)] text-[#3f90e5]">
+                  {item.icon}
                 </div>
-              </div>
 
-              <div className="rounded-2xl border bg-muted/20 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Waypoints className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      Филиалы не смешиваются
-                    </h3>
-                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                      Когда у бизнеса несколько точек, важно разделять отзывы,
-                      статус карточек и дальнейшую работу по каждому филиалу.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border bg-muted/20 p-4 sm:col-span-2">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <FileCheck2 className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      Claim-flow без хаоса и дублей
-                    </h3>
-                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                      Если карточка уже есть в каталоге, компания не создаёт её
-                      заново. Вместо этого она подаёт заявку на подтверждение и
-                      получает более чистый и логичный сценарий входа в систему.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  {item.description}
+                </p>
+              </article>
+            ))}
           </div>
         </article>
 
-        <aside className="rounded-[28px] border bg-gradient-to-br from-primary/[0.08] via-background to-background p-6 md:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Почему это выглядит сильнее
+        <aside className="rounded-[32px] border border-[#c9e3ff] bg-[linear-gradient(180deg,#ecf6ff_0%,#dff0ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.14)] md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#c5e0ff] bg-white/70 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+            <Waypoints className="h-3.5 w-3.5" />
+            Когда Clarify особенно полезен
           </div>
 
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-            Меньше “типового SaaS”, больше ощущения настоящего продукта
-          </h2>
-
-          <div className="mt-5 space-y-3">
-            {[
-              "Разный ритм блоков вместо одинаковых карточек по сетке.",
-              "Один живой интерактивный блок, который можно реально переключать.",
-              "Сильный hero с пользой, а не просто заголовком и кнопкой.",
-              "FAQ остаётся индексируемым и полезным для SEO.",
-            ].map((item) => (
+          <div className="mt-5 grid gap-3">
+            {useCases.map((item) => (
               <div
-                key={item}
-                className="flex items-start gap-3 rounded-2xl border bg-background/80 p-4"
+                key={item.title}
+                className="rounded-[24px] border border-[#d5e9ff] bg-white/85 p-5"
               >
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p className="text-sm leading-7 text-muted-foreground">{item}</p>
+                <div className="text-sm font-semibold text-slate-950">
+                  {item.title}
+                </div>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  {item.description}
+                </p>
               </div>
             ))}
           </div>
         </aside>
       </section>
 
-      <section className="mt-6 rounded-[28px] border bg-background px-6 py-8 md:px-8 md:py-10">
+      <section className="mt-6 rounded-[32px] border border-[#d7ebff] bg-white p-6 shadow-[0_16px_50px_rgba(124,194,255,0.08)] md:p-8">
         <div className="max-w-2xl">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Как компания входит в Clarify
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Как компания начинает работу в Clarify
           </h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Здесь лучше работает не набор отдельных карточек, а более цельный
-            сценарий. Пользователь должен видеть путь компании последовательно,
-            почти как мини-product flow.
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Важно, чтобы на странице был не только красивый визуал, но и
+            понятный сценарий. Поэтому здесь логика выстроена вокруг реального
+            бизнес-потока: регистрация, связь с карточкой места и дальнейшая
+            работа с отзывами и филиалами.
           </p>
         </div>
 
-        <div className="mt-8 space-y-4">
-          {journey.map((item, index) => (
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          {steps.map((item) => (
             <article
-              key={item.title}
-              className="grid gap-4 rounded-3xl border bg-muted/[0.14] p-4 md:grid-cols-[72px_1fr] md:p-5"
+              key={item.step}
+              className="relative overflow-hidden rounded-[28px] border border-[#dcecff] bg-[linear-gradient(180deg,#f8fcff_0%,#eef7ff_100%)] p-5"
             >
-              <div className="flex md:block">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm">
-                  {String(index + 1).padStart(2, "0")}
+              <div
+                aria-hidden
+                className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#cfe8ff]/50 blur-2xl"
+              />
+              <div className="relative">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6ab7ff_0%,#4e9df2_100%)] text-sm font-semibold text-white shadow-[0_12px_26px_rgba(74,152,236,0.22)]">
+                  {item.step}
                 </div>
-              </div>
-
-              <div className="min-w-0">
-                <h3 className="text-lg font-semibold">{item.title}</h3>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
                   {item.description}
                 </p>
               </div>
@@ -311,54 +313,68 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-        <article className="rounded-[28px] border bg-background p-6 md:p-8">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Где Clarify особенно полезен
+      <section className="mt-6 grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
+        <article className="rounded-[32px] border border-[#d7ebff] bg-[linear-gradient(180deg,#f8fcff_0%,#f1f8ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.08)] md:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Для каких бизнесов это особенно актуально
           </h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Страница должна говорить не только “что у нас есть”, но и “для кого
-            это особенно полезно”. Это сразу делает коммуникацию ближе к
-            реальному бизнесу.
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Clarify особенно хорошо раскрывается там, где пользователи выбирают
+            место, читают отзывы и сравнивают разные точки до принятия решения.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             {industries.map((item) => (
               <span
                 key={item}
-                className="inline-flex items-center rounded-full border bg-muted/20 px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                className="inline-flex items-center rounded-full border border-[#cfe5ff] bg-white px-4 py-2 text-sm text-slate-600 transition hover:border-[#7dbfff] hover:text-slate-950"
               >
                 {item}
               </span>
             ))}
           </div>
+
+          <div className="mt-6 rounded-[24px] border border-[#d8eaff] bg-white/90 p-5">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#4594e8]" />
+              <p className="text-sm leading-7 text-slate-600">
+                Смысл страницы для бизнеса не только в регистрации. Она должна
+                сразу объяснять, зачем компании присутствовать на платформе
+                официально и как это помогает не терять доверие клиентов.
+              </p>
+            </div>
+          </div>
         </article>
 
-        <article className="rounded-[28px] border bg-muted/[0.18] p-6 md:p-8">
-          <h2 className="text-2xl font-semibold tracking-tight">
+        <article className="rounded-[32px] border border-[#c9e3ff] bg-[linear-gradient(180deg,#ecf6ff_0%,#e4f2ff_100%)] p-6 shadow-[0_16px_50px_rgba(124,194,255,0.12)] md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#c5e0ff] bg-white/70 px-3 py-1 text-xs font-medium text-[#3f90e5]">
+            <BadgeCheck className="h-3.5 w-3.5" />
+            FAQ для бизнеса
+          </div>
+
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
             Часто задаваемые вопросы
           </h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            FAQ здесь не просто декоративный. Он помогает снять возражения,
-            добавляет индексируемый текст и делает страницу полезнее ещё до
-            регистрации.
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Этот блок полезен и для пользователя, и для SEO: он снимает
+            возражения и добавляет на страницу нормальный индексируемый слой.
           </p>
 
           <div className="mt-6 space-y-3">
             {faqs.map((item) => (
               <details
                 key={item.question}
-                className="group rounded-2xl border bg-background px-5 py-4"
+                className="group rounded-[22px] border border-[#d7eaff] bg-white px-5 py-4"
               >
-                <summary className="cursor-pointer list-none pr-8 text-sm font-medium">
+                <summary className="cursor-pointer list-none pr-8 text-sm font-medium text-slate-950">
                   <span className="relative block">
                     {item.question}
-                    <span className="absolute right-0 top-0 text-muted-foreground transition group-open:rotate-45">
+                    <span className="absolute right-0 top-0 text-slate-400 transition group-open:rotate-45">
                       +
                     </span>
                   </span>
                 </summary>
-                <p className="pt-3 text-sm leading-7 text-muted-foreground">
+                <p className="pt-3 text-sm leading-7 text-slate-600">
                   {item.answer}
                 </p>
               </details>
@@ -367,34 +383,38 @@ export default function BusinessPage() {
         </article>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-[32px] border bg-gradient-to-br from-primary to-primary/80 px-6 py-8 text-primary-foreground md:px-8 md:py-10">
+      <section className="mt-6 overflow-hidden rounded-[36px] border border-[#9fd1ff] bg-[linear-gradient(135deg,#7cc2ff_0%,#61b0fb_45%,#5aa7f3_100%)] px-6 py-8 text-slate-950 shadow-[0_24px_80px_rgba(74,152,236,0.22)] md:px-8 md:py-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute hidden h-0 w-0"
+        />
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/80">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
               <BadgeCheck className="h-3.5 w-3.5" />
               Для компаний, которые хотят выглядеть официально
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
-              Подключите бизнес к Clarify и работайте с репутацией публично
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+              Подключите компанию к Clarify и работайте с репутацией публично
             </h2>
-            <p className="mt-3 text-sm leading-7 text-white/80 md:text-base">
-              Этот экран уже можно делать основой для сильной `/business`
-              страницы: с SEO-нормой, живым визуалом и более дорогим ощущением,
-              чем просто набор одинаковых блоков.
+            <p className="mt-3 text-sm leading-7 text-white/92 md:text-base">
+              Создайте бизнес-аккаунт, свяжите компанию с карточками мест и
+              отвечайте на отзывы от имени бизнеса в более понятном и
+              официальном формате.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Link
               href="/business/signup"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-medium text-primary transition hover:-translate-y-0.5 hover:bg-white/95"
+              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-medium text-[#3d8fe5] shadow-[0_12px_30px_rgba(255,255,255,0.28)] transition hover:-translate-y-0.5 hover:bg-white/95"
             >
               Начать регистрацию
             </Link>
             <Link
               href="/company"
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/15"
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
             >
               Уже есть кабинет
             </Link>
