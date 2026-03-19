@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+function isProduction() {
+  return process.env.NODE_ENV === "production";
+}
+
 function normalizeOrigin(value: string | null | undefined) {
   if (!value) return null;
 
@@ -35,19 +39,41 @@ function getRequestOrigin(req: Request) {
   return normalizeOrigin(`${proto}://${host}`);
 }
 
+function getConfiguredAppOrigin() {
+  return normalizeOrigin(process.env.APP_ORIGIN);
+}
+
 function getAllowedOrigins(req: Request) {
   const allowed = new Set<string>();
+  const appOrigin = getConfiguredAppOrigin();
 
-  const appOrigin = normalizeOrigin(process.env.APP_ORIGIN);
-  if (appOrigin) allowed.add(appOrigin);
+  if (isProduction()) {
+    if (appOrigin) {
+      allowed.add(appOrigin);
+    }
+    return allowed;
+  }
+
+  if (appOrigin) {
+    allowed.add(appOrigin);
+  }
 
   const requestOrigin = getRequestOrigin(req);
-  if (requestOrigin) allowed.add(requestOrigin);
+  if (requestOrigin) {
+    allowed.add(requestOrigin);
+  }
 
   return allowed;
 }
 
 export function enforceSameOrigin(req: Request) {
+  if (isProduction() && !getConfiguredAppOrigin()) {
+    return NextResponse.json(
+      { error: "CSRF protection is not configured" },
+      { status: 500 },
+    );
+  }
+
   const allowedOrigins = getAllowedOrigins(req);
 
   const origin = normalizeOrigin(req.headers.get("origin"));
