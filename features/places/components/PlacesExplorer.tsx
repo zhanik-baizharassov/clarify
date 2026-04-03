@@ -366,23 +366,23 @@ export default function PlacesExplorer({
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
+            className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/50 blur-3xl"
           />
 
           <div className="relative grid gap-8 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-7">
               <div className="clarify-badge w-fit">
-                <span className="inline-flex h-6 items-center rounded-full border border-primary-soft-border bg-primary-soft px-2.5 text-[11px] font-semibold text-primary">
+                <span className="inline-flex h-6 items-center rounded-full border border-primary-soft-border bg-primary-soft px-2.5 text-[11px] font-semibold text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#60A5FA]">
                   KZ
                 </span>
                 <span>Верифицированные отзывы и прозрачная репутация</span>
               </div>
 
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground dark:text-[#F8FAFC] md:text-5xl md:leading-[1.08]">
                 Найдите места по отзывам и репутации
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#475467] dark:text-[#CBD5E1] md:text-base">
                 Clarify помогает выбирать места по реальным отзывам и рейтингу,
                 а компаниям — получать прозрачную обратную связь и отвечать
                 официально.
@@ -468,14 +468,16 @@ export default function PlacesExplorer({
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-foreground">Категории</div>
-              <div className="mt-1 text-sm text-muted-foreground">
+              <div className="text-sm font-semibold text-foreground dark:text-[#F8FAFC]">
+                Категории
+              </div>
+              <div className="mt-1 text-sm text-[#667085] dark:text-[#94A3B8]">
                 Быстрый переход к нужному типу мест
               </div>
             </div>
           </div>
 
-          <div className="clarify-card-soft overflow-hidden p-4">
+          <div className="clarify-card-soft overflow-hidden p-4 dark:bg-[#101A2E] dark:border-[#24314A]">
             <div className="flex gap-2 overflow-x-auto pb-1">
               <Chip
                 active={!categoryId}
@@ -523,11 +525,11 @@ export default function PlacesExplorer({
               <div className="min-w-0">
                 <div className="clarify-badge-premium w-fit">{p.category.name}</div>
 
-                <div className="mt-4 line-clamp-2 text-lg font-semibold tracking-tight text-foreground">
+                <div className="mt-4 line-clamp-2 text-lg font-semibold tracking-tight text-foreground dark:text-[#F8FAFC]">
                   {p.name}
                 </div>
 
-                <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+                <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <span>
                     {p.city}
@@ -536,18 +538,20 @@ export default function PlacesExplorer({
                 </div>
               </div>
 
-              <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right">
-                <div className="text-lg font-semibold text-primary">
+              <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right dark:border-[#24314A] dark:bg-[#142039]">
+                <div className="text-lg font-semibold text-primary dark:text-[#60A5FA]">
                   {Number(p.avgRating).toFixed(2)}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-[#667085] dark:text-[#94A3B8]">
                   {nf.format(p.ratingCount)} отзывов
                 </div>
               </div>
             </div>
 
             <div className="mt-5 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Открыть карточку места</span>
+              <span className="text-[#667085] dark:text-[#94A3B8]">
+                Открыть карточку места
+              </span>
               <ArrowUpRight className="h-4 w-4 text-primary" />
             </div>
           </Link>
@@ -628,10 +632,10 @@ function SearchCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="clarify-badge-premium w-fit">Поиск мест</div>
-          <div className="mt-4 text-lg font-semibold tracking-tight sm:text-xl">
+          <div className="mt-4 text-lg font-semibold tracking-tight text-foreground dark:text-[#F8FAFC] sm:text-xl">
             Название, адрес или описание — плюс точные фильтры
           </div>
-          <div className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">
+          <div className="mt-2 text-sm leading-7 text-[#475467] dark:text-[#CBD5E1] sm:text-base">
             Ищите по городу, категории и сортируйте результаты так, как удобно вам.
           </div>
         </div>
@@ -745,13 +749,15 @@ function FeatureCard({
 }) {
   return (
     <div className="clarify-card-soft p-5">
-      <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+      <div className="flex items-center gap-3 text-sm font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#60A5FA]">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-3 text-sm leading-6 text-muted-foreground">{desc}</div>
+      <div className="mt-3 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
+        {desc}
+      </div>
     </div>
   );
 }
@@ -764,13 +770,15 @@ function EmptyState({
   desc: string;
 }) {
   return (
-    <div className="clarify-empty-state md:col-span-2 xl:col-span-3">
+    <div className="clarify-empty-state bg-white/92 md:col-span-2 xl:col-span-3 dark:bg-[#101A2E] dark:border-[#24314A]">
       <div className="flex flex-col items-center px-6 py-10 text-center">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#2563EB]">
           <Search className="h-5 w-5" />
         </span>
-        <div className="mt-4 text-lg font-semibold text-foreground">{title}</div>
-        <div className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+        <div className="mt-4 text-lg font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
+          {title}
+        </div>
+        <div className="mt-2 max-w-2xl text-sm leading-7 text-[#667085] dark:text-[#94A3B8] md:text-base">
           {desc}
         </div>
       </div>

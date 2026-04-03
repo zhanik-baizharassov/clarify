@@ -93,8 +93,9 @@
   --surface-focus: #eaf2ff;
 
   --text-main: #0f172a;
-  --text-secondary: #5b667a;
-  --text-weak: #7c8799;
+  --text-body: #475467;
+  --text-secondary: #667085;
+  --text-weak: #98a2b3;
 
   --background: var(--page-surface);
   --foreground: var(--text-main);
@@ -115,7 +116,7 @@
   --secondary-foreground: var(--text-main);
 
   --muted: var(--surface-soft);
-  --muted-foreground: var(--text-secondary);
+  --muted-foreground: var(--text-body);
 
   --accent: var(--primary-soft);
   --accent-foreground: var(--text-main);
@@ -154,14 +155,15 @@
 }
 
 .dark {
-  --page-surface: #0b1220;
-  --surface-standard: #111a2b;
-  --surface-soft: #162133;
-  --surface-focus: #132342;
+  --page-surface: #081225;
+  --surface-standard: #101a2e;
+  --surface-soft: #142039;
+  --surface-focus: #101a2e;
 
-  --text-main: #edf2fb;
-  --text-secondary: #b7c3d6;
-  --text-weak: #8fa1ba;
+  --text-main: #f8fafc;
+  --text-body: #cbd5e1;
+  --text-secondary: #94a3b8;
+  --text-weak: #64748b;
 
   --background: var(--page-surface);
   --foreground: var(--text-main);
@@ -169,48 +171,48 @@
   --card: var(--surface-standard);
   --card-foreground: var(--text-main);
 
-  --popover: #111a2b;
+  --popover: #101a2e;
   --popover-foreground: var(--text-main);
 
-  --primary: #6ea8ff;
-  --primary-foreground: #08101f;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
 
-  --primary-soft: #173156;
-  --primary-soft-border: #29528d;
+  --primary-soft: #142039;
+  --primary-soft-border: #24314a;
 
   --secondary: var(--surface-soft);
   --secondary-foreground: var(--text-main);
 
   --muted: var(--surface-soft);
-  --muted-foreground: var(--text-secondary);
+  --muted-foreground: var(--text-body);
 
-  --accent: var(--surface-focus);
+  --accent: #142039;
   --accent-foreground: var(--text-main);
 
-  --warm-accent: #2f2611;
-  --warm-accent-border: #5e4b1a;
-  --warm-accent-text: #f2d985;
+  --warm-accent: #2a220f;
+  --warm-accent-border: #6b5717;
+  --warm-accent-text: #f3d98c;
 
-  --success-soft: #12281b;
-  --success-border: #285739;
+  --success-soft: #10281b;
+  --success-border: #24533a;
   --success-text: #7bd69b;
 
-  --error-soft: #33191a;
+  --error-soft: #2f1718;
   --error-border: #7a3130;
   --error-text: #ff938b;
 
   --destructive: var(--error-text);
-  --border: rgba(228, 234, 242, 0.12);
-  --input: rgba(228, 234, 242, 0.16);
-  --ring: rgba(110, 168, 255, 0.32);
+  --border: #24314a;
+  --input: #24314a;
+  --ring: rgba(37, 99, 235, 0.34);
 
-  --chart-1: #6ea8ff;
+  --chart-1: #60a5fa;
   --chart-2: #7bd69b;
-  --chart-3: #f2d985;
+  --chart-3: #f3d98c;
   --chart-4: #c4a1ff;
   --chart-5: #ffb178;
 
-  --sidebar: #111a2b;
+  --sidebar: #101a2e;
   --sidebar-foreground: var(--text-main);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -238,7 +240,7 @@
 
   .dark body {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 260px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 240px),
       var(--page-surface);
   }
 
@@ -305,7 +307,7 @@
 
   .clarify-card-soft {
     @apply border;
-    background: rgba(241, 245, 249, 0.82);
+    background: rgba(255, 255, 255, 0.82);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     transition:
@@ -317,9 +319,8 @@
 
   .clarify-card-soft:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-card);
     border-color: var(--primary-soft-border);
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.96);
   }
 
   .clarify-card-elevated {
@@ -333,8 +334,8 @@
     min-height: 34px;
     padding: 0 14px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.82);
-    color: var(--muted-foreground);
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--text-secondary);
     backdrop-filter: blur(10px);
   }
 
@@ -380,7 +381,7 @@
     min-height: 56px;
     padding: 0 18px;
     border-radius: var(--radius-button);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
     transition:
       border-color 0.2s ease,
       box-shadow 0.2s ease,
@@ -466,7 +467,6 @@
   .clarify-button-premium:hover,
   .clarify-button-premium-sm:hover {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-card);
     filter: brightness(0.99);
   }
 
@@ -483,8 +483,101 @@
 
   .clarify-empty-state {
     @apply border text-center;
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.92);
     border-radius: var(--radius-large);
     box-shadow: var(--shadow-card);
+  }
+
+  .dark .clarify-hero {
+    background: linear-gradient(
+      135deg,
+      #101a2e 0%,
+      #0f1b33 52%,
+      #142039 100%
+    );
+    border-color: #24314a;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  }
+
+  .dark .clarify-focus-section {
+    background: linear-gradient(
+      135deg,
+      #101a2e 0%,
+      #142039 55%,
+      #1b2740 100%
+    );
+    border-color: #24314a;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  }
+
+  .dark .clarify-section,
+  .dark .clarify-card,
+  .dark .clarify-card-elevated,
+  .dark .clarify-empty-state,
+  .dark .clarify-control {
+    background: #101a2e;
+    border-color: #24314a;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .clarify-soft-section,
+  .dark .clarify-card-soft {
+    background: #101a2e;
+    border-color: #24314a;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  }
+
+  .dark .clarify-card-soft:hover {
+    background: #142039;
+    border-color: #2c3a57;
+  }
+
+  .dark .clarify-badge {
+    background: #101a2e;
+    border-color: #24314a;
+    color: #94a3b8;
+  }
+
+  .dark .clarify-chip {
+    background: #142039;
+    border-color: #24314a;
+    color: #e2e8f0;
+    box-shadow: none;
+  }
+
+  .dark .clarify-chip:hover {
+    background: #1a2742;
+    border-color: #2f4060;
+  }
+
+  .dark .clarify-chip-active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+  }
+
+  .dark .clarify-button-secondary,
+  .dark .clarify-button-secondary-sm {
+    background: #142039;
+    border-color: #24314a;
+    color: #f8fafc;
+    box-shadow: none;
+  }
+
+  .dark .clarify-button-secondary:hover,
+  .dark .clarify-button-secondary-sm:hover {
+    background: #1a2742;
+    border-color: #2f4060;
+  }
+
+  .dark .clarify-control {
+    background: #101a2e;
+    border-color: #24314a;
+    color: #f8fafc;
+    box-shadow: none;
+  }
+
+  .dark .clarify-control::placeholder {
+    color: #94a3b8;
   }
 }

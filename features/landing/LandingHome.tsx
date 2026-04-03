@@ -30,23 +30,23 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
+          className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/60 blur-3xl"
         />
 
         <div className="relative grid gap-8 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <div className="clarify-badge w-fit">
-              <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-warm-accent-text">
+            <div className="clarify-badge w-fit border-border bg-white/85 text-[#667085]">
+              <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-[#8A6B16]">
                 KZ
               </span>
               <span>Отзывы и репутация по Казахстану</span>
             </div>
 
-            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
+            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-[#0F172A] md:text-5xl md:leading-[1.08]">
               Выбирайте места увереннее
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#475467] md:text-base">
               Clarify помогает находить места по реальному опыту людей, а
               компаниям — собирать обратную связь, отвечать на отзывы и
               укреплять доверие клиентов.
@@ -67,41 +67,38 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="clarify-card-elevated relative mx-auto max-w-[380px] overflow-hidden p-5 sm:p-6">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
-              />
+            <div className="relative mx-auto max-w-[360px]">
+              <div className="overflow-hidden rounded-[24px] border border-[#24314A] bg-[#0F1B33] p-5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] sm:p-6">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#6B5717] bg-[#2A220F] px-3 py-1 text-xs font-semibold text-[#F3D98C]">
+                  <BadgeCheck className="h-3.5 w-3.5" />
+                  Прозрачная репутация
+                </div>
 
-              <div className="clarify-badge-premium w-fit">
-                <BadgeCheck className="h-3.5 w-3.5" />
-                Прозрачная репутация
-              </div>
+                <div className="mt-5 flex justify-center">
+                  <Image
+                    src="/logo.png"
+                    alt="Clarify logo"
+                    width={280}
+                    height={280}
+                    priority
+                    className="h-auto w-full max-w-[170px] object-contain drop-shadow-[0_18px_36px_rgba(37,99,235,0.18)]"
+                  />
+                </div>
 
-              <div className="relative mt-5 flex justify-center">
-                <Image
-                  src="/logo.png"
-                  alt="Clarify logo"
-                  width={280}
-                  height={280}
-                  priority
-                  className="h-auto w-full max-w-[180px] object-contain drop-shadow-[0_20px_40px_rgba(37,99,235,0.16)]"
-                />
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                <TrustLine
-                  icon={<ShieldCheck className="h-4 w-4" />}
-                  text="Верифицированные отзывы"
-                />
-                <TrustLine
-                  icon={<MessageCircle className="h-4 w-4" />}
-                  text="Официальные ответы компаний"
-                />
-                <TrustLine
-                  icon={<Building2 className="h-4 w-4" />}
-                  text="Подтвержденное присутствие бизнеса"
-                />
+                <div className="mt-5 grid gap-3">
+                  <TrustLine
+                    icon={<ShieldCheck className="h-4 w-4" />}
+                    text="Верифицированные отзывы"
+                  />
+                  <TrustLine
+                    icon={<MessageCircle className="h-4 w-4" />}
+                    text="Официальные ответы компаний"
+                  />
+                  <TrustLine
+                    icon={<Building2 className="h-4 w-4" />}
+                    text="Подтвержденное присутствие бизнеса"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -133,7 +130,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
       <section id="how" className="clarify-soft-section mt-8 px-6 py-8 md:px-10 md:py-10">
         <div className="max-w-3xl">
           <div className="clarify-badge w-fit">Как это работает</div>
-          <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
+          <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
             Понятный сценарий для пользователей и бизнеса
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
@@ -171,7 +168,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 h-40 w-40 rounded-full bg-warm-accent/70 blur-3xl"
+          className="pointer-events-none absolute bottom-0 left-0 h-40 w-40 rounded-full bg-warm-accent/60 blur-3xl"
         />
 
         <div className="relative grid gap-6 lg:grid-cols-12 lg:items-center">
@@ -181,7 +178,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
               Clarify для бизнеса
             </div>
 
-            <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
+            <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
               Управляйте репутацией в одном месте
             </h2>
 
@@ -229,7 +226,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
 
                 <div className="clarify-badge-premium w-fit">Кабинет компании</div>
 
-                <div className="mt-4 text-lg font-semibold">
+                <div className="mt-4 text-lg font-semibold text-foreground">
                   {isAuthed ? "Подключите компанию к Clarify" : "Начните как компания"}
                 </div>
 
@@ -260,7 +257,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
 
                 <div className="clarify-badge-premium w-fit">Кабинет компании</div>
 
-                <div className="mt-4 text-lg font-semibold">
+                <div className="mt-4 text-lg font-semibold text-foreground">
                   Управляйте компанией из кабинета
                 </div>
 
@@ -306,8 +303,8 @@ function TrustLine({
   text: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-[16px] border border-border bg-surface-soft/70 px-4 py-3 text-sm text-foreground">
-      <span className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] border border-primary-soft-border bg-primary-soft text-primary">
+    <div className="flex items-center gap-3 rounded-[16px] border border-[#24314A] bg-[#101A2E] px-4 py-3 text-sm text-[#CBD5E1]">
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] border border-[#24314A] bg-[#142039] text-[#3B82F6]">
         {icon}
       </span>
       <span>{text}</span>
@@ -325,14 +322,14 @@ function MiniFeature({
   desc: string;
 }) {
   return (
-    <div className="clarify-card-soft p-5">
-      <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+    <div className="clarify-card-soft border-white/80 p-5">
+      <div className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
         <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-3 text-sm leading-6 text-muted-foreground">{desc}</div>
+      <div className="mt-3 text-sm leading-6 text-[#667085]">{desc}</div>
     </div>
   );
 }
@@ -347,13 +344,13 @@ function StepCard({
   desc: string;
 }) {
   return (
-    <div className="clarify-card border-white/70 bg-card/90 p-6">
+    <div className="clarify-card border-white/70 bg-card/95 p-6">
       <div className="flex items-start gap-4">
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         <div>
-          <div className="text-base font-semibold md:text-lg">{title}</div>
+          <div className="text-base font-semibold text-foreground md:text-lg">{title}</div>
           <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
             {desc}
           </div>
