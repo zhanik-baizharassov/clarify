@@ -171,10 +171,10 @@ export default async function BusinessPage() {
               <Image
                 src="/logo.png"
                 alt="Clarify logo"
-                width={360}
-                height={360}
+                width={320}
+                height={320}
                 priority
-                className="h-auto w-full max-w-[220px] object-contain opacity-95 drop-shadow-[0_24px_48px_rgba(37,99,235,0.18)] sm:max-w-[250px] lg:max-w-[280px]"
+                className="h-auto w-full max-w-[200px] object-contain opacity-95 drop-shadow-[0_24px_48px_rgba(37,99,235,0.18)] sm:max-w-[250px] lg:max-w-[280px]"
               />
             </div>
           </div>
