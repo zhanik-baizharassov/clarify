@@ -35,18 +35,18 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
 
         <div className="relative grid gap-8 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <div className="clarify-badge w-fit border-border bg-white/85 text-[#667085]">
-              <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-[#8A6B16]">
+            <div className="clarify-badge w-fit border-border bg-white/85 text-[#667085] dark:border-[#24314A] dark:bg-[#101A2E] dark:text-[#94A3B8]">
+              <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-[#8A6B16] dark:border-[#6B5717] dark:bg-[#2A220F] dark:text-[#F3D98C]">
                 KZ
               </span>
               <span>Отзывы и репутация по Казахстану</span>
             </div>
 
-            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-[#0F172A] md:text-5xl md:leading-[1.08]">
+            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
               Выбирайте места увереннее
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#475467] md:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#475467] dark:text-[#CBD5E1] md:text-base">
               Clarify помогает находить места по реальному опыту людей, а
               компаниям — собирать обратную связь, отвечать на отзывы и
               укреплять доверие клиентов.
@@ -322,14 +322,16 @@ function MiniFeature({
   desc: string;
 }) {
   return (
-    <div className="clarify-card-soft border-white/80 p-5">
-      <div className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+    <div className="clarify-card-soft border-white/80 p-5 dark:border-[#24314A] dark:bg-[#101A2E]">
+      <div className="flex items-center gap-3 text-sm font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#60A5FA]">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-3 text-sm leading-6 text-[#667085]">{desc}</div>
+      <div className="mt-3 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
+        {desc}
+      </div>
     </div>
   );
 }
