@@ -33,8 +33,8 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
           className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/60 blur-3xl"
         />
 
-        <div className="relative grid gap-8 lg:grid-cols-12 lg:items-center">
-          <div className="lg:col-span-7">
+        <div className="relative grid gap-8 lg:grid-cols-12 lg:grid-rows-[auto_auto]">
+          <div className="lg:col-span-7 lg:row-start-1">
             <div className="clarify-badge w-fit border-border bg-white/85 text-[#667085] dark:border-[#24314A] dark:bg-[#101A2E] dark:text-[#94A3B8]">
               <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-[#8A6B16] dark:border-[#6B5717] dark:bg-[#2A220F] dark:text-[#F3D98C]">
                 KZ
@@ -53,36 +53,44 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/explore" className="clarify-button-primary w-full sm:w-auto">
+              <Link
+                href="/explore"
+                className="clarify-button-primary w-full sm:w-auto"
+              >
                 <Search className="h-4 w-4" />
                 Найти места
               </Link>
 
               {!isAuthed ? (
-                <Link href="/signup" className="clarify-button-secondary w-full sm:w-auto">
+                <Link
+                  href="/signup"
+                  className="clarify-button-secondary w-full sm:w-auto"
+                >
                   Зарегистрироваться
                 </Link>
               ) : null}
             </div>
           </div>
 
-          <div className="lg:col-span-5">
-            <div className="relative mx-auto max-w-[360px]">
-              <div className="overflow-hidden rounded-[24px] border border-[#24314A] bg-[#0F1B33] p-5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] sm:p-6">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#6B5717] bg-[#2A220F] px-3 py-1 text-xs font-semibold text-[#F3D98C]">
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Прозрачная репутация
-                </div>
+          <div className="lg:col-span-5 lg:row-span-2">
+            <div className="relative mx-auto h-full max-w-[360px] lg:ml-auto lg:max-w-none">
+              <div className="flex h-full flex-col justify-between overflow-hidden rounded-[24px] border border-[#24314A] bg-[#0F1B33] p-5 shadow-[0_18px_44px_rgba(15,23,42,0.18)] sm:p-6">
+                <div>
+                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#6B5717] bg-[#2A220F] px-3 py-1 text-xs font-semibold text-[#F3D98C]">
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Прозрачная репутация
+                  </div>
 
-                <div className="mt-5 flex justify-center">
-                  <Image
-                    src="/logo.png"
-                    alt="Clarify logo"
-                    width={280}
-                    height={280}
-                    priority
-                    className="h-auto w-full max-w-[170px] object-contain drop-shadow-[0_18px_36px_rgba(37,99,235,0.18)]"
-                  />
+                  <div className="mt-5 flex justify-center">
+                    <Image
+                      src="/logo.png"
+                      alt="Clarify logo"
+                      width={280}
+                      height={280}
+                      priority
+                      className="h-auto w-full max-w-[170px] object-contain drop-shadow-[0_18px_36px_rgba(37,99,235,0.18)]"
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-5 grid gap-3">
@@ -102,24 +110,27 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
               </div>
             </div>
           </div>
-        </div>
 
-        <div id="features" className="relative mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <MiniFeature
-            icon={<BadgeCheck className="h-4 w-4" />}
-            title="Честные впечатления"
-            desc="Отзывы помогают заранее понять, чего ожидать от места и сервиса."
-          />
-          <MiniFeature
-            icon={<ShieldCheck className="h-4 w-4" />}
-            title="Удобный выбор"
-            desc="Сравнивайте места по рейтингу, отзывам и общей репутации в одном каталоге."
-          />
-          <MiniFeature
-            icon={<MessageCircle className="h-4 w-4" />}
-            title="Открытый диалог"
-            desc="Компании отвечают на отзывы публично и показывают, что им важна обратная связь."
-          />
+          <div
+            id="features"
+            className="relative lg:col-span-7 lg:row-start-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            <MiniFeature
+              icon={<BadgeCheck className="h-4 w-4" />}
+              title="Честные впечатления"
+              desc="Отзывы помогают заранее понять, чего ожидать от места и сервиса."
+            />
+            <MiniFeature
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Удобный выбор"
+              desc="Сравнивайте места по рейтингу, отзывам и общей репутации в одном каталоге."
+            />
+            <MiniFeature
+              icon={<MessageCircle className="h-4 w-4" />}
+              title="Открытый диалог"
+              desc="Компании отвечают на отзывы публично и показывают, что им важна обратная связь."
+            />
+          </div>
         </div>
       </section>
 
@@ -127,7 +138,10 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
         <PlatformStats />
       </div>
 
-      <section id="how" className="clarify-soft-section mt-8 px-6 py-8 md:px-10 md:py-10">
+      <section
+        id="how"
+        className="clarify-soft-section mt-8 px-6 py-8 md:px-10 md:py-10"
+      >
         <div className="max-w-3xl">
           <div className="clarify-badge w-fit">Как это работает</div>
           <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
@@ -193,7 +207,9 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
                   <Building2 className="h-4 w-4" />
                 </span>
-                <span className="leading-6">Все филиалы компании в одном кабинете</span>
+                <span className="leading-6">
+                  Все филиалы компании в одном кабинете
+                </span>
               </li>
 
               <li className="flex items-center gap-3">
@@ -224,10 +240,14 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                   className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="clarify-badge-premium w-fit">Кабинет компании</div>
+                <div className="clarify-badge-premium w-fit">
+                  Кабинет компании
+                </div>
 
                 <div className="mt-4 text-lg font-semibold text-foreground">
-                  {isAuthed ? "Подключите компанию к Clarify" : "Начните как компания"}
+                  {isAuthed
+                    ? "Подключите компанию к Clarify"
+                    : "Начните как компания"}
                 </div>
 
                 <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
@@ -255,7 +275,9 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                   className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="clarify-badge-premium w-fit">Кабинет компании</div>
+                <div className="clarify-badge-premium w-fit">
+                  Кабинет компании
+                </div>
 
                 <div className="mt-4 text-lg font-semibold text-foreground">
                   Управляйте компанией из кабинета
@@ -295,13 +317,7 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
   );
 }
 
-function TrustLine({
-  icon,
-  text,
-}: {
-  icon: ReactNode;
-  text: string;
-}) {
+function TrustLine({ icon, text }: { icon: ReactNode; text: string }) {
   return (
     <div className="flex items-center gap-3 rounded-[16px] border border-[#24314A] bg-[#101A2E] px-4 py-3 text-sm text-[#CBD5E1]">
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] border border-[#24314A] bg-[#142039] text-[#3B82F6]">
@@ -352,7 +368,9 @@ function StepCard({
           {icon}
         </span>
         <div>
-          <div className="text-base font-semibold text-foreground md:text-lg">{title}</div>
+          <div className="text-base font-semibold text-foreground md:text-lg">
+            {title}
+          </div>
           <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
             {desc}
           </div>
@@ -364,6 +382,8 @@ function StepCard({
 
 function SmallPill({ children }: { children: ReactNode }) {
   return (
-    <span className="clarify-chip text-xs text-muted-foreground">{children}</span>
+    <span className="clarify-chip text-xs text-muted-foreground">
+      {children}
+    </span>
   );
 }
