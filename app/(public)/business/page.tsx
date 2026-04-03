@@ -7,6 +7,10 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
+import {
+  getSessionUser,
+  isDynamicServerUsageError,
+} from "@/server/auth/session";
 
 export const metadata: Metadata = {
   title: "Для бизнеса",
@@ -57,7 +61,66 @@ const nextSteps = [
   },
 ];
 
-export default function BusinessPage() {
+type SessionRole = "USER" | "COMPANY" | "ADMIN" | null;
+
+function getBusinessPrimaryCta(role: SessionRole) {
+  if (role === "COMPANY") {
+    return {
+      href: "/company",
+      label: "Перейти в кабинет компании",
+    };
+  }
+
+  if (role === "ADMIN") {
+    return {
+      href: "/admin",
+      label: "Перейти в админ-панель",
+    };
+  }
+
+  return {
+    href: "/business/signup",
+    label: "Зарегистрировать компанию",
+  };
+}
+
+function getBusinessBottomCta(role: SessionRole) {
+  if (role === "COMPANY") {
+    return {
+      href: "/company",
+      label: "Перейти в кабинет компании",
+    };
+  }
+
+  if (role === "ADMIN") {
+    return {
+      href: "/admin",
+      label: "Перейти в админ-панель",
+    };
+  }
+
+  return {
+    href: "/business/signup",
+    label: "Начать регистрацию",
+  };
+}
+
+export default async function BusinessPage() {
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    if (!isDynamicServerUsageError(err)) {
+      console.error("BusinessPage: getSessionUser failed:", err);
+    }
+    sessionUser = null;
+  }
+
+  const role: SessionRole = sessionUser?.role ?? null;
+  const heroCta = getBusinessPrimaryCta(role);
+  const bottomCta = getBusinessBottomCta(role);
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <section className="clarify-hero relative overflow-hidden px-6 py-8 md:px-8 md:py-10 lg:px-10 lg:py-12">
@@ -87,13 +150,9 @@ export default function BusinessPage() {
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href="/business/signup" className="clarify-button-primary">
-              Зарегистрировать компанию
+            <Link href={heroCta.href} className="clarify-button-primary">
+              {heroCta.label}
               <ArrowRight className="h-4 w-4" />
-            </Link>
-
-            <Link href="/company" className="clarify-button-secondary">
-              Уже есть кабинет
             </Link>
           </div>
 
@@ -131,7 +190,9 @@ export default function BusinessPage() {
                 {item.step}
               </div>
 
-              <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
+              <h3 className="mt-4 text-lg font-semibold text-foreground">
+                {item.title}
+              </h3>
 
               <p className="mt-2 text-sm leading-7 text-muted-foreground">
                 {item.description}
@@ -170,12 +231,8 @@ export default function BusinessPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link href="/business/signup" className="clarify-button-primary">
-              Начать регистрацию
-            </Link>
-
-            <Link href="/company" className="clarify-button-secondary">
-              Уже есть кабинет
+            <Link href={bottomCta.href} className="clarify-button-primary">
+              {bottomCta.label}
             </Link>
           </div>
         </div>

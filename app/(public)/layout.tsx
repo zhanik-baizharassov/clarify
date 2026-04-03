@@ -1,16 +1,31 @@
 import Footer from "@/components/layout/Footer";
-import PublicHeader from "@/components/layout/PublicHeader";
+import Header from "@/components/layout/Header";
+import {
+  getSessionUser,
+  isDynamicServerUsageError,
+} from "@/server/auth/session";
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+
+  try {
+    sessionUser = await getSessionUser();
+  } catch (err) {
+    if (!isDynamicServerUsageError(err)) {
+      console.error("PublicLayout: getSessionUser failed:", err);
+    }
+    sessionUser = null;
+  }
+
   return (
     <>
-      <PublicHeader />
+      <Header user={sessionUser ? { role: sessionUser.role } : null} />
       <main>{children}</main>
-      <Footer role={null} />
+      <Footer role={sessionUser?.role ?? null} />
     </>
   );
 }
