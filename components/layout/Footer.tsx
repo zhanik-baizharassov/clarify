@@ -21,7 +21,6 @@ export default function Footer({ role }: FooterProps) {
         <div className="clarify-section overflow-hidden p-0">
           <div className="grid gap-8 px-6 py-8 md:px-8 md:py-10 lg:grid-cols-12">
             <div className="lg:col-span-4">
-              <div className="clarify-badge-premium w-fit">Верифицированные отзывы</div>
 
               <div className="mt-4 text-lg font-semibold tracking-tight text-foreground">
                 Clarify
