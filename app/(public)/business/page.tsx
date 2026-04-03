@@ -11,6 +11,7 @@ import {
   getSessionUser,
   isDynamicServerUsageError,
 } from "@/server/auth/session";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Для бизнеса",
@@ -133,39 +134,49 @@ export default async function BusinessPage() {
           className="pointer-events-none absolute right-0 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
         />
 
-        <div className="relative max-w-3xl">
-          <div className="clarify-badge-premium w-fit">
-            <Building2 className="h-3.5 w-3.5" />
-            Clarify для бизнеса
+        <div className="relative grid gap-8 lg:grid-cols-12 lg:items-center">
+          <div className="lg:col-span-7">
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
+              Управляйте присутствием своей компании в Clarify
+            </h1>
+
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+              Clarify помогает бизнесу выстроить понятное присутствие на
+              платформе: подключить компанию, связать её с карточками мест и
+              работать с отзывами и филиалами в одном кабинете.
+            </p>
+
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link href={heroCta.href} className="clarify-button-primary">
+                {heroCta.label}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mt-7 flex flex-wrap gap-2">
+              <TrustPill premium icon={<BadgeCheck className="h-3.5 w-3.5" />}>
+                Официальные ответы компаний
+              </TrustPill>
+              <TrustPill icon={<ShieldCheck className="h-3.5 w-3.5" />}>
+                Подтвержденное присутствие бизнеса
+              </TrustPill>
+              <TrustPill icon={<Store className="h-3.5 w-3.5" />}>
+                Работа с филиалами
+              </TrustPill>
+            </div>
           </div>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
-            Управляйте присутствием компании в Clarify официально
-          </h1>
-
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-            Clarify помогает бизнесу выстроить понятное присутствие на
-            платформе: подключить компанию, связать её с карточками мест и
-            работать с отзывами и филиалами в одном кабинете.
-          </p>
-
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href={heroCta.href} className="clarify-button-primary">
-              {heroCta.label}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-2">
-            <TrustPill premium icon={<BadgeCheck className="h-3.5 w-3.5" />}>
-              Официальные ответы компаний
-            </TrustPill>
-            <TrustPill icon={<ShieldCheck className="h-3.5 w-3.5" />}>
-              Подтвержденное присутствие бизнеса
-            </TrustPill>
-            <TrustPill icon={<Store className="h-3.5 w-3.5" />}>
-              Работа с филиалами
-            </TrustPill>
+          <div className="lg:col-span-5">
+            <div className="flex items-center justify-center lg:justify-end">
+              <Image
+                src="/logo.png"
+                alt="Clarify logo"
+                width={360}
+                height={360}
+                priority
+                className="h-auto w-full max-w-[220px] object-contain opacity-95 drop-shadow-[0_24px_48px_rgba(37,99,235,0.18)] sm:max-w-[250px] lg:max-w-[280px]"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -214,11 +225,6 @@ export default async function BusinessPage() {
 
         <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="max-w-2xl">
-            <div className="clarify-badge-premium w-fit">
-              <BadgeCheck className="h-3.5 w-3.5" />
-              Для официального присутствия бизнеса
-            </div>
-
             <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               Подключите компанию к Clarify и выстройте понятное присутствие на
               платформе
