@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, FormEvent } from "react";
 import {
+  ArrowUpRight,
   BarChart3,
+  MapPin,
   MessageCircle,
   Search,
   SlidersHorizontal,
@@ -353,51 +355,47 @@ export default function PlacesExplorer({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-72 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
+        className="pointer-events-none absolute inset-x-0 -top-20 -z-10 h-72 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
       />
 
       {variant === "hero" ? (
-        <div className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
+        <div className="clarify-hero relative overflow-hidden px-6 py-8 md:px-10 md:py-12">
           <div
             aria-hidden
-            className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+            className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-primary/10 blur-3xl"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+            className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
           />
 
-          <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+          <div className="relative grid gap-8 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-7">
-              <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">KZ</span>
-                <span>Отзывы только от верифицированных пользователей</span>
+              <div className="clarify-badge w-fit">
+                <span className="inline-flex h-6 items-center rounded-full border border-primary-soft-border bg-primary-soft px-2.5 text-[11px] font-semibold text-primary">
+                  KZ
+                </span>
+                <span>Верифицированные отзывы и прозрачная репутация</span>
               </div>
 
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
-                Нам важно ваше мнение!
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
+                Найдите места по отзывам и репутации
               </h1>
 
-              <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
                 Clarify помогает выбирать места по реальным отзывам и рейтингу,
                 а компаниям — получать прозрачную обратную связь и отвечать
                 официально.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="#search"
-                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
-                >
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a href="#search" className="clarify-button-primary w-full sm:w-auto">
                   <Search className="h-4 w-4" />
                   Найти места
                 </a>
 
                 {!isAuthed ? (
-                  <Link
-                    href="/signup"
-                    className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium sm:w-auto"
-                  >
+                  <Link href="/signup" className="clarify-button-secondary w-full sm:w-auto">
                     Зарегистрироваться
                   </Link>
                 ) : null}
@@ -405,25 +403,25 @@ export default function PlacesExplorer({
             </div>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard
               title="Доверие к отзывам"
-              desc="Верификация через OTP снижает спам и повышает качество"
+              desc="Верификация через OTP снижает спам и повышает качество отзывов."
               icon={<BarChart3 className="h-4 w-4" />}
             />
             <FeatureCard
               title="Чистый контент"
-              desc="Модерация и проверки на сервере поддерживают порядок"
+              desc="Модерация и проверки на сервере поддерживают порядок в каталоге."
               icon={<SlidersHorizontal className="h-4 w-4" />}
             />
             <FeatureCard
               title="Диалог с компанией"
-              desc="Компании отвечают на отзывы официально — всё прозрачно"
+              desc="Компании отвечают официально — пользователь видит более прозрачную коммуникацию."
               icon={<MessageCircle className="h-4 w-4" />}
             />
           </div>
 
-          <div id="search" className="mt-8 scroll-mt-24">
+          <div id="search" className="relative mt-8 scroll-mt-24">
             <SearchCard
               q={q}
               setQ={setQ}
@@ -444,10 +442,7 @@ export default function PlacesExplorer({
           </div>
         </div>
       ) : (
-        <div
-          id="search"
-          className="scroll-mt-24 relative overflow-hidden rounded-3xl border bg-background/80 shadow-sm backdrop-blur"
-        >
+        <div id="search" className="scroll-mt-24">
           <SearchCard
             fillParent
             q={q}
@@ -471,10 +466,17 @@ export default function PlacesExplorer({
 
       {allCategories.length ? (
         <div className="mt-6">
-          <div className="mb-2 text-sm font-semibold">Категории</div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-foreground">Категории</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Быстрый переход к нужному типу мест
+              </div>
+            </div>
+          </div>
 
-          <div className="relative">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="clarify-card-soft overflow-hidden p-4">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               <Chip
                 active={!categoryId}
                 onClick={() => {
@@ -503,10 +505,10 @@ export default function PlacesExplorer({
       ) : null}
 
       {hasSearched && !err ? (
-        <div className="mt-6 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <div>Найдено: {nf.format(meta.total)}</div>
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="clarify-badge w-fit">Найдено: {nf.format(meta.total)}</div>
           {items.length > 0 ? (
-            <div>
+            <div className="clarify-badge w-fit">
               Показано: {nf.format(items.length)}
               {meta.total > 0 ? ` из ${nf.format(meta.total)}` : ""}
             </div>
@@ -514,24 +516,28 @@ export default function PlacesExplorer({
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((p) => (
-          <Link
-            key={p.id}
-            href={`/place/${p.slug}`}
-            className="rounded-2xl border bg-background p-5 transition hover:-translate-y-[1px] hover:shadow-sm"
-          >
+          <Link key={p.id} href={`/place/${p.slug}`} className="clarify-card p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="truncate text-base font-semibold">{p.name}</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {p.category.name} • {p.city}
-                  {p.address ? ` • ${p.address}` : ""}
+                <div className="clarify-badge-premium w-fit">{p.category.name}</div>
+
+                <div className="mt-4 line-clamp-2 text-lg font-semibold tracking-tight text-foreground">
+                  {p.name}
+                </div>
+
+                <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    {p.city}
+                    {p.address ? ` • ${p.address}` : ""}
+                  </span>
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xl font-bold">
+              <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right">
+                <div className="text-lg font-semibold text-primary">
                   {Number(p.avgRating).toFixed(2)}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -539,18 +545,25 @@ export default function PlacesExplorer({
                 </div>
               </div>
             </div>
+
+            <div className="mt-5 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Открыть карточку места</span>
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+            </div>
           </Link>
         ))}
 
         {!loading && !loadingMore && items.length === 0 ? (
           hasSearched ? (
-            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
-              Ничего не найдено по этим условиям.
-            </div>
+            <EmptyState
+              title="Ничего не найдено"
+              desc="Попробуйте изменить фильтры, убрать часть условий или выполнить поиск по более общему запросу."
+            />
           ) : (
-            <div className="rounded-2xl border bg-background p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
-              Выберите фильтры и нажмите <b>«Найти»</b>, чтобы увидеть места.
-            </div>
+            <EmptyState
+              title="Выберите фильтры и начните поиск"
+              desc="Название, адрес или описание — плюс фильтры по городу, категории и способу сортировки."
+            />
           )
         ) : null}
       </div>
@@ -561,7 +574,7 @@ export default function PlacesExplorer({
             type="button"
             onClick={onLoadMore}
             disabled={loading || loadingMore}
-            className="inline-flex h-11 items-center justify-center rounded-2xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/40 disabled:opacity-50"
+            className="clarify-button-secondary"
           >
             {loadingMore ? "Загружаем…" : "Показать ещё"}
           </button>
@@ -607,26 +620,29 @@ function SearchCard({
   onReset: () => Promise<void>;
 }) {
   const shellClass = fillParent
-    ? "h-full w-full p-6 sm:p-8 md:p-10"
-    : "rounded-3xl border bg-background/80 p-6 shadow-sm backdrop-blur sm:p-8";
+    ? "clarify-card-elevated p-6 sm:p-8 md:p-10"
+    : "clarify-card-elevated p-6 sm:p-8";
 
   return (
     <div className={shellClass}>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="text-base font-semibold sm:text-lg">Поиск мест</div>
-          <div className="mt-1 text-sm text-muted-foreground sm:text-base">
-            Название, адрес или описание — плюс фильтры по городу/категории.
+          <div className="clarify-badge-premium w-fit">Поиск мест</div>
+          <div className="mt-4 text-lg font-semibold tracking-tight sm:text-xl">
+            Название, адрес или описание — плюс точные фильтры
+          </div>
+          <div className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">
+            Ищите по городу, категории и сортируйте результаты так, как удобно вам.
           </div>
         </div>
 
         <button
           type="button"
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl border bg-background px-4 text-sm font-medium hover:bg-muted/40 sm:text-base"
+          className="clarify-button-secondary shrink-0"
           onClick={() => setShowFilters((v) => !v)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Фильтры
+          {showFilters ? "Скрыть фильтры" : "Фильтры"}
         </button>
       </div>
 
@@ -640,7 +656,7 @@ function SearchCard({
         <div className="grid gap-3 md:grid-cols-12 md:items-stretch">
           <div className="md:col-span-8">
             <input
-              className="h-12 w-full rounded-2xl border bg-background px-5 text-base outline-none focus:ring-2 focus:ring-primary/20 sm:h-14 sm:text-lg"
+              className="clarify-control text-base sm:text-lg"
               placeholder="Например: Coffee Boom"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -650,18 +666,14 @@ function SearchCard({
           <div className="grid gap-3 md:col-span-4 md:grid-cols-2">
             <button
               type="button"
-              className="h-12 rounded-2xl border bg-background px-5 text-base font-medium hover:bg-muted/40 disabled:opacity-50 sm:h-14"
+              className="clarify-button-secondary"
               onClick={onReset}
               disabled={loading}
             >
               Сбросить
             </button>
 
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-6 text-base font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50 sm:h-14"
-              disabled={loading}
-            >
+            <button type="submit" className="clarify-button-primary" disabled={loading}>
               <Search className="h-5 w-5" />
               {loading ? "Ищем…" : "Найти"}
             </button>
@@ -671,7 +683,7 @@ function SearchCard({
         {showFilters ? (
           <div className="grid gap-3 md:grid-cols-3">
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
+              className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               disabled={loading}
@@ -685,7 +697,7 @@ function SearchCard({
             </select>
 
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
+              className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               disabled={loading}
@@ -699,7 +711,7 @@ function SearchCard({
             </select>
 
             <select
-              className="h-12 rounded-2xl border bg-background px-4 text-base text-foreground outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark] sm:h-14"
+              className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
               disabled={loading}
@@ -713,7 +725,7 @@ function SearchCard({
         ) : null}
 
         {err ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive sm:text-base">
+          <div className="rounded-[20px] border border-error-border bg-error-soft p-4 text-sm text-error-text sm:text-base">
             {err}
           </div>
         ) : null}
@@ -732,14 +744,36 @@ function FeatureCard({
   icon: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border bg-background p-5">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30">
+    <div className="clarify-card-soft p-5">
+      <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-2 text-sm text-muted-foreground">{desc}</div>
+      <div className="mt-3 text-sm leading-6 text-muted-foreground">{desc}</div>
+    </div>
+  );
+}
+
+function EmptyState({
+  title,
+  desc,
+}: {
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="clarify-empty-state md:col-span-2 xl:col-span-3">
+      <div className="flex flex-col items-center px-6 py-10 text-center">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+          <Search className="h-5 w-5" />
+        </span>
+        <div className="mt-4 text-lg font-semibold text-foreground">{title}</div>
+        <div className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+          {desc}
+        </div>
+      </div>
     </div>
   );
 }
@@ -757,12 +791,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={[
-        "whitespace-nowrap rounded-full border px-4 py-2 text-sm transition",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "bg-background hover:bg-muted/40",
-      ].join(" ")}
+      className={[active ? "clarify-chip clarify-chip-active" : "clarify-chip"].join(" ")}
     >
       {text}
     </button>

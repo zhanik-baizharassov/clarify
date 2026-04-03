@@ -60,27 +60,23 @@ const nextSteps = [
 export default function BusinessPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-[36px] border bg-gradient-to-br from-accent/70 via-background to-secondary/45 px-6 py-8 shadow-sm md:px-8 md:py-10 lg:px-10 lg:py-12">
+      <section className="clarify-hero relative overflow-hidden px-6 py-8 md:px-8 md:py-10 lg:px-10 lg:py-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-primary/10 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-accent blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-secondary/70 blur-2xl"
+          className="pointer-events-none absolute right-0 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
         />
 
         <div className="relative max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-            <Building2 className="h-3.5 w-3.5 text-primary" />
-            Clarify для компаний и филиалов
+          <div className="clarify-badge-premium w-fit">
+            <Building2 className="h-3.5 w-3.5" />
+            Clarify для бизнеса
           </div>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
+          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
             Управляйте присутствием компании в Clarify официально
           </h1>
 
@@ -91,42 +87,34 @@ export default function BusinessPage() {
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link
-              href="/business/signup"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-95"
-            >
+            <Link href="/business/signup" className="clarify-button-primary">
               Зарегистрировать компанию
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
 
-            <Link
-              href="/company"
-              className="inline-flex h-12 items-center justify-center rounded-2xl border bg-background/80 px-5 text-sm font-medium text-foreground backdrop-blur transition hover:bg-background"
-            >
+            <Link href="/company" className="clarify-button-secondary">
               Уже есть кабинет
             </Link>
           </div>
 
-          <div className="mt-7 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
-              <BadgeCheck className="h-3.5 w-3.5 text-primary" />
-              Официальные ответы компании
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              Подтверждение карточек
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 backdrop-blur">
-              <Store className="h-3.5 w-3.5 text-primary" />
+          <div className="mt-7 flex flex-wrap gap-2">
+            <TrustPill premium icon={<BadgeCheck className="h-3.5 w-3.5" />}>
+              Официальные ответы компаний
+            </TrustPill>
+            <TrustPill icon={<ShieldCheck className="h-3.5 w-3.5" />}>
+              Подтвержденное присутствие бизнеса
+            </TrustPill>
+            <TrustPill icon={<Store className="h-3.5 w-3.5" />}>
               Работа с филиалами
-            </span>
+            </TrustPill>
           </div>
         </div>
       </section>
 
-      <section className="mt-6 rounded-[32px] border bg-card p-6 shadow-sm md:p-8">
+      <section className="clarify-section mt-6 px-6 py-8 md:px-8 md:py-10">
         <div className="max-w-2xl">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          <div className="clarify-badge w-fit">Подключение бизнеса</div>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
             Что компания делает после подключения
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
@@ -138,47 +126,36 @@ export default function BusinessPage() {
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {nextSteps.map((item) => (
-            <article
-              key={item.step}
-              className="relative overflow-hidden rounded-[28px] border bg-gradient-to-b from-accent/30 to-background p-5"
-            >
-              <div
-                aria-hidden
-                className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
-              />
-              <div className="relative">
-                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-primary/10 text-sm font-semibold text-primary">
-                  {item.step}
-                </div>
-
-                <h3 className="mt-4 text-lg font-semibold text-foreground">
-                  {item.title}
-                </h3>
-
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  {item.description}
-                </p>
+            <article key={item.step} className="clarify-card p-5">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-sm font-semibold text-primary">
+                {item.step}
               </div>
+
+              <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
+
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                {item.description}
+              </p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="relative mt-6 overflow-hidden rounded-[36px] border bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/40 px-6 py-8 shadow-sm md:px-8 md:py-10">
+      <section className="clarify-focus-section relative mt-6 overflow-hidden px-6 py-8 md:px-8 md:py-10">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-10 top-10 h-52 w-52 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -left-10 top-8 h-44 w-44 rounded-full bg-primary/10 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-secondary/60 blur-3xl"
+          className="pointer-events-none absolute right-0 top-0 h-52 w-52 rounded-full bg-warm-accent/70 blur-3xl"
         />
 
         <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-              <BadgeCheck className="h-3.5 w-3.5 text-primary" />
-              Для компаний, которые хотят выглядеть официально
+            <div className="clarify-badge-premium w-fit">
+              <BadgeCheck className="h-3.5 w-3.5" />
+              Для официального присутствия бизнеса
             </div>
 
             <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
@@ -193,22 +170,33 @@ export default function BusinessPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/business/signup"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:opacity-95"
-            >
+            <Link href="/business/signup" className="clarify-button-primary">
               Начать регистрацию
             </Link>
 
-            <Link
-              href="/company"
-              className="inline-flex h-12 items-center justify-center rounded-2xl border bg-background/80 px-5 text-sm font-medium text-foreground backdrop-blur transition hover:bg-background"
-            >
+            <Link href="/company" className="clarify-button-secondary">
               Уже есть кабинет
             </Link>
           </div>
         </div>
       </section>
     </main>
+  );
+}
+
+function TrustPill({
+  children,
+  icon,
+  premium,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  premium?: boolean;
+}) {
+  return (
+    <span className={premium ? "clarify-badge-premium" : "clarify-badge"}>
+      {icon}
+      {children}
+    </span>
   );
 }

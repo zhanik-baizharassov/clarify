@@ -23,48 +23,43 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      {/* HERO */}
-      <section className="relative overflow-hidden rounded-3xl border bg-muted/20 p-7 md:p-10">
+      <section className="clarify-hero relative overflow-hidden px-6 py-8 md:px-10 md:py-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-primary/10 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-warm-accent/70 blur-3xl"
         />
 
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
+        <div className="relative grid gap-8 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">KZ</span>
-              <span>Платформа отзывов для людей и бизнеса</span>
+            <div className="clarify-badge w-fit">
+              <span className="inline-flex h-6 items-center rounded-full border border-warm-accent-border bg-warm-accent px-2.5 text-[11px] font-semibold text-warm-accent-text">
+                KZ
+              </span>
+              <span>Отзывы и репутация по Казахстану</span>
             </div>
 
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
               Выбирайте места увереннее
             </h1>
 
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
               Clarify помогает находить места по реальному опыту людей, а
               компаниям — собирать обратную связь, отвечать на отзывы и
               укреплять доверие клиентов.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link
-                href="/explore"
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:w-auto"
-              >
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/explore" className="clarify-button-primary w-full sm:w-auto">
                 <Search className="h-4 w-4" />
                 Найти места
               </Link>
 
               {!isAuthed ? (
-                <Link
-                  href="/signup"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-5 text-sm font-medium transition hover:bg-muted/30 sm:w-auto"
-                >
+                <Link href="/signup" className="clarify-button-secondary w-full sm:w-auto">
                   Зарегистрироваться
                 </Link>
               ) : null}
@@ -72,26 +67,47 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="mx-auto flex max-w-[360px] justify-center lg:justify-end">
-              <div className="relative">
-                <div className="absolute inset-0 scale-90 rounded-full bg-primary/15 blur-3xl" />
+            <div className="clarify-card-elevated relative mx-auto max-w-[380px] overflow-hidden p-5 sm:p-6">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
+              />
+
+              <div className="clarify-badge-premium w-fit">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                Прозрачная репутация
+              </div>
+
+              <div className="relative mt-5 flex justify-center">
                 <Image
                   src="/logo.png"
                   alt="Clarify logo"
-                  width={420}
-                  height={420}
+                  width={280}
+                  height={280}
                   priority
-                  className="relative h-auto w-full max-w-[300px] object-contain drop-shadow-[0_22px_50px_rgba(59,130,246,0.24)]"
+                  className="h-auto w-full max-w-[180px] object-contain drop-shadow-[0_20px_40px_rgba(37,99,235,0.16)]"
+                />
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <TrustLine
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  text="Верифицированные отзывы"
+                />
+                <TrustLine
+                  icon={<MessageCircle className="h-4 w-4" />}
+                  text="Официальные ответы компаний"
+                />
+                <TrustLine
+                  icon={<Building2 className="h-4 w-4" />}
+                  text="Подтвержденное присутствие бизнеса"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div
-          id="features"
-          className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        >
+        <div id="features" className="relative mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MiniFeature
             icon={<BadgeCheck className="h-4 w-4" />}
             title="Честные впечатления"
@@ -110,23 +126,23 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
         </div>
       </section>
 
-      {/* STATS */}
       <div className="mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
         <PlatformStats />
       </div>
 
-      {/* HOW IT WORKS */}
-      <section
-        id="how"
-        className="mt-8 rounded-3xl border bg-background p-7 md:p-10"
-      >
-        <h2 className="text-xl font-semibold md:text-2xl">Как это работает</h2>
-        <p className="mt-2 max-w-6xl text-sm leading-relaxed text-muted-foreground md:text-base">
-          Clarify помогает пользователям выбирать осознаннее, а компаниям —
-          лучше понимать клиентов и работать с репутацией открыто.
-        </p>
+      <section id="how" className="clarify-soft-section mt-8 px-6 py-8 md:px-10 md:py-10">
+        <div className="max-w-3xl">
+          <div className="clarify-badge w-fit">Как это работает</div>
+          <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
+            Понятный сценарий для пользователей и бизнеса
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
+            Clarify помогает пользователям выбирать осознаннее, а компаниям —
+            лучше понимать клиентов и работать с репутацией открыто.
+          </p>
+        </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="mt-7 grid gap-4 md:grid-cols-3">
           <StepCard
             icon={<Search className="h-5 w-5" />}
             title="Находите нужное"
@@ -145,41 +161,47 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
         </div>
       </section>
 
-      {/* BUSINESS CTA */}
       <section
         id="business"
-        className="mt-8 rounded-3xl border bg-muted/20 p-5 sm:p-7 md:p-10"
+        className="clarify-focus-section relative mt-8 overflow-hidden px-6 py-8 md:px-10 md:py-10"
       >
-        <div className="grid gap-5 lg:grid-cols-12 lg:items-center lg:gap-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-primary/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 h-40 w-40 rounded-full bg-warm-accent/70 blur-3xl"
+        />
+
+        <div className="relative grid gap-6 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
-              Для бизнеса
+            <div className="clarify-badge-premium w-fit">
+              <Building2 className="h-3.5 w-3.5" />
+              Clarify для бизнеса
             </div>
 
-            <h2 className="mt-4 text-xl font-semibold md:text-2xl">
+            <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
               Управляйте репутацией в одном месте
             </h2>
 
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
               Clarify помогает компаниям работать с обратной связью открыто и
               удобно: добавляйте филиалы, отвечайте на отзывы и укрепляйте
               доверие к вашему бренду.
             </p>
 
-            <ul className="mt-5 grid max-w-3xl gap-3 text-sm text-muted-foreground md:text-base">
+            <ul className="mt-6 grid max-w-3xl gap-3 text-sm text-muted-foreground md:text-base">
               <li className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
-                  <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+                  <Building2 className="h-4 w-4" />
                 </span>
-                <span className="leading-6">
-                  Все филиалы компании в одном кабинете
-                </span>
+                <span className="leading-6">Все филиалы компании в одном кабинете</span>
               </li>
 
               <li className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
-                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+                  <MessageCircle className="h-4 w-4" />
                 </span>
                 <span className="leading-6">
                   Публичные ответы помогают укреплять доверие клиентов
@@ -187,8 +209,8 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
               </li>
 
               <li className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background/60 text-primary sm:h-9 sm:w-9 sm:rounded-2xl">
-                  <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
+                  <ShieldCheck className="h-4 w-4" />
                 </span>
                 <span className="leading-6">
                   Обратная связь помогает быстрее находить точки роста сервиса
@@ -199,24 +221,19 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
 
           <div className="lg:col-span-5">
             {!isCompany ? (
-              <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-background p-5 sm:p-6 lg:max-w-none">
+              <div className="clarify-card-elevated relative mx-auto w-full max-w-xl overflow-hidden p-5 sm:p-6 lg:max-w-none">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
+                  className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Новый кабинет компании
+                <div className="clarify-badge-premium w-fit">Кабинет компании</div>
+
+                <div className="mt-4 text-lg font-semibold">
+                  {isAuthed ? "Подключите компанию к Clarify" : "Начните как компания"}
                 </div>
 
-                <div className="mt-4 text-base font-semibold md:text-lg">
-                  {isAuthed
-                    ? "Подключите компанию к Clarify"
-                    : "Начните как компания"}
-                </div>
-
-                <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+                <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
                   {isAuthed
                     ? "Откройте бизнес-кабинет, добавьте филиалы и начните работать с отзывами клиентов."
                     : "Зарегистрируйте компанию, создайте первые филиалы и начните выстраивать доверие через отзывы."}
@@ -228,32 +245,26 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                   <SmallPill>Репутация</SmallPill>
                 </div>
 
-                <div className="mt-5 grid gap-2">
-                  <Link
-                    href="/business"
-                    className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-center text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-                  >
+                <div className="mt-5 grid gap-3">
+                  <Link href="/business" className="clarify-button-primary">
                     Подробнее для компаний
                   </Link>
                 </div>
               </div>
             ) : (
-              <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-background p-5 sm:p-6 lg:max-w-none">
+              <div className="clarify-card-elevated relative mx-auto w-full max-w-xl overflow-hidden p-5 sm:p-6 lg:max-w-none">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/10 blur-2xl"
+                  className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"
                 />
 
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-primary/10 px-3 py-1 text-xs text-primary">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Вы вошли как компания
-                </div>
+                <div className="clarify-badge-premium w-fit">Кабинет компании</div>
 
-                <div className="mt-4 text-base font-semibold md:text-lg">
+                <div className="mt-4 text-lg font-semibold">
                   Управляйте компанией из кабинета
                 </div>
 
-                <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+                <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
                   Перейдите в кабинет, создайте новый филиал и просматривайте
                   отзывы по вашим точкам в одном месте.
                 </div>
@@ -264,18 +275,15 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                   <SmallPill>Отзывы</SmallPill>
                 </div>
 
-                <div className="mt-5 grid gap-2">
-                  <Link
-                    href="/company"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-primary-foreground shadow-sm transition hover:opacity-90"
-                  >
+                <div className="mt-5 grid gap-3">
+                  <Link href="/company" className="clarify-button-primary">
                     <LayoutDashboard className="h-4 w-4" />
                     Перейти в кабинет
                   </Link>
 
                   <Link
                     href="/company?tab=create-branch"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border bg-background px-6 text-sm font-medium transition hover:bg-muted/30"
+                    className="clarify-button-secondary"
                   >
                     <Plus className="h-4 w-4" />
                     Создать филиал
@@ -290,6 +298,23 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
   );
 }
 
+function TrustLine({
+  icon,
+  text,
+}: {
+  icon: ReactNode;
+  text: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-[16px] border border-border bg-surface-soft/70 px-4 py-3 text-sm text-foreground">
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-[14px] border border-primary-soft-border bg-primary-soft text-primary">
+        {icon}
+      </span>
+      <span>{text}</span>
+    </div>
+  );
+}
+
 function MiniFeature({
   icon,
   title,
@@ -300,14 +325,14 @@ function MiniFeature({
   desc: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-background p-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-background/90">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-muted/30 text-primary">
+    <div className="clarify-card-soft p-5">
+      <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-2 text-sm text-muted-foreground">{desc}</div>
+      <div className="mt-3 text-sm leading-6 text-muted-foreground">{desc}</div>
     </div>
   );
 }
@@ -322,14 +347,14 @@ function StepCard({
   desc: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-muted/20 p-6 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-muted/30">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl border bg-background/60 text-primary">
+    <div className="clarify-card border-white/70 bg-card/90 p-6">
+      <div className="flex items-start gap-4">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         <div>
           <div className="text-base font-semibold md:text-lg">{title}</div>
-          <div className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+          <div className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
             {desc}
           </div>
         </div>
@@ -340,8 +365,6 @@ function StepCard({
 
 function SmallPill({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-      {children}
-    </span>
+    <span className="clarify-chip text-xs text-muted-foreground">{children}</span>
   );
 }

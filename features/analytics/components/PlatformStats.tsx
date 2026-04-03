@@ -111,24 +111,22 @@ export default function PlatformStats() {
     <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
       <div
         ref={sectionRef}
-        className="rounded-3xl border bg-muted/20 p-7 md:p-10"
+        className="clarify-soft-section px-6 py-8 md:px-10 md:py-10"
       >
         <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground">
-            Платформа в цифрах
-          </div>
+          <div className="clarify-badge w-fit">Платформа в цифрах</div>
 
           <h2 className="mt-4 text-xl font-semibold tracking-tight md:text-2xl">
             Статистика Clarify
           </h2>
 
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
             Платформа растёт вместе с пользователями и компаниями — каждое новое
             место и каждый отзыв делают выбор более понятным.
           </p>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {loading ? (
             <>
               <StatSkeleton />
@@ -149,8 +147,10 @@ export default function PlatformStats() {
               />
             ))
           ) : (
-            <div className="rounded-2xl border bg-background p-5 text-sm text-muted-foreground sm:col-span-2 lg:col-span-4">
-              Статистика временно недоступна{err ? `: ${err}` : "."}
+            <div className="clarify-empty-state sm:col-span-2 lg:col-span-4">
+              <div className="px-6 py-8 text-sm text-muted-foreground">
+                Статистика временно недоступна{err ? `: ${err}` : "."}
+              </div>
             </div>
           )}
         </div>
@@ -177,28 +177,25 @@ function StatCard({
   return (
     <div
       className={[
-        "rounded-2xl border bg-background p-5 transition-all duration-700 md:p-6",
-        "hover:-translate-y-1 hover:border-primary/35 hover:bg-background/95",
+        "clarify-card p-5 md:p-6 transition-all duration-700",
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
       ].join(" ")}
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm text-muted-foreground md:text-base">
-            {title}
-          </div>
+          <div className="text-sm text-muted-foreground md:text-base">{title}</div>
           <div className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
             <AnimatedNumber value={value} start={visible} />
           </div>
         </div>
 
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border bg-muted/30 text-muted-foreground transition duration-300 hover:scale-105 hover:text-primary">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </div>
       </div>
 
-      <div className="mt-3 text-sm text-muted-foreground md:text-base">
+      <div className="mt-3 text-sm leading-6 text-muted-foreground md:text-base">
         {desc}
       </div>
     </div>
@@ -236,13 +233,13 @@ function AnimatedNumber({ value, start }: { value: number; start: boolean }) {
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border bg-background p-5 md:p-6">
+    <div className="clarify-card p-5 md:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
           <div className="mt-3 h-10 w-28 animate-pulse rounded bg-muted/50" />
         </div>
-        <div className="h-12 w-12 animate-pulse rounded-2xl bg-muted/40" />
+        <div className="h-12 w-12 animate-pulse rounded-[16px] bg-primary-soft/70" />
       </div>
       <div className="mt-4 h-4 w-44 animate-pulse rounded bg-muted/50" />
     </div>

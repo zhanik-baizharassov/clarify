@@ -15,38 +15,23 @@ export default function Header({
     return (
       <HeaderShell
         desktopAuth={
-          <nav
-            className="flex items-center gap-2 text-xs sm:text-sm"
-            aria-label="Навигация"
-          >
-            <Link
-              href="/login"
-              className="inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm"
-            >
+          <nav className="flex items-center gap-2" aria-label="Навигация">
+            <Link href="/login" className="clarify-button-secondary-sm">
               Войти
             </Link>
 
-            <Link
-              href="/signup"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 sm:text-sm"
-            >
+            <Link href="/signup" className="clarify-button-primary-sm">
               Регистрация
             </Link>
           </nav>
         }
         mobileAuth={
           <>
-            <Link
-              href="/login"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
-            >
+            <Link href="/login" className="clarify-button-secondary w-full">
               Войти
             </Link>
 
-            <Link
-              href="/signup"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
-            >
+            <Link href="/signup" className="clarify-button-primary w-full">
               Регистрация
             </Link>
           </>
@@ -58,28 +43,22 @@ export default function Header({
   return (
     <HeaderShell
       desktopAuth={
-        <nav
-          className="flex items-center gap-2 text-xs sm:text-sm"
-          aria-label="Навигация"
-        >
+        <nav className="flex items-center gap-2" aria-label="Навигация">
           {user.role === "ADMIN" ? (
-            <Link
-              href="/admin"
-              className="inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm"
-            >
+            <Link href="/admin" className="clarify-button-premium-sm">
               Админ
             </Link>
           ) : user.role === "COMPANY" ? (
             <Link
               href="/company"
-              className="inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm"
+              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
             >
               Кабинет
             </Link>
           ) : (
             <Link
               href="/profile"
-              className="inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 sm:text-sm"
+              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
             >
               Профиль
             </Link>
@@ -91,29 +70,26 @@ export default function Header({
       mobileAuth={
         <>
           {user.role === "ADMIN" ? (
-            <Link
-              href="/admin"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
-            >
+            <Link href="/admin" className="clarify-button-premium w-full">
               Админ
             </Link>
           ) : user.role === "COMPANY" ? (
             <Link
               href="/company"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
+              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
             >
               Кабинет
             </Link>
           ) : (
             <Link
               href="/profile"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border bg-background px-4 text-sm font-medium transition hover:bg-muted/40"
+              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
             >
               Профиль
             </Link>
           )}
 
-          <LogoutButton className="h-11 w-full text-sm" />
+          <LogoutButton className="h-12 w-full rounded-[16px] text-sm" />
         </>
       }
     />
