@@ -85,8 +85,8 @@ export default function LandingHome({ isAuthed, role }: LandingHomeProps) {
                     <Image
                       src="/logo.png"
                       alt="Clarify logo"
-                      width={280}
-                      height={280}
+                      width={320}
+                      height={320}
                       priority
                       className="h-auto w-full max-w-[170px] object-contain drop-shadow-[0_18px_36px_rgba(37,99,235,0.18)]"
                     />
