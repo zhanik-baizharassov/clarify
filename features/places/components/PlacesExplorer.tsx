@@ -11,6 +11,8 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
+import StarRating from "@/components/ui/StarRating";
+import { formatReviewsCount } from "@/shared/format";
 import { KZ_CITIES } from "@/shared/kz/kz";
 
 type Category = {
@@ -539,12 +541,25 @@ export default function PlacesExplorer({
               </div>
 
               <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right dark:border-[#24314A] dark:bg-[#142039]">
-                <div className="text-lg font-semibold text-primary dark:text-[#60A5FA]">
-                  {Number(p.avgRating).toFixed(2)}
-                </div>
-                <div className="text-xs text-[#667085] dark:text-[#94A3B8]">
-                  {nf.format(p.ratingCount)} отзывов
-                </div>
+                {p.ratingCount > 0 ? (
+                  <>
+                    <div className="text-lg font-semibold text-primary dark:text-[#60A5FA]">
+                      {Number(p.avgRating).toFixed(1)}
+                    </div>
+                    <StarRating
+                      value={Number(p.avgRating)}
+                      size="sm"
+                      className="mt-0.5"
+                    />
+                    <div className="mt-1 text-xs text-[#667085] dark:text-[#94A3B8]">
+                      {formatReviewsCount(p.ratingCount)}
+                    </div>
+                  </>
+                ) : (
+                  <div className="max-w-[88px] text-xs leading-5 text-[#667085] dark:text-[#94A3B8]">
+                    Пока нет отзывов
+                  </div>
+                )}
               </div>
             </div>
 
@@ -556,6 +571,10 @@ export default function PlacesExplorer({
             </div>
           </Link>
         ))}
+
+        {loading && !loadingMore && items.length === 0
+          ? Array.from({ length: 6 }, (_, i) => <PlaceCardSkeleton key={i} />)
+          : null}
 
         {!loading && !loadingMore && items.length === 0 ? (
           hasSearched ? (
@@ -660,6 +679,8 @@ function SearchCard({
         <div className="grid gap-3 md:grid-cols-12 md:items-stretch">
           <div className="md:col-span-8">
             <input
+              type="search"
+              aria-label="Поиск мест по названию, адресу или описанию"
               className="clarify-control text-base sm:text-lg"
               placeholder="Например: Coffee Boom"
               value={q}
@@ -667,7 +688,7 @@ function SearchCard({
             />
           </div>
 
-          <div className="grid gap-3 md:col-span-4 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 md:col-span-4">
             <button
               type="button"
               className="clarify-button-secondary"
@@ -758,6 +779,22 @@ function FeatureCard({
       <div className="mt-3 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
         {desc}
       </div>
+    </div>
+  );
+}
+
+function PlaceCardSkeleton() {
+  return (
+    <div className="clarify-card p-5" aria-hidden>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="h-[34px] w-24 animate-pulse rounded-full bg-muted/50" />
+          <div className="mt-4 h-6 w-3/4 animate-pulse rounded bg-muted/50" />
+          <div className="mt-3 h-4 w-2/3 animate-pulse rounded bg-muted/50" />
+        </div>
+        <div className="h-[76px] w-24 shrink-0 animate-pulse rounded-[16px] bg-primary-soft/70" />
+      </div>
+      <div className="mt-5 h-4 w-40 animate-pulse rounded bg-muted/50" />
     </div>
   );
 }

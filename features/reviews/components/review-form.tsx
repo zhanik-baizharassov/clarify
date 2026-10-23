@@ -50,7 +50,8 @@ function clampRating(v: number) {
 export default function ReviewForm({ placeSlug, tags }: Props) {
   const router = useRouter();
 
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -63,8 +64,9 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
     [selected, tags],
   );
 
-  const canSubmit = !loading && trimmedText.length >= 5;
-  const activeRatingMeta = RATING_META[rating];
+  const canSubmit = !loading && rating !== null && trimmedText.length >= 5;
+  const shownRating = hoverRating ?? rating;
+  const activeRatingMeta = shownRating ? RATING_META[shownRating] : null;
   const textLength = text.length;
 
   function toggleTag(slug: string) {
@@ -79,6 +81,11 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
     setError(null);
 
     if (loading) return;
+
+    if (rating === null) {
+      setError("Выберите оценку от 1 до 5.");
+      return;
+    }
 
     if (trimmedText.length < 5) {
       setError("Текст отзыва слишком короткий (минимум 5 символов).");
@@ -127,44 +134,60 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {[5, 4, 3, 2, 1].map((value) => {
-            const isActive = rating === value;
-            const meta = RATING_META[value];
+        <div
+          role="radiogroup"
+          aria-label="Оценка"
+          className="flex items-center gap-1"
+          onMouseLeave={() => setHoverRating(null)}
+        >
+          {[1, 2, 3, 4, 5].map((value) => {
+            const isFilled = shownRating !== null && value <= shownRating;
 
             return (
               <button
                 key={value}
                 type="button"
+                role="radio"
+                aria-checked={rating === value}
+                aria-label={`${value} из 5 — ${RATING_META[value].title}`}
                 disabled={loading}
                 onClick={() => setRating(value)}
-                className={[
-                  "rounded-2xl border p-4 text-left transition duration-200",
-                  "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/20",
-                  "disabled:opacity-60",
-                  isActive ? "border-primary bg-primary/10 shadow-sm" : "bg-background",
-                ].join(" ")}
+                onMouseEnter={() => setHoverRating(value)}
+                onFocus={() => setHoverRating(value)}
+                onBlur={() => setHoverRating(null)}
+                className="rounded-xl p-1 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-2xl font-semibold">{value}</div>
-                  <Star
-                    className={[
-                      "h-4 w-4 transition",
-                      isActive ? "fill-current text-primary" : "text-muted-foreground",
-                    ].join(" ")}
-                  />
-                </div>
-                <div className="mt-2 text-sm font-medium">{meta.short}</div>
+                <Star
+                  className={[
+                    "h-9 w-9 transition sm:h-10 sm:w-10",
+                    isFilled
+                      ? "fill-amber-400 text-amber-400"
+                      : "text-muted-foreground/40",
+                  ].join(" ")}
+                />
               </button>
             );
           })}
         </div>
 
-        <div className="rounded-2xl border bg-muted/20 p-4">
-          <div className="text-sm font-semibold">{activeRatingMeta.title}</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {activeRatingMeta.desc}
-          </div>
+        <div
+          className="min-h-[76px] rounded-2xl border bg-muted/20 p-4"
+          aria-live="polite"
+        >
+          {activeRatingMeta ? (
+            <>
+              <div className="text-sm font-semibold">
+                {shownRating} из 5 · {activeRatingMeta.title}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {activeRatingMeta.desc}
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Нажмите на звезду, чтобы выбрать оценку.
+            </div>
+          )}
         </div>
       </div>
 
@@ -187,13 +210,14 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
             onChange={(e) => setText(e.target.value)}
             className="min-h-[160px] w-full resize-y bg-transparent p-1 outline-none disabled:opacity-60"
             placeholder="Например: обслуживание было быстрым, персонал вежливым, но в зале было шумно..."
+            maxLength={5000}
             disabled={loading}
           />
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
             <span>Минимум 5 символов.</span>
             <span className={textLength >= 5 ? "text-primary" : ""}>
-              {textLength} символов
+              {textLength} / 5000
             </span>
           </div>
         </div>
@@ -263,8 +287,9 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
       ) : null}
 
       <button
+        type="submit"
         disabled={!canSubmit}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        className="clarify-button-primary w-full sm:w-auto"
       >
         <SendHorizontal className="h-4 w-4" />
         {loading ? "Отправка..." : "Отправить отзыв"}
