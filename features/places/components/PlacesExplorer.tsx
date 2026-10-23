@@ -120,6 +120,28 @@ export default function PlacesExplorer({
 
   const placesAbortRef = useRef<AbortController | null>(null);
   const skipNextAutoSearchRef = useRef(false);
+  const initialCategorySlugRef = useRef<string | null>(null);
+
+  // Deep links such as /explore?q=кофе&city=Алматы&category=cafe
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlQ = params.get("q")?.trim().slice(0, 100) ?? "";
+    const urlCity = params.get("city")?.trim() ?? "";
+    const urlCategory = params.get("category")?.trim() ?? "";
+
+    if (!urlQ && !urlCity && !urlCategory) return;
+
+    if (urlQ) setQ(urlQ);
+    if (urlCity && (KZ_CITIES as readonly string[]).includes(urlCity)) {
+      setCity(urlCity);
+      setShowFilters(true);
+    }
+    if (urlCategory) {
+      initialCategorySlugRef.current = urlCategory;
+      setShowFilters(true);
+    }
+    setHasInteracted(true);
+  }, []);
 
   const buildQueryString = useCallback(
     (
@@ -240,6 +262,13 @@ export default function PlacesExplorer({
             : [];
 
         setCategories(list);
+
+        const wantedSlug = initialCategorySlugRef.current;
+        if (wantedSlug) {
+          initialCategorySlugRef.current = null;
+          const match = list.find((c) => c.slug === wantedSlug);
+          if (match) setCategoryId(match.id);
+        }
       } catch {
         if (ctrl.signal.aborted) return;
         setCategories([]);
@@ -374,17 +403,17 @@ export default function PlacesExplorer({
           <div className="relative grid gap-8 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-7">
               <div className="clarify-badge w-fit">
-                <span className="inline-flex h-6 items-center rounded-full border border-primary-soft-border bg-primary-soft px-2.5 text-[11px] font-semibold text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#60A5FA]">
+                <span className="inline-flex h-6 items-center rounded-full border border-primary-soft-border bg-primary-soft px-2.5 text-[11px] font-semibold text-primary">
                   KZ
                 </span>
                 <span>Верифицированные отзывы и прозрачная репутация</span>
               </div>
 
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground dark:text-[#F8FAFC] md:text-5xl md:leading-[1.08]">
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-[1.08]">
                 Найдите места по отзывам и репутации
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#475467] dark:text-[#CBD5E1] md:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
                 Clarify помогает выбирать места по реальным отзывам и рейтингу,
                 а компаниям — получать прозрачную обратную связь и отвечать
                 официально.
@@ -470,16 +499,16 @@ export default function PlacesExplorer({
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-foreground dark:text-[#F8FAFC]">
+              <div className="text-sm font-semibold text-foreground">
                 Категории
               </div>
-              <div className="mt-1 text-sm text-[#667085] dark:text-[#94A3B8]">
+              <div className="mt-1 text-sm text-muted-foreground">
                 Быстрый переход к нужному типу мест
               </div>
             </div>
           </div>
 
-          <div className="clarify-card-soft overflow-hidden p-4 dark:bg-[#101A2E] dark:border-[#24314A]">
+          <div className="clarify-card-soft overflow-hidden p-4">
             <div className="flex gap-2 overflow-x-auto pb-1">
               <Chip
                 active={!categoryId}
@@ -527,11 +556,11 @@ export default function PlacesExplorer({
               <div className="min-w-0">
                 <div className="clarify-badge-premium w-fit">{p.category.name}</div>
 
-                <div className="mt-4 line-clamp-2 text-lg font-semibold tracking-tight text-foreground dark:text-[#F8FAFC]">
+                <div className="mt-4 line-clamp-2 text-lg font-semibold tracking-tight text-foreground">
                   {p.name}
                 </div>
 
-                <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
+                <div className="mt-2 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <span>
                     {p.city}
@@ -540,10 +569,10 @@ export default function PlacesExplorer({
                 </div>
               </div>
 
-              <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right dark:border-[#24314A] dark:bg-[#142039]">
+              <div className="shrink-0 rounded-[16px] border border-primary-soft-border bg-primary-soft px-3 py-2 text-right">
                 {p.ratingCount > 0 ? (
                   <>
-                    <div className="text-lg font-semibold text-primary dark:text-[#60A5FA]">
+                    <div className="text-lg font-semibold text-primary">
                       {Number(p.avgRating).toFixed(1)}
                     </div>
                     <StarRating
@@ -551,12 +580,12 @@ export default function PlacesExplorer({
                       size="sm"
                       className="mt-0.5"
                     />
-                    <div className="mt-1 text-xs text-[#667085] dark:text-[#94A3B8]">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       {formatReviewsCount(p.ratingCount)}
                     </div>
                   </>
                 ) : (
-                  <div className="max-w-[88px] text-xs leading-5 text-[#667085] dark:text-[#94A3B8]">
+                  <div className="max-w-[88px] text-xs leading-5 text-muted-foreground">
                     Пока нет отзывов
                   </div>
                 )}
@@ -564,7 +593,7 @@ export default function PlacesExplorer({
             </div>
 
             <div className="mt-5 flex items-center justify-between text-sm">
-              <span className="text-[#667085] dark:text-[#94A3B8]">
+              <span className="text-muted-foreground">
                 Открыть карточку места
               </span>
               <ArrowUpRight className="h-4 w-4 text-primary" />
@@ -651,10 +680,10 @@ function SearchCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="clarify-badge-premium w-fit">Поиск мест</div>
-          <div className="mt-4 text-lg font-semibold tracking-tight text-foreground dark:text-[#F8FAFC] sm:text-xl">
+          <div className="mt-4 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             Название, адрес или описание — плюс точные фильтры
           </div>
-          <div className="mt-2 text-sm leading-7 text-[#475467] dark:text-[#CBD5E1] sm:text-base">
+          <div className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">
             Ищите по городу, категории и сортируйте результаты так, как удобно вам.
           </div>
         </div>
@@ -770,13 +799,13 @@ function FeatureCard({
 }) {
   return (
     <div className="clarify-card-soft p-5">
-      <div className="flex items-center gap-3 text-sm font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#60A5FA]">
+      <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           {icon}
         </span>
         {title}
       </div>
-      <div className="mt-3 text-sm leading-6 text-[#667085] dark:text-[#94A3B8]">
+      <div className="mt-3 text-sm leading-6 text-muted-foreground">
         {desc}
       </div>
     </div>
@@ -807,15 +836,15 @@ function EmptyState({
   desc: string;
 }) {
   return (
-    <div className="clarify-empty-state bg-white/92 md:col-span-2 xl:col-span-3 dark:bg-[#101A2E] dark:border-[#24314A]">
+    <div className="clarify-empty-state md:col-span-2 xl:col-span-3">
       <div className="flex flex-col items-center px-6 py-10 text-center">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary dark:border-[#24314A] dark:bg-[#142039] dark:text-[#2563EB]">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary-soft-border bg-primary-soft text-primary">
           <Search className="h-5 w-5" />
         </span>
-        <div className="mt-4 text-lg font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
+        <div className="mt-4 text-lg font-semibold text-foreground">
           {title}
         </div>
-        <div className="mt-2 max-w-2xl text-sm leading-7 text-[#667085] dark:text-[#94A3B8] md:text-base">
+        <div className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
           {desc}
         </div>
       </div>

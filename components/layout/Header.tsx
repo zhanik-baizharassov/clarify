@@ -51,14 +51,14 @@ export default function Header({
           ) : user.role === "COMPANY" ? (
             <Link
               href="/company"
-              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
+              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary"
             >
               Кабинет
             </Link>
           ) : (
             <Link
               href="/profile"
-              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
+              className="clarify-button-secondary-sm border-primary-soft-border bg-primary-soft text-primary"
             >
               Профиль
             </Link>
@@ -76,20 +76,20 @@ export default function Header({
           ) : user.role === "COMPANY" ? (
             <Link
               href="/company"
-              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
+              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary"
             >
               Кабинет
             </Link>
           ) : (
             <Link
               href="/profile"
-              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary hover:bg-primary-soft"
+              className="clarify-button-secondary w-full border-primary-soft-border bg-primary-soft text-primary"
             >
               Профиль
             </Link>
           )}
 
-          <LogoutButton className="h-12 w-full rounded-[16px] text-sm" />
+          <LogoutButton className="w-full" />
         </>
       }
     />

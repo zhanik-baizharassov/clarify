@@ -1,16 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Onest, Unbounded } from "next/font/google";
+import PointerGlow from "@/components/ui/PointerGlow";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const onest = Onest({
+  variable: "--font-onest",
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const unbounded = Unbounded({
+  variable: "--font-unbounded",
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
 });
+
+// Runs before first paint so there is no light/dark flash. Falls back to the
+// system preference when the visitor has not picked a theme yet.
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;var r=document.documentElement;r.classList.toggle("dark",d);r.style.colorScheme=d?"dark":"light"}catch(e){}})()`;
 
 function resolveMetadataBase() {
   const raw = process.env.APP_ORIGIN?.trim() || "";
@@ -66,7 +73,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090f" },
+  ],
 };
 
 export default function RootLayout({
@@ -77,10 +88,16 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${geistSans.variable} ${geistMono.variable} dark`}
+      className={`${onest.variable} ${unbounded.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen antialiased">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="min-h-screen antialiased">
+        {children}
+        <PointerGlow />
+      </body>
     </html>
   );
 }

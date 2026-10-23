@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LandingHome from "@/features/landing/LandingHome";
+import { prisma } from "@/server/db/prisma";
 import {
   getSessionUser,
   isDynamicServerUsageError,
@@ -46,6 +47,40 @@ function resolveStructuredDataOrigin() {
   }
 }
 
+async function getLandingCategories() {
+  try {
+    const [categories, usage] = await Promise.all([
+      prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, slug: true },
+      }),
+      prisma.place.groupBy({
+        by: ["categoryId"],
+        _count: { _all: true },
+      }),
+    ]);
+
+    const counts = new Map(usage.map((row) => [row.categoryId, row._count._all]));
+    const used = categories.filter((c) => (counts.get(c.id) ?? 0) > 0);
+
+    const popular = [...used]
+      .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+      .slice(0, 5)
+      .map(({ name, slug }) => ({ name, slug }));
+
+    return {
+      categories: used.map(({ name, slug }) => ({ name, slug })),
+      popular,
+    };
+  } catch (err) {
+    if (!isDynamicServerUsageError(err)) {
+      console.error("HomePage: categories failed:", err);
+    }
+    return { categories: [], popular: [] };
+  }
+}
+
 export default async function HomePage() {
   let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
 
@@ -58,6 +93,7 @@ export default async function HomePage() {
     sessionUser = null;
   }
 
+  const landingCategories = await getLandingCategories();
   const origin = resolveStructuredDataOrigin();
 
   const structuredData = [
@@ -90,6 +126,8 @@ export default async function HomePage() {
       <LandingHome
         isAuthed={!!sessionUser}
         role={sessionUser?.role ?? null}
+        categories={landingCategories.categories}
+        popularCategories={landingCategories.popular}
       />
     </>
   );
