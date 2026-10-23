@@ -45,7 +45,7 @@ export default function LogoutButton({
       type="button"
       disabled={pending}
       aria-busy={pending}
-      className={`inline-flex h-10 items-center justify-center rounded-xl border bg-background px-3 text-xs font-medium transition hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:pointer-events-none disabled:opacity-60 sm:text-sm ${className}`}
+      className={`clarify-button-secondary-sm ${className}`}
       onClick={handleLogout}
     >
       {pending ? "Выходим…" : "Выйти"}
