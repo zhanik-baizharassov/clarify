@@ -31,9 +31,10 @@ export default function PlaceMiniMap({
         const key = process.env.NEXT_PUBLIC_TWOGIS_MAPGL_API_KEY;
 
         if (!key) {
-          setError(
-            "Карта временно недоступна: не задан NEXT_PUBLIC_TWOGIS_MAPGL_API_KEY.",
+          console.warn(
+            "PlaceMiniMap: NEXT_PUBLIC_TWOGIS_MAPGL_API_KEY is not set",
           );
+          setError("Карта временно недоступна.");
           return;
         }
 
@@ -81,7 +82,7 @@ export default function PlaceMiniMap({
   )}`;
 
   return (
-    <section className="mt-6 rounded-2xl border bg-background p-4">
+    <section className="clarify-card-elevated p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">Расположение</h2>
@@ -93,23 +94,24 @@ export default function PlaceMiniMap({
         <a
           href={openIn2gisHref}
           target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-10 items-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
+          rel="noopener noreferrer"
+          className="clarify-button-secondary-sm"
         >
           Открыть в 2GIS
         </a>
       </div>
 
       {error ? (
-        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
-
-      <div
-        ref={containerRef}
-        className="mt-4 h-72 w-full overflow-hidden rounded-xl border"
-      />
+        <p className="mt-4 rounded-[16px] border bg-muted/40 p-4 text-sm text-muted-foreground">
+          Карту не удалось показать на странице. Откройте место в 2GIS по
+          кнопке выше.
+        </p>
+      ) : (
+        <div
+          ref={containerRef}
+          className="mt-4 h-72 w-full overflow-hidden rounded-[16px] border"
+        />
+      )}
     </section>
   );
 }
