@@ -98,3 +98,53 @@ export function keepKzPhoneInput(value: string) {
   const rest = digits.startsWith("7") ? digits.slice(1) : digits;
   return `+7${rest.slice(0, 10)}`;
 }
+
+
+/** Approximate city centres as [lat, lng]; used to centre maps and sanity-check pins. */
+export const KZ_CITY_CENTERS: Record<KzCity, readonly [number, number]> = {
+  Алматы: [43.238, 76.945],
+  Астана: [51.169, 71.449],
+  Шымкент: [42.315, 69.587],
+  Караганда: [49.806, 73.085],
+  Актобе: [50.283, 57.167],
+  Тараз: [42.9, 71.378],
+  Павлодар: [52.287, 76.967],
+  "Усть-Каменогорск": [49.948, 82.628],
+  Семей: [50.411, 80.227],
+  Костанай: [53.214, 63.625],
+  Кызылорда: [44.853, 65.509],
+  Атырау: [47.107, 51.917],
+  Уральск: [51.233, 51.367],
+  Актау: [43.65, 51.15],
+  Петропавловск: [54.867, 69.15],
+  Туркестан: [43.298, 68.252],
+  Кокшетау: [53.285, 69.378],
+  Талдыкорган: [45.017, 78.373],
+  Жезказган: [47.783, 67.769],
+  Рудный: [52.967, 63.133],
+};
+
+/** Distance in km between two lat/lng points (haversine). */
+export function distanceKm(
+  a: readonly [number, number],
+  b: readonly [number, number],
+) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+/** True when the point lies within `maxKm` of the selected city's centre. */
+export function isPointNearCity(
+  city: KzCity,
+  lat: number,
+  lng: number,
+  maxKm = 60,
+) {
+  return distanceKm(KZ_CITY_CENTERS[city], [lat, lng]) <= maxKm;
+}

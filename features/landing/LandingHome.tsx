@@ -265,7 +265,7 @@ export default function LandingHome({
             <Reveal delay={0} className="md:col-span-2">
               <BentoTile
                 icon={<MapPin className="h-5 w-5" />}
-                title="Карта 2GIS"
+                title="Карта места"
                 desc="Точка на карте у каждого места."
               />
             </Reveal>

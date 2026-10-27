@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import KzAddressSuggestInput from "@/components/forms/KzAddressSuggestInput";
+import KzAddressInput from "@/components/forms/KzAddressInput";
+import LocationPicker, { type MapPoint } from "@/components/forms/LocationPicker";
 import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
 
 type Category = { id: string; name: string };
@@ -58,6 +59,7 @@ export default function CreateBranchForm({
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
   const [city, setCity] = useState<string>(KZ_CITIES[0] ?? "Алматы");
   const [address, setAddress] = useState("");
+  const [point, setPoint] = useState<MapPoint | null>(null);
   const [phone, setPhone] = useState("+7");
 
   const [err, setErr] = useState<string | null>(null);
@@ -108,6 +110,8 @@ export default function CreateBranchForm({
           categoryId,
           city,
           address: addr,
+          lat: point?.lat ?? null,
+          lng: point?.lng ?? null,
           phone: phoneNorm,
           weekdayOpen: weekdayOpenTime,
           weekdayClose: weekdayCloseTime,
@@ -121,6 +125,7 @@ export default function CreateBranchForm({
       if (!res.ok) throw new Error(data?.error ?? "Не удалось создать филиал");
 
       setAddress("");
+      setPoint(null);
       setPhone("+7");
       setWeekdayOpenTime("09:00");
       setWeekdayCloseTime("21:00");
@@ -170,7 +175,10 @@ export default function CreateBranchForm({
           disabled={loading}
           className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
           value={city}
-          onChange={(e) => setCity(e.target.value)}
+          onChange={(e) => {
+            setCity(e.target.value);
+            setPoint(null);
+          }}
         >
           {KZ_CITIES.map((c) => (
             <option key={c} value={c}>
@@ -182,17 +190,24 @@ export default function CreateBranchForm({
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">Адрес</span>
-        <KzAddressSuggestInput
+        <KzAddressInput
           city={city}
           value={address}
           onChange={setAddress}
           disabled={loading}
-          placeholder="Начните вводить адрес и выберите подсказку 2GIS"
+          placeholder="Например: проспект Абая 10"
         />
         <span className="text-xs text-muted-foreground">
-          Для лучшего результата введите улицу и номер дома.
+          Укажите улицу и номер дома.
         </span>
       </label>
+
+      <LocationPicker
+        city={city}
+        value={point}
+        onChange={setPoint}
+        disabled={loading}
+      />
 
       <label className="grid gap-1">
         <span className="text-xs text-muted-foreground">
