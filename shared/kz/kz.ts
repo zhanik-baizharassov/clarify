@@ -148,3 +148,39 @@ export function isPointNearCity(
 ) {
   return distanceKm(KZ_CITY_CENTERS[city], [lat, lng]) <= maxKm;
 }
+
+
+/** URL slug and the prepositional form ("в Алматы") for every supported city. */
+export const KZ_CITY_META: Record<KzCity, { slug: string; locative: string }> = {
+  Алматы: { slug: "almaty", locative: "в Алматы" },
+  Астана: { slug: "astana", locative: "в Астане" },
+  Шымкент: { slug: "shymkent", locative: "в Шымкенте" },
+  Караганда: { slug: "karaganda", locative: "в Караганде" },
+  Актобе: { slug: "aktobe", locative: "в Актобе" },
+  Тараз: { slug: "taraz", locative: "в Таразе" },
+  Павлодар: { slug: "pavlodar", locative: "в Павлодаре" },
+  "Усть-Каменогорск": { slug: "ust-kamenogorsk", locative: "в Усть-Каменогорске" },
+  Семей: { slug: "semey", locative: "в Семее" },
+  Костанай: { slug: "kostanay", locative: "в Костанае" },
+  Кызылорда: { slug: "kyzylorda", locative: "в Кызылорде" },
+  Атырау: { slug: "atyrau", locative: "в Атырау" },
+  Уральск: { slug: "uralsk", locative: "в Уральске" },
+  Актау: { slug: "aktau", locative: "в Актау" },
+  Петропавловск: { slug: "petropavlovsk", locative: "в Петропавловске" },
+  Туркестан: { slug: "turkestan", locative: "в Туркестане" },
+  Кокшетау: { slug: "kokshetau", locative: "в Кокшетау" },
+  Талдыкорган: { slug: "taldykorgan", locative: "в Талдыкоргане" },
+  Жезказган: { slug: "zhezkazgan", locative: "в Жезказгане" },
+  Рудный: { slug: "rudny", locative: "в Рудном" },
+};
+
+export function cityFromSlug(slug: string): KzCity | null {
+  const found = (KZ_CITIES as readonly KzCity[]).find(
+    (city) => KZ_CITY_META[city].slug === slug,
+  );
+  return found ?? null;
+}
+
+export function cityPath(city: KzCity) {
+  return `/catalog/${KZ_CITY_META[city].slug}`;
+}

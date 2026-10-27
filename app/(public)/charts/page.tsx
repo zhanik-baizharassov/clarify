@@ -9,6 +9,7 @@ export const metadata: Metadata = {
     canonical: "/charts",
   },
   openGraph: {
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
     title: "Чарты — Clarify",
     description:
       "Смотрите чарты Clarify: активные города, рекомендации пользователей и лучшие места по отзывам и рейтингу в Казахстане.",
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
     siteName: "Clarify",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: ["/opengraph-image.png"],
     title: "Чарты — Clarify",
     description:
       "Активные города, рекомендации пользователей и лучшие места по отзывам и рейтингу в Казахстане.",
