@@ -12,10 +12,9 @@ import {
 type PlaceMiniMapProps = {
   lat: number;
   lng: number;
-  title: string;
 };
 
-export default function PlaceMiniMap({ lat, lng, title }: PlaceMiniMapProps) {
+export default function PlaceMiniMap({ lat, lng }: PlaceMiniMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,28 +71,15 @@ export default function PlaceMiniMap({ lat, lng, title }: PlaceMiniMapProps) {
     };
   }, [lat, lng]);
 
-  const query = encodeURIComponent(`${title} ${lat},${lng}`);
-  const twoGisHref = `https://2gis.kz/search/${query}`;
   const osmHref = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
 
   return (
     <section className="clarify-card-elevated p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">Расположение</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Точка филиала на карте.
-          </p>
-        </div>
-
-        <a
-          href={twoGisHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="clarify-button-secondary-sm"
-        >
-          Открыть в 2GIS
-        </a>
+      <div>
+        <h2 className="text-base font-semibold">Расположение</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Точка филиала на карте.
+        </p>
       </div>
 
       {error ? (
@@ -106,8 +92,8 @@ export default function PlaceMiniMap({ lat, lng, title }: PlaceMiniMapProps) {
             className="font-medium text-primary underline underline-offset-2"
           >
             OpenStreetMap
-          </a>{" "}
-          или 2GIS.
+          </a>
+          .
         </p>
       ) : (
         <div
