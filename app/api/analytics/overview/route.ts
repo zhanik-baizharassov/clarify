@@ -40,6 +40,7 @@ export async function GET(req: Request) {
         key: ip,
         limit: 30,
         windowSec: 5 * 60,
+        failOpen: true,
         errorMessage:
           "Слишком много запросов к аналитике. Попробуйте позже.",
       },

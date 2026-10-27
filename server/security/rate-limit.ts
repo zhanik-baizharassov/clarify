@@ -20,6 +20,12 @@ type ConsumeRateLimitInput = {
 
 type RateLimitCheck = ConsumeRateLimitInput & {
   errorMessage?: string;
+  /**
+   * When the limiter itself fails (database unreachable, pool exhausted) let
+   * the request through instead of answering 500. Use only for harmless
+   * public reads; auth and write endpoints must keep failing closed.
+   */
+  failOpen?: boolean;
 };
 
 const CLEANUP_SAMPLE_PERCENT = 1;
@@ -96,106 +102,62 @@ export async function consumeRateLimit(
   const now = input.now ?? new Date();
   const keyHash = sha256(rawKey);
 
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`
-      SELECT pg_advisory_xact_lock(
-        hashtext(${scope}),
-        hashtext(${keyHash})
-      )
-    `;
+  const windowExpiresAt = new Date(now.getTime() + input.windowSec * 1000);
 
-    const existing = await tx.rateLimitBucket.findUnique({
-      where: {
-        scope_keyHash: {
-          scope,
-          keyHash,
-        },
-      },
-    });
+  // One atomic upsert: opens a fresh window when none exists or the old one
+  // has expired, otherwise counts a hit in the current window. No interactive
+  // transaction, so a burst of requests cannot starve the connection pool.
+  const rows = await prisma.$queryRaw<
+    Array<{ hits: number; windowExpiresAt: Date }>
+  >`
+    INSERT INTO "RateLimitBucket"
+      ("id", "scope", "keyHash", "hits", "windowStartedAt", "windowExpiresAt", "createdAt", "updatedAt")
+    VALUES
+      (${crypto.randomUUID()}, ${scope}, ${keyHash}, 1, ${now}, ${windowExpiresAt}, ${now}, ${now})
+    ON CONFLICT ("scope", "keyHash") DO UPDATE SET
+      "hits" = CASE
+        WHEN "RateLimitBucket"."windowExpiresAt" <= ${now} THEN 1
+        ELSE "RateLimitBucket"."hits" + 1
+      END,
+      "windowStartedAt" = CASE
+        WHEN "RateLimitBucket"."windowExpiresAt" <= ${now} THEN ${now}
+        ELSE "RateLimitBucket"."windowStartedAt"
+      END,
+      "windowExpiresAt" = CASE
+        WHEN "RateLimitBucket"."windowExpiresAt" <= ${now} THEN ${windowExpiresAt}
+        ELSE "RateLimitBucket"."windowExpiresAt"
+      END,
+      "updatedAt" = ${now}
+    RETURNING "hits", "windowExpiresAt"
+  `;
 
-    const freshWindowExpiresAt = new Date(now.getTime() + input.windowSec * 1000);
+  const row = rows[0];
+  if (!row) {
+    throw new Error("Rate limit upsert returned no row");
+  }
 
-    if (!existing) {
-      await tx.rateLimitBucket.create({
-        data: {
-          scope,
-          keyHash,
-          hits: 1,
-          windowStartedAt: now,
-          windowExpiresAt: freshWindowExpiresAt,
-        },
-      });
+  const hits = Number(row.hits);
 
-      return {
-        ok: true,
-        limit: input.limit,
-        remaining: Math.max(0, input.limit - 1),
-        retryAfterSec: 0,
-        resetAt: freshWindowExpiresAt,
-      };
-    }
-
-    if (existing.windowExpiresAt <= now) {
-      await tx.rateLimitBucket.update({
-        where: {
-          scope_keyHash: {
-            scope,
-            keyHash,
-          },
-        },
-        data: {
-          hits: 1,
-          windowStartedAt: now,
-          windowExpiresAt: freshWindowExpiresAt,
-        },
-      });
-
-      return {
-        ok: true,
-        limit: input.limit,
-        remaining: Math.max(0, input.limit - 1),
-        retryAfterSec: 0,
-        resetAt: freshWindowExpiresAt,
-      };
-    }
-
-    if (existing.hits >= input.limit) {
-      const retryAfterSec = Math.max(
-        1,
-        Math.ceil((existing.windowExpiresAt.getTime() - now.getTime()) / 1000),
-      );
-
-      return {
-        ok: false,
-        limit: input.limit,
-        remaining: 0,
-        retryAfterSec,
-        resetAt: existing.windowExpiresAt,
-      };
-    }
-
-    const nextHits = existing.hits + 1;
-
-    await tx.rateLimitBucket.update({
-      where: {
-        scope_keyHash: {
-          scope,
-          keyHash,
-        },
-      },
-      data: {
-        hits: nextHits,
-      },
-    });
-
+  if (hits > input.limit) {
     return {
-      ok: true,
+      ok: false,
       limit: input.limit,
-      remaining: Math.max(0, input.limit - nextHits),
-      retryAfterSec: 0,
-      resetAt: existing.windowExpiresAt,
+      remaining: 0,
+      retryAfterSec: Math.max(
+        1,
+        Math.ceil((row.windowExpiresAt.getTime() - now.getTime()) / 1000),
+      ),
+      resetAt: row.windowExpiresAt,
     };
-  });
+  }
+
+  return {
+    ok: true,
+    limit: input.limit,
+    remaining: Math.max(0, input.limit - hits),
+    retryAfterSec: 0,
+    resetAt: row.windowExpiresAt,
+  };
 }
 
 export function createRateLimitResponse(
@@ -219,13 +181,21 @@ export function createRateLimitResponse(
 
 export async function enforceRateLimits(checks: RateLimitCheck[]) {
   for (const check of checks) {
-    const result = await consumeRateLimit({
-      scope: check.scope,
-      key: check.key,
-      limit: check.limit,
-      windowSec: check.windowSec,
-      now: check.now,
-    });
+    let result: RateLimitResult;
+
+    try {
+      result = await consumeRateLimit({
+        scope: check.scope,
+        key: check.key,
+        limit: check.limit,
+        windowSec: check.windowSec,
+        now: check.now,
+      });
+    } catch (err) {
+      if (!check.failOpen) throw err;
+      console.error(`RATE LIMIT UNAVAILABLE (fail-open, ${check.scope}):`, err);
+      continue;
+    }
 
     if (!result.ok) {
       return createRateLimitResponse(

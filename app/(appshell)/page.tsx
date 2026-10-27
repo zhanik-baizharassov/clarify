@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import LandingHome from "@/features/landing/LandingHome";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -47,32 +48,45 @@ function resolveStructuredDataOrigin() {
   }
 }
 
+async function loadLandingCategories() {
+  const [categories, usage] = await Promise.all([
+    prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true },
+    }),
+    prisma.place.groupBy({
+      by: ["categoryId"],
+      _count: { _all: true },
+    }),
+  ]);
+
+  const counts = new Map(usage.map((row) => [row.categoryId, row._count._all]));
+  const used = categories.filter((c) => (counts.get(c.id) ?? 0) > 0);
+
+  const popular = [...used]
+    .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+    .slice(0, 5)
+    .map(({ name, slug }) => ({ name, slug }));
+
+  return {
+    categories: used.map(({ name, slug }) => ({ name, slug })),
+    popular,
+  };
+}
+
+// Categories rarely change; cache them so the landing page does not hit the
+// database for them on every visit. The cached function throws on failure, so
+// an outage is never cached; the wrapper below turns it into an empty list.
+const loadLandingCategoriesCached = unstable_cache(
+  loadLandingCategories,
+  ["landing-categories"],
+  { revalidate: 300 },
+);
+
 async function getLandingCategories() {
   try {
-    const [categories, usage] = await Promise.all([
-      prisma.category.findMany({
-        where: { isActive: true },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, slug: true },
-      }),
-      prisma.place.groupBy({
-        by: ["categoryId"],
-        _count: { _all: true },
-      }),
-    ]);
-
-    const counts = new Map(usage.map((row) => [row.categoryId, row._count._all]));
-    const used = categories.filter((c) => (counts.get(c.id) ?? 0) > 0);
-
-    const popular = [...used]
-      .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
-      .slice(0, 5)
-      .map(({ name, slug }) => ({ name, slug }));
-
-    return {
-      categories: used.map(({ name, slug }) => ({ name, slug })),
-      popular,
-    };
+    return await loadLandingCategoriesCached();
   } catch (err) {
     if (!isDynamicServerUsageError(err)) {
       console.error("HomePage: categories failed:", err);
@@ -82,18 +96,16 @@ async function getLandingCategories() {
 }
 
 export default async function HomePage() {
-  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+  const [sessionUser, landingCategories] = await Promise.all([
+    getSessionUser().catch((err) => {
+      if (!isDynamicServerUsageError(err)) {
+        console.error("HomePage: getSessionUser failed:", err);
+      }
+      return null;
+    }),
+    getLandingCategories(),
+  ]);
 
-  try {
-    sessionUser = await getSessionUser();
-  } catch (err) {
-    if (!isDynamicServerUsageError(err)) {
-      console.error("HomePage: getSessionUser failed:", err);
-    }
-    sessionUser = null;
-  }
-
-  const landingCategories = await getLandingCategories();
   const origin = resolveStructuredDataOrigin();
 
   const structuredData = [
