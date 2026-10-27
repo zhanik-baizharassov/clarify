@@ -784,7 +784,6 @@ export default async function PlacePage({
               <PlaceMiniMap
                 lat={place.lat}
                 lng={place.lng}
-                title={place.name}
               />
             </aside>
           ) : null}
