@@ -326,7 +326,7 @@ export default function CreateBranchForm({
 
       <button
         disabled={loading || !categories.length}
-        className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        className="clarify-button-primary"
       >
         {loading ? "Создание..." : "Создать филиал"}
       </button>
