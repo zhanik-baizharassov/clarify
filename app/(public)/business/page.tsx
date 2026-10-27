@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     canonical: "/business",
   },
   openGraph: {
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
     title: "Для бизнеса — Clarify",
     description:
       "Официальный профиль компании, ответы на отзывы, управление филиалами и подтверждение карточек мест на Clarify.",
@@ -30,7 +31,8 @@ export const metadata: Metadata = {
     siteName: "Clarify",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: ["/opengraph-image.png"],
     title: "Для бизнеса — Clarify",
     description:
       "Официальный профиль компании, ответы на отзывы, управление филиалами и подтверждение карточек мест на Clarify.",

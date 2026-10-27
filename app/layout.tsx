@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Onest, Unbounded } from "next/font/google";
+import YandexMetrika from "@/components/analytics/YandexMetrika";
 import PointerGlow from "@/components/ui/PointerGlow";
 import "./globals.css";
 
@@ -55,9 +56,15 @@ export const metadata: Metadata = {
     url: "/",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: defaultTitle,
     description: defaultDescription,
+  },
+  // set GOOGLE_SITE_VERIFICATION / YANDEX_VERIFICATION in the environment to
+  // verify the site in Search Console / Yandex Webmaster via meta tags
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    yandex: process.env.YANDEX_VERIFICATION || undefined,
   },
   robots: {
     index: true,
@@ -97,6 +104,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         {children}
         <PointerGlow />
+        <YandexMetrika />
       </body>
     </html>
   );

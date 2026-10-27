@@ -70,8 +70,8 @@ export default function LandingHome({
               className="anim-rise mt-6 text-[2.15rem] font-semibold leading-[1.1] sm:text-5xl lg:text-[3.4rem]"
               style={{ "--d": "100ms" } as React.CSSProperties}
             >
-              <span aria-hidden>Узнайте всё о</span>
-              <RotatingWord />
+              <span aria-hidden>Узнайте всё о</span>{" "}
+              <RotatingWord />{" "}
               <span aria-hidden>до визита</span>
             </h1>
 

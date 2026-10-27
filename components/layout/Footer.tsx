@@ -50,6 +50,9 @@ export default function Footer({ role }: FooterProps) {
               <Link className={linkClass} href="/explore">
                 Найти места
               </Link>
+              <Link className={linkClass} href="/catalog">
+                Каталог по городам
+              </Link>
               <Link className={linkClass} href="/charts">
                 Чарты Clarify
               </Link>

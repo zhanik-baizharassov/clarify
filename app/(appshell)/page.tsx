@@ -18,6 +18,7 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
     title: `${homeTitle} — Clarify`,
     description: homeDescription,
     url: "/",
@@ -26,7 +27,8 @@ export const metadata: Metadata = {
     siteName: "Clarify",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: ["/opengraph-image.png"],
     title: `${homeTitle} — Clarify`,
     description: homeDescription,
   },
@@ -116,6 +118,14 @@ export default async function HomePage() {
       url: origin,
       inLanguage: "ru",
       description: homeDescription,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `${origin}/explore?q={search_term_string}`,
+        },
+        "query-input": "required name=search_term_string",
+      },
     },
     {
       "@context": "https://schema.org",

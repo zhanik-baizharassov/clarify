@@ -680,9 +680,15 @@ function SearchCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="clarify-badge-premium w-fit">Поиск мест</div>
-          <div className="mt-4 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            Название, адрес или описание — плюс точные фильтры
-          </div>
+          {fillParent ? (
+            <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Каталог мест и компаний Казахстана
+            </h1>
+          ) : (
+            <div className="mt-4 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Название, адрес или описание — плюс точные фильтры
+            </div>
+          )}
           <div className="mt-2 text-sm leading-7 text-muted-foreground sm:text-base">
             Ищите по городу, категории и сортируйте результаты так, как удобно вам.
           </div>

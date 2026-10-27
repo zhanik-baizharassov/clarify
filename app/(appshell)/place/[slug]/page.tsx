@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   BadgeCheck,
   Clock,
   CornerDownRight,
@@ -20,6 +19,17 @@ import UserAvatar from "@/components/ui/UserAvatar";
 import { formatReviewDate, formatReviewsCount } from "@/shared/format";
 import ClaimPlaceButton from "@/features/places/components/claim-place-button";
 import PlaceMiniMap from "@/features/places/components/place-mini-map";
+import Breadcrumbs, {
+  breadcrumbJsonLd,
+} from "@/features/places/components/Breadcrumbs";
+import PlaceListCard from "@/features/places/components/PlaceListCard";
+import { getRelatedPlaces } from "@/server/catalog/queries";
+import {
+  KZ_CITIES,
+  KZ_CITY_META,
+  cityPath,
+  type KzCity,
+} from "@/shared/kz/kz";
 
 export const runtime = "nodejs";
 
@@ -50,6 +60,14 @@ type PlaceStructuredDataInput = {
   ratingCount: number;
   lat: number | null;
   lng: number | null;
+  phone: string | null;
+  website: string | null;
+  reviews: Array<{
+    author: string;
+    rating: number;
+    text: string;
+    createdAt: Date;
+  }>;
   category: {
     name: string;
   };
@@ -130,7 +148,8 @@ function buildPlaceJsonLd(place: PlaceStructuredDataInput) {
 
   return {
     "@context": "https://schema.org",
-    "@type": "Place",
+    "@type": "LocalBusiness",
+    "@id": `${origin}/place/${place.slug}#place`,
     name: place.name,
     description,
     url: `${origin}/place/${place.slug}`,
@@ -153,6 +172,8 @@ function buildPlaceJsonLd(place: PlaceStructuredDataInput) {
           },
         }
       : {}),
+    ...(place.phone ? { telephone: place.phone } : {}),
+    ...(place.website ? { sameAs: [place.website] } : {}),
     ...(place.ratingCount > 0
       ? {
           aggregateRating: {
@@ -162,6 +183,22 @@ function buildPlaceJsonLd(place: PlaceStructuredDataInput) {
             bestRating: 5,
             worstRating: 1,
           },
+        }
+      : {}),
+    ...(place.reviews.length > 0
+      ? {
+          review: place.reviews.slice(0, 5).map((review) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: review.author },
+            datePublished: review.createdAt.toISOString().slice(0, 10),
+            reviewRating: {
+              "@type": "Rating",
+              ratingValue: review.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            reviewBody: review.text.slice(0, 500),
+          })),
         }
       : {}),
   };
@@ -236,6 +273,7 @@ export async function generateMetadata({
       canonical,
     },
     openGraph: {
+      images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
       title,
       description,
       url: canonical,
@@ -244,7 +282,8 @@ export async function generateMetadata({
       siteName: "Clarify",
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
+      images: ["/opengraph-image.png"],
       title,
       description,
     },
@@ -407,7 +446,8 @@ export default async function PlacePage({
 
   if (!place) return notFound();
 
-  const [ratingDistribution, companyState, hasUserReview] = await Promise.all([
+  const [ratingDistribution, companyState, hasUserReview, relatedPlaces] =
+    await Promise.all([
     loadRatingDistribution(place.id),
     sessionUser?.role === "COMPANY"
       ? loadCompanyState(sessionUser.id, place)
@@ -415,6 +455,11 @@ export default async function PlacePage({
     sessionUser?.role === "USER"
       ? loadHasUserReview(place.id, sessionUser.id)
       : Promise.resolve(false),
+    getRelatedPlaces({
+      placeId: place.id,
+      city: place.city,
+      categoryId: place.categoryId,
+    }).catch(() => []),
   ]);
 
   const { myCompany, isOwnerBranch, myClaimStatus, myClaimRetryAfterSec } =
@@ -434,10 +479,35 @@ export default async function PlacePage({
     ratingCount: place.ratingCount,
     lat: typeof place.lat === "number" ? place.lat : null,
     lng: typeof place.lng === "number" ? place.lng : null,
+    phone: place.phone,
+    website: normalizeWebsite(place.website),
+    reviews: place.reviews.map((review) => ({
+      author: getAuthorLabel(review.author ?? {}),
+      rating: review.rating,
+      text: review.text,
+      createdAt: review.createdAt,
+    })),
     category: {
       name: place.category.name,
     },
   });
+
+  const isKnownCity = (KZ_CITIES as readonly string[]).includes(place.city);
+  const crumbs = [
+    { label: "Главная", href: "/" },
+    { label: "Каталог", href: "/catalog" },
+    ...(isKnownCity
+      ? [
+          { label: place.city, href: cityPath(place.city as KzCity) },
+          {
+            label: place.category.name,
+            href: `${cityPath(place.city as KzCity)}/${place.category.slug}`,
+          },
+        ]
+      : []),
+    { label: place.name },
+  ];
+  const breadcrumbLd = breadcrumbJsonLd(resolveStructuredDataOrigin(), crumbs);
 
   const ratingTotal = ratingDistribution.reduce((sum, n) => sum + n, 0);
   const safeWebsite = normalizeWebsite(place.website);
@@ -450,15 +520,15 @@ export default async function PlacePage({
           __html: JSON.stringify(placeJsonLd).replace(/</g, "\\u003c"),
         }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbLd).replace(/</g, "\\u003c"),
+        }}
+      />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <Link
-          href="/explore"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Назад к поиску
-        </Link>
+        <Breadcrumbs items={crumbs} />
 
         <section className="clarify-hero relative mt-4 overflow-hidden px-6 py-7 md:px-8 md:py-9">
           <div
@@ -789,6 +859,23 @@ export default async function PlacePage({
             </aside>
           ) : null}
         </div>
+
+        {relatedPlaces.length > 0 ? (
+          <section aria-labelledby="related-heading" className="mt-14">
+            <h2 id="related-heading" className="text-xl font-semibold">
+              {place.category.name}
+              {isKnownCity
+                ? ` ${KZ_CITY_META[place.city as KzCity].locative}`
+                : ""}
+              : другие места
+            </h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {relatedPlaces.map((related) => (
+                <PlaceListCard key={related.slug} place={related} />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </>
   );
