@@ -31,6 +31,9 @@ const Schema = z
       .trim()
       .min(5, "Адрес: минимум 5 символов")
       .max(200, "Адрес слишком длинный"),
+    // Pin set by the owner on the map (optional)
+    lat: z.number().min(-90).max(90).nullish(),
+    lng: z.number().min(-180).max(180).nullish(),
     phone: z
       .string()
       .trim()
@@ -251,6 +254,8 @@ export async function POST(req: Request) {
     const { lat, lng, normalizedAddress } = await validateKzAddress({
       city,
       address: input.address,
+      lat: input.lat,
+      lng: input.lng,
     });
 
     const existingPlace = await prisma.place.findFirst({
@@ -317,7 +322,7 @@ export async function POST(req: Request) {
         err.message.includes("Будние дни") ||
         err.message.includes("Выходные дни") ||
         err.message.includes("недопустимые слова") ||
-        err.message.includes("2GIS")
+        err.message.includes("Точка на карте")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }

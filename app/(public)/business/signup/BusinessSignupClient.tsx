@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
-import KzAddressSuggestInput from "@/components/forms/KzAddressSuggestInput";
+import KzAddressInput from "@/components/forms/KzAddressInput";
 import {
   KZ_CITIES,
   keepKzPhoneInput,
@@ -469,15 +469,15 @@ export default function BusinessSignupPage() {
           </Field>
 
           <Field label="Адрес" hint="Казахстан">
-            <KzAddressSuggestInput
+            <KzAddressInput
               city={city}
               value={address}
               onChange={setAddress}
               disabled={loading || formDisabled}
-              placeholder="Начните вводить адрес и выберите из подсказки"
+              placeholder="Например: проспект Абая 10"
             />
             <span className="text-xs text-muted-foreground">
-              Лучше выбрать адрес из подсказок, чтобы регистрация прошла точнее.
+              Укажите улицу и номер дома.
             </span>
           </Field>
 

@@ -347,7 +347,7 @@ export async function POST(req: Request) {
         err.message.includes("Телефон") ||
         err.message.includes("Город") ||
         err.message.includes("Адрес") ||
-        err.message.includes("2GIS")
+        err.message.includes("Точка на карте")
       ) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }

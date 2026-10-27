@@ -43,3 +43,6 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# copied from node_modules by scripts/sync-maplibre-worker.mjs
+/public/vendor/
