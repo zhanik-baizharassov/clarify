@@ -255,6 +255,112 @@ export async function generateMetadata({
   };
 }
 
+type CompanyState = {
+  myCompany: { id: string; name: string } | null;
+  isOwnerBranch: boolean;
+  myClaimStatus: ClaimStatus | null;
+  myClaimRetryAfterSec: number;
+};
+
+const EMPTY_COMPANY_STATE: CompanyState = {
+  myCompany: null,
+  isOwnerBranch: false,
+  myClaimStatus: null,
+  myClaimRetryAfterSec: 0,
+};
+
+async function loadSessionUser() {
+  try {
+    return await getSessionUser();
+  } catch (err) {
+    console.error("PlacePage: getSessionUser failed:", err);
+    return null;
+  }
+}
+
+// index 0 -> 1 звезда, index 4 -> 5 звёзд
+async function loadRatingDistribution(placeId: string) {
+  try {
+    const grouped = await prisma.review.groupBy({
+      by: ["rating"],
+      where: { placeId, status: "PUBLISHED" },
+      _count: { _all: true },
+    });
+
+    return [1, 2, 3, 4, 5].map(
+      (value) => grouped.find((row) => row.rating === value)?._count._all ?? 0,
+    );
+  } catch (err) {
+    console.error("PlacePage: rating distribution failed:", err);
+    return [0, 0, 0, 0, 0];
+  }
+}
+
+async function loadHasUserReview(placeId: string, authorId: string) {
+  try {
+    const existingReview = await prisma.review.findFirst({
+      where: { placeId, authorId },
+      select: { id: true },
+    });
+
+    return Boolean(existingReview);
+  } catch (err) {
+    console.error("PlacePage: review lookup failed:", err);
+    return false;
+  }
+}
+
+async function loadCompanyState(
+  ownerId: string,
+  place: { id: string; companyId: string | null },
+): Promise<CompanyState> {
+  try {
+    const myCompany = await prisma.company.findUnique({
+      where: { ownerId },
+      select: { id: true, name: true },
+    });
+
+    const isOwnerBranch = Boolean(
+      myCompany?.id && place.companyId && place.companyId === myCompany.id,
+    );
+
+    let myClaimStatus: ClaimStatus | null = null;
+    let myClaimRetryAfterSec = 0;
+
+    if (myCompany?.id && !place.companyId) {
+      const claims = await prisma.claim.findMany({
+        where: { placeId: place.id, companyId: myCompany.id },
+        orderBy: { createdAt: "desc" },
+        select: { status: true, createdAt: true },
+      });
+
+      const hasPending = claims.some((item) => item.status === "PENDING");
+      const hasApproved = claims.some((item) => item.status === "APPROVED");
+      const latestRejected =
+        claims.find((item) => item.status === "REJECTED") ?? null;
+
+      if (hasPending) {
+        myClaimStatus = "PENDING";
+      } else if (hasApproved) {
+        myClaimStatus = "APPROVED";
+      } else if (latestRejected) {
+        myClaimStatus = "REJECTED";
+
+        const retryAfterSec =
+          CLAIM_RETRY_COOLDOWN_SEC -
+          Math.floor((Date.now() - latestRejected.createdAt.getTime()) / 1000);
+
+        myClaimRetryAfterSec = Math.max(0, retryAfterSec);
+      }
+    }
+
+    return { myCompany, isOwnerBranch, myClaimStatus, myClaimRetryAfterSec };
+  } catch (err) {
+    console.error("PlacePage: company/claim lookup failed:", err);
+    return EMPTY_COMPANY_STATE;
+  }
+}
+
 export default async function PlacePage({
   params,
 }: {
@@ -264,145 +370,55 @@ export default async function PlacePage({
 
   if (!slug) return notFound();
 
-  const place = await prisma.place.findUnique({
-    where: { slug },
-    include: {
-      category: true,
-      reviews: {
-        where: { status: "PUBLISHED" },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        include: {
-          author: {
-            select: {
-              nickname: true,
-              firstName: true,
-              lastName: true,
+  const [place, sessionUser] = await Promise.all([
+    prisma.place.findUnique({
+      where: { slug },
+      include: {
+        category: true,
+        reviews: {
+          where: { status: "PUBLISHED" },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          include: {
+            author: {
+              select: {
+                nickname: true,
+                firstName: true,
+                lastName: true,
+              },
             },
-          },
-          tags: { include: { tag: true } },
-          replies: {
-            include: {
-              company: {
-                select: {
-                  id: true,
-                  name: true,
+            tags: { include: { tag: true } },
+            replies: {
+              include: {
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-  });
+    }),
+    loadSessionUser(),
+  ]);
 
   if (!place) return notFound();
 
-  // index 0 -> 1 звезда, index 4 -> 5 звёзд
-  let ratingDistribution = [0, 0, 0, 0, 0];
-  try {
-    const grouped = await prisma.review.groupBy({
-      by: ["rating"],
-      where: { placeId: place.id, status: "PUBLISHED" },
-      _count: { _all: true },
-    });
+  const [ratingDistribution, companyState, hasUserReview] = await Promise.all([
+    loadRatingDistribution(place.id),
+    sessionUser?.role === "COMPANY"
+      ? loadCompanyState(sessionUser.id, place)
+      : Promise.resolve(EMPTY_COMPANY_STATE),
+    sessionUser?.role === "USER"
+      ? loadHasUserReview(place.id, sessionUser.id)
+      : Promise.resolve(false),
+  ]);
 
-    ratingDistribution = [1, 2, 3, 4, 5].map(
-      (value) => grouped.find((row) => row.rating === value)?._count._all ?? 0,
-    );
-  } catch (err) {
-    console.error("PlacePage: rating distribution failed:", err);
-  }
-
-  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
-  try {
-    sessionUser = await getSessionUser();
-  } catch (err) {
-    console.error("PlacePage: getSessionUser failed:", err);
-    sessionUser = null;
-  }
-
-  let myCompany: {
-    id: string;
-    name: string;
-  } | null = null;
-
-  let isOwnerBranch = false;
-  let myClaimStatus: ClaimStatus | null = null;
-  let myClaimRetryAfterSec = 0;
-
-  if (sessionUser?.role === "COMPANY") {
-    try {
-      myCompany = await prisma.company.findUnique({
-        where: { ownerId: sessionUser.id },
-        select: { id: true, name: true },
-      });
-
-      isOwnerBranch = Boolean(
-        myCompany?.id && place.companyId && place.companyId === myCompany.id,
-      );
-
-      if (myCompany?.id && !place.companyId) {
-        const claims = await prisma.claim.findMany({
-          where: {
-            placeId: place.id,
-            companyId: myCompany.id,
-          },
-          orderBy: { createdAt: "desc" },
-          select: {
-            status: true,
-            createdAt: true,
-          },
-        });
-
-        const hasPending = claims.some((item) => item.status === "PENDING");
-        const hasApproved = claims.some((item) => item.status === "APPROVED");
-        const latestRejected =
-          claims.find((item) => item.status === "REJECTED") ?? null;
-
-        if (hasPending) {
-          myClaimStatus = "PENDING";
-        } else if (hasApproved) {
-          myClaimStatus = "APPROVED";
-        } else if (latestRejected) {
-          myClaimStatus = "REJECTED";
-
-          const retryAfterSec =
-            CLAIM_RETRY_COOLDOWN_SEC -
-            Math.floor(
-              (Date.now() - latestRejected.createdAt.getTime()) / 1000,
-            );
-
-          myClaimRetryAfterSec = Math.max(0, retryAfterSec);
-        }
-      }
-    } catch (err) {
-      console.error("PlacePage: company/claim lookup failed:", err);
-      myCompany = null;
-      isOwnerBranch = false;
-      myClaimStatus = null;
-      myClaimRetryAfterSec = 0;
-    }
-  }
-
-  let hasUserReview = false;
-
-  if (sessionUser?.role === "USER") {
-    try {
-      const existingReview = await prisma.review.findFirst({
-        where: {
-          placeId: place.id,
-          authorId: sessionUser.id,
-        },
-        select: { id: true },
-      });
-
-      hasUserReview = Boolean(existingReview);
-    } catch (err) {
-      console.error("PlacePage: review lookup failed:", err);
-      hasUserReview = false;
-    }
-  }
+  const { myCompany, isOwnerBranch, myClaimStatus, myClaimRetryAfterSec } =
+    companyState;
 
   const nextUrl = `/place/${place.slug}/review`;
   const isCatalogCard = !place.companyId;
@@ -503,7 +519,9 @@ export default async function PlacePage({
                       rel="noopener noreferrer nofollow"
                       className="break-all transition hover:text-foreground hover:underline"
                     >
-                      {safeWebsite.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                      {safeWebsite
+                        .replace(/^https?:\/\//, "")
+                        .replace(/\/$/, "")}
                     </a>
                   </MetaItem>
                 ) : null}
@@ -594,10 +612,7 @@ export default async function PlacePage({
                 Компании не оставляют отзывы. Вы можете отвечать на отзывы
                 пользователей в кабинете компании.
                 <div className="mt-3">
-                  <Link
-                    href="/company"
-                    className="clarify-button-secondary-sm"
-                  >
+                  <Link href="/company" className="clarify-button-secondary-sm">
                     Перейти в кабинет компании
                   </Link>
                 </div>
