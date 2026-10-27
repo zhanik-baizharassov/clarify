@@ -136,7 +136,7 @@ export default function ClaimPlaceButton({
         type="button"
         disabled={loading || isPending || isApproved || isRejectedCooldown}
         onClick={handleClaim}
-        className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        className="clarify-button-primary-sm"
       >
         {loading
           ? "Отправка..."

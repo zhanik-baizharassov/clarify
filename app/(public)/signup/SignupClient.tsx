@@ -488,7 +488,7 @@ export default function SignupPage() {
 
           <button
             disabled={loading || formDisabled}
-            className="mt-2 h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
+            className="clarify-button-primary mt-2"
           >
             {loading ? "Отправляем код..." : "Создать аккаунт"}
           </button>
@@ -536,7 +536,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => void verifyCode()}
                 disabled={verifyLoading || !/^\d{6}$/.test(otpValue)}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
+                className="clarify-button-primary"
               >
                 {verifyLoading ? "Проверяем..." : "Подтвердить"}
               </button>

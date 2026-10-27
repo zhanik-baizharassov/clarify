@@ -399,7 +399,7 @@ export default function CreateCatalogPlaceForm({
 
         <button
           disabled={loading || !categories.length}
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+          className="clarify-button-primary-sm"
         >
           {loading ? "Создание..." : "Создать карточку"}
         </button>

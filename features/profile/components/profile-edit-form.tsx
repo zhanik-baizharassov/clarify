@@ -278,7 +278,7 @@ export default function ProfileEditForm({
 
         <button
           disabled={loading || !canEdit || !changePassword}
-          className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
+          className="clarify-button-primary"
         >
           {loading ? "Сохранение..." : saveLabel}
         </button>
@@ -443,7 +443,7 @@ export default function ProfileEditForm({
 
       <button
         disabled={loading || !canEdit}
-        className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 disabled:opacity-50"
+        className="clarify-button-primary"
       >
         {loading ? "Сохранение..." : saveLabel}
       </button>

@@ -83,7 +83,7 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
 
         <button
           disabled={!canSubmit}
-          className="h-11 rounded-xl bg-primary px-4 text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+          className="clarify-button-primary-sm"
         >
           {loading ? "Отправка..." : "Ответить"}
         </button>
@@ -116,7 +116,7 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
               <button
                 type="button"
                 onClick={onConfirm}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+                className="clarify-button-primary-sm"
               >
                 Понятно, отправить
               </button>

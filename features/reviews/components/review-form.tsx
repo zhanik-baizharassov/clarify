@@ -204,7 +204,7 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-background p-3">
+        <div className="rounded-2xl border bg-card p-3">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -264,7 +264,7 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
                   "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
                   "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/20",
                   "disabled:opacity-60",
-                  isActive ? "border-primary bg-primary/10 text-primary" : "bg-background",
+                  isActive ? "border-primary bg-primary/10 text-primary" : "bg-card",
                 ].join(" ")}
               >
                 <span
