@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // copied from node_modules by scripts/sync-maplibre-worker.mjs
     "public/vendor/**",
+    // local agent worktrees (not part of the project)
+    ".claude/**",
   ]),
 ]);
 
