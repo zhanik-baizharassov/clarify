@@ -40,11 +40,9 @@ async function main() {
   for (const category of categories) {
     await prisma.category.upsert({
       where: { slug: category.slug },
-      update: {
-        name: category.name,
-        isActive: true,
-        sortOrder: category.sortOrder,
-      },
+      // Не трогаем существующие строки: правки админа (название, порядок,
+      // деактивация) не должны сбрасываться повторным запуском сида.
+      update: {},
       create: {
         name: category.name,
         slug: category.slug,
@@ -76,11 +74,7 @@ async function main() {
   for (const tag of tags) {
     await prisma.tag.upsert({
       where: { slug: tag.slug },
-      update: {
-        name: tag.name,
-        isActive: true,
-        sortOrder: tag.sortOrder,
-      },
+      update: {},
       create: {
         name: tag.name,
         slug: tag.slug,

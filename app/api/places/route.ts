@@ -15,12 +15,23 @@ const SortSchema = z.enum([
 const QuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   city: z.string().trim().max(60).optional(),
-  categoryId: z.string().trim().optional(),
-  categorySlug: z.string().trim().optional(),
+  categoryId: z.string().trim().max(64).optional(),
+  categorySlug: z.string().trim().max(200).optional(),
   sort: SortSchema.default("rating_desc"),
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(1000, "Слишком большой номер страницы")
+    .default(1),
   limit: z.coerce.number().int().min(1).max(60).default(24),
 });
+
+// Prisma передаёт значение в LIKE/ILIKE как есть, поэтому `%`, `_` и `\`
+// из пользовательского ввода нужно экранировать, чтобы они не работали как маски.
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
 
 export async function GET(req: Request) {
   try {
@@ -81,12 +92,12 @@ export async function GET(req: Request) {
 
     if (q) {
       and.push({
-        name: { startsWith: q, mode: "insensitive" },
+        name: { startsWith: escapeLike(q), mode: "insensitive" },
       });
     }
 
     if (city) {
-      and.push({ city: { equals: city, mode: "insensitive" } });
+      and.push({ city: { equals: escapeLike(city), mode: "insensitive" } });
     }
 
     if (baseCategoryId) {

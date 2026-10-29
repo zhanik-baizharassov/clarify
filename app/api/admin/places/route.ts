@@ -8,6 +8,7 @@ import { validateKzAddress } from "@/server/address/validate";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 import {
   enforceRateLimits,
   getRequestIp,
@@ -25,7 +26,7 @@ const Schema = z
       .trim()
       .min(2, "Название: минимум 2 символа")
       .max(120, "Название слишком длинное"),
-    categoryId: z.string().min(1, "Категория обязательна"),
+    categoryId: z.string().min(1, "Категория обязательна").max(64),
     city: z
       .string()
       .trim()
@@ -203,7 +204,7 @@ export async function POST(req: Request) {
       return actorRateLimit;
     }
 
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
 
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },

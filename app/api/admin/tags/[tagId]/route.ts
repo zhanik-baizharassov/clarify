@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Не найден тег" }, { status: 400 });
     }
 
-    const input = UpdateTagSchema.parse(await req.json());
+    const input = UpdateTagSchema.parse(await readJsonBody(req));
 
     const current = await prisma.tag.findUnique({
       where: { id: tagId },
