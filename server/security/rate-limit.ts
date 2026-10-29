@@ -39,10 +39,15 @@ function getFallbackFingerprint(req: Request) {
   return `unknown:${ua.slice(0, 180)}`;
 }
 
+/**
+ * Client IP for rate limiting. Only headers that the platform itself sets are
+ * trusted: Vercel overwrites x-vercel-forwarded-for, x-real-ip and
+ * x-forwarded-for with the real client address. Headers a client can simply
+ * send (cf-connecting-ip, true-client-ip, ...) are deliberately ignored: the
+ * site is not behind Cloudflare, so trusting them would let anyone get a fresh
+ * rate-limit bucket on every request.
+ */
 export function getRequestIp(req: Request) {
-  const cfIp = req.headers.get("cf-connecting-ip")?.trim();
-  if (cfIp) return cfIp;
-
   const vercelForwarded = req.headers
     .get("x-vercel-forwarded-for")
     ?.split(",")[0]

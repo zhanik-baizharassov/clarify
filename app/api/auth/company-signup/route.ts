@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
@@ -12,6 +13,8 @@ import { validateKzAddress } from "@/server/address/validate";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import {
   buildPendingSignupToken,
+  COMPANY_PENDING_SIGNUP_COOKIE_NAME,
+  isPendingSignupTokenMatch,
   setPendingSignupCookie,
 } from "@/server/auth/pending-signup";
 
@@ -210,12 +213,42 @@ export async function POST(req: Request) {
       }),
       prisma.pendingCompanySignup.findUnique({
         where: { email },
-        select: { id: true, lastSentAt: true },
+        select: { id: true, lastSentAt: true, pendingTokenHash: true },
       }),
     ]);
 
     if (existingPending) {
-      return buildPendingCompanyLockedResponse(email, existingPending.lastSentAt);
+      const store = await cookies();
+      const ownsPending = isPendingSignupTokenMatch(
+        store.get(COMPANY_PENDING_SIGNUP_COOKIE_NAME)?.value,
+        existingPending.pendingTokenHash,
+      );
+
+      // Same rule as the user signup: only the browser that started it may
+      // continue it; anyone else replaces it after the resend cooldown.
+      if (ownsPending) {
+        return buildPendingCompanyLockedResponse(
+          email,
+          existingPending.lastSentAt,
+        );
+      }
+
+      const cooldownLeftSec = getCooldownLeftSec(existingPending.lastSentAt);
+
+      if (cooldownLeftSec > 0) {
+        return NextResponse.json(
+          {
+            error: `Слишком частые попытки. Повторите через ${cooldownLeftSec} с.`,
+            code: "COOLDOWN",
+            cooldownSec: cooldownLeftSec,
+          },
+          { status: 429 },
+        );
+      }
+
+      await prisma.pendingCompanySignup.deleteMany({
+        where: { id: existingPending.id },
+      });
     }
 
     if (pendingUserByEmail || pendingUserByPhone) {
@@ -279,15 +312,8 @@ export async function POST(req: Request) {
         const target = getPrismaTarget(err);
 
         if (target.includes("email")) {
-          const pending = await prisma.pendingCompanySignup.findUnique({
-            where: { email },
-            select: { lastSentAt: true },
-          });
-
-          if (pending) {
-            return buildPendingCompanyLockedResponse(email, pending.lastSentAt);
-          }
-
+          // A concurrent request created the pending row first; do not reveal
+          // or reuse it (see the user signup route).
           return NextResponse.json(
             { error: GENERIC_COMPANY_SIGNUP_CONFLICT_ERROR },
             { status: 409 },
