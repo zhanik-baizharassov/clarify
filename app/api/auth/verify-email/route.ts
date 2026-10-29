@@ -142,22 +142,26 @@ export async function POST(req: Request) {
     });
 
     if (pendingCompany) {
-      const ownsCompanyPendingFlow =
-        !pendingCompany.pendingTokenHash ||
-        isPendingSignupTokenMatch(
+      // The code alone must never create an account: the browser that started
+      // this signup (and holds its cookie) has to be the one confirming it.
+      // Otherwise whoever pre-registers a victim's email with their own
+      // password gets an account the moment the victim enters the emailed code.
+      // A caller without the cookie is rejected before attempts are counted, so
+      // a stranger cannot burn the real owner's attempts either.
+      if (
+        !isPendingSignupTokenMatch(
           companyPendingToken,
           pendingCompany.pendingTokenHash,
-        );
-
-      if (pendingCompany.expiresAt < now || pendingCompany.attempts >= 5) {
-        if (ownsCompanyPendingFlow) {
-          return createPendingGoneResponse("company");
-        }
-
+        )
+      ) {
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
         );
+      }
+
+      if (pendingCompany.expiresAt < now || pendingCompany.attempts >= 5) {
+        return createPendingGoneResponse("company");
       }
 
       const ok = isCodeHashMatch(code, pendingCompany.codeHash);
@@ -256,19 +260,18 @@ export async function POST(req: Request) {
     });
 
     if (pendingUser) {
-      const ownsUserPendingFlow =
-        !pendingUser.pendingTokenHash ||
-        isPendingSignupTokenMatch(userPendingToken, pendingUser.pendingTokenHash);
-
-      if (pendingUser.expiresAt < now || pendingUser.attempts >= 5) {
-        if (ownsUserPendingFlow) {
-          return createPendingGoneResponse("user");
-        }
-
+      // See the note in the company branch above: the pending cookie must match.
+      if (
+        !isPendingSignupTokenMatch(userPendingToken, pendingUser.pendingTokenHash)
+      ) {
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
         );
+      }
+
+      if (pendingUser.expiresAt < now || pendingUser.attempts >= 5) {
+        return createPendingGoneResponse("user");
       }
 
       const ok = isCodeHashMatch(code, pendingUser.codeHash);

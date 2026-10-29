@@ -207,11 +207,10 @@ export async function POST(req: Request) {
 
     if (
       pendingCompany &&
-      (!pendingCompany.pendingTokenHash ||
-        isPendingSignupTokenMatch(
-          companyPendingToken,
-          pendingCompany.pendingTokenHash,
-        ))
+      isPendingSignupTokenMatch(
+        companyPendingToken,
+        pendingCompany.pendingTokenHash,
+      )
     ) {
       const cooldownLeftSec = getCooldownLeftSec(pendingCompany.lastSentAt);
 
@@ -251,11 +250,7 @@ export async function POST(req: Request) {
 
     if (
       pendingUser &&
-      (!pendingUser.pendingTokenHash ||
-        isPendingSignupTokenMatch(
-          userPendingToken,
-          pendingUser.pendingTokenHash,
-        ))
+      isPendingSignupTokenMatch(userPendingToken, pendingUser.pendingTokenHash)
     ) {
       const cooldownLeftSec = getCooldownLeftSec(pendingUser.lastSentAt);
 

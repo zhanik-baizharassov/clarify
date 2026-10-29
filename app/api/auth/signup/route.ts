@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
@@ -11,7 +12,9 @@ import { sendEmailVerificationCode } from "@/server/email/mailer";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import {
   buildPendingSignupToken,
+  isPendingSignupTokenMatch,
   setPendingSignupCookie,
+  USER_PENDING_SIGNUP_COOKIE_NAME,
 } from "@/server/auth/pending-signup";
 
 export const runtime = "nodejs";
@@ -194,7 +197,7 @@ export async function POST(req: Request) {
       }),
       prisma.pendingUserSignup.findUnique({
         where: { email },
-        select: { id: true, lastSentAt: true },
+        select: { id: true, lastSentAt: true, pendingTokenHash: true },
       }),
       prisma.pendingUserSignup.findUnique({
         where: { nickname },
@@ -207,10 +210,42 @@ export async function POST(req: Request) {
     ]);
 
     if (existingPendingByEmail) {
-      return buildPendingUserLockedResponse(
-        email,
+      const store = await cookies();
+      const ownsPending = isPendingSignupTokenMatch(
+        store.get(USER_PENDING_SIGNUP_COOKIE_NAME)?.value,
+        existingPendingByEmail.pendingTokenHash,
+      );
+
+      // Only the browser that started this signup is told it is "locked" and
+      // may continue it. Someone else submitting the same email replaces the
+      // pending row (after the resend cooldown) instead of being invited to
+      // confirm a registration they did not create: the code is emailed to the
+      // mailbox owner, and only the browser holding the new cookie can use it.
+      if (ownsPending) {
+        return buildPendingUserLockedResponse(
+          email,
+          existingPendingByEmail.lastSentAt,
+        );
+      }
+
+      const cooldownLeftSec = getCooldownLeftSec(
         existingPendingByEmail.lastSentAt,
       );
+
+      if (cooldownLeftSec > 0) {
+        return NextResponse.json(
+          {
+            error: `Слишком частые попытки. Повторите через ${cooldownLeftSec} с.`,
+            code: "COOLDOWN",
+            cooldownSec: cooldownLeftSec,
+          },
+          { status: 429 },
+        );
+      }
+
+      await prisma.pendingUserSignup.deleteMany({
+        where: { id: existingPendingByEmail.id },
+      });
     }
 
     if (pendingCompanyByEmail || pendingCompanyByPhone) {
@@ -282,15 +317,8 @@ export async function POST(req: Request) {
         }
 
         if (target.includes("email")) {
-          const pending = await prisma.pendingUserSignup.findUnique({
-            where: { email },
-            select: { lastSentAt: true },
-          });
-
-          if (pending) {
-            return buildPendingUserLockedResponse(email, pending.lastSentAt);
-          }
-
+          // A concurrent request created the pending row first; we cannot tell
+          // whether this caller owns it, so do not reveal or reuse it.
           return NextResponse.json(
             { error: GENERIC_SIGNUP_CONFLICT_ERROR },
             { status: 409 },
