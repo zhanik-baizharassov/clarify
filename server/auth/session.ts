@@ -71,3 +71,15 @@ const getSessionUserCached = cache(async () => {
 export async function getSessionUser() {
   return getSessionUserCached();
 }
+
+// `where` for deleting every session of the user EXCEPT the one making the
+// current request (used after a password change: other devices are signed out,
+// this one stays logged in).
+export async function otherSessionsWhere(userId: string) {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
+
+  return token
+    ? { userId, tokenHash: { not: hashSessionToken(token) } }
+    : { userId };
+}

@@ -164,14 +164,20 @@ export async function POST(req: Request) {
         return createPendingGoneResponse("company");
       }
 
+      // Reserve the attempt atomically before checking the code: concurrent
+      // guesses cannot push the counter past the cap.
+      const reserved = await prisma.pendingCompanySignup.updateMany({
+        where: { id: pendingCompany.id, attempts: { lt: 5 } },
+        data: { attempts: { increment: 1 } },
+      });
+
+      if (reserved.count !== 1) {
+        return createPendingGoneResponse("company");
+      }
+
       const ok = isCodeHashMatch(code, pendingCompany.codeHash);
 
       if (!ok) {
-        await prisma.pendingCompanySignup.update({
-          where: { id: pendingCompany.id },
-          data: { attempts: { increment: 1 } },
-        });
-
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
@@ -274,14 +280,19 @@ export async function POST(req: Request) {
         return createPendingGoneResponse("user");
       }
 
+      // Reserve the attempt atomically (see the company branch).
+      const reserved = await prisma.pendingUserSignup.updateMany({
+        where: { id: pendingUser.id, attempts: { lt: 5 } },
+        data: { attempts: { increment: 1 } },
+      });
+
+      if (reserved.count !== 1) {
+        return createPendingGoneResponse("user");
+      }
+
       const ok = isCodeHashMatch(code, pendingUser.codeHash);
 
       if (!ok) {
-        await prisma.pendingUserSignup.update({
-          where: { id: pendingUser.id },
-          data: { attempts: { increment: 1 } },
-        });
-
         return NextResponse.json(
           { error: GENERIC_VERIFY_ERROR },
           { status: 400 },
@@ -418,14 +429,24 @@ export async function POST(req: Request) {
       return res;
     }
 
+    // Reserve the attempt atomically (see the pending-signup branches above).
+    const reserved = await prisma.emailVerification.updateMany({
+      where: { userId: user.id, email, attempts: { lt: 5 } },
+      data: { attempts: { increment: 1 } },
+    });
+
+    if (reserved.count !== 1) {
+      const res = NextResponse.json(
+        { error: GENERIC_VERIFY_ERROR },
+        { status: 400 },
+      );
+      clearEmailVerifyLoginCookie(res);
+      return res;
+    }
+
     const ok = isCodeHashMatch(code, rec.codeHash);
 
     if (!ok) {
-      await prisma.emailVerification.update({
-        where: { userId_email: { userId: user.id, email } },
-        data: { attempts: { increment: 1 } },
-      });
-
       return NextResponse.json(
         { error: GENERIC_VERIFY_ERROR },
         { status: 400 },
