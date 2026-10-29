@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # prisma.config.ts throws when DATABASE_URL is unset. `prisma generate` and
+  # the unit tests never connect, so a dummy value is enough.
+  DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+jobs:
+  test:
+    name: Typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `next build` prerenders /catalog (and the landing page) with live queries,
+    # and /catalog has no fallback when the database is unreachable, so the
+    # build needs a throwaway Postgres with the schema applied.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway CI database and dummy values only: no real service or secret.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
+      APP_ORIGIN: https://example.com
+      MAIL_MODE: smtp
+      SMTP_HOST: localhost
+      SMTP_PORT: "465"
+      SMTP_USER: ci
+      SMTP_PASS: ci
+      MAIL_FROM: "CI <ci@example.com>"
+      EMAIL_CODE_PEPPER: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations to the CI database
+        run: npx prisma migrate deploy
+
+      - name: Build
+        run: npm run build
+
+  lint:
+    name: Lint (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The repo has known pre-existing eslint errors (no-explicit-any,
+    # set-state-in-effect). Report them without failing the workflow; remove
+    # continue-on-error once they are fixed.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
