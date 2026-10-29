@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/server/db/prisma";
-import { getSessionUser } from "@/server/auth/session";
+import { getSessionUser, otherSessionsWhere } from "@/server/auth/session";
+import {
+  BCRYPT_COST,
+  PASSWORD_TOO_LONG_MESSAGE,
+  isPasswordWithinBcryptLimit,
+} from "@/server/auth/password";
 import { clearSessionCookie } from "@/server/auth/session-token";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import { assertNoProfanity } from "@/server/security/profanity";
@@ -28,11 +33,11 @@ const Schema = z.object({
   nickname: z
     .string()
     .trim()
-    .min(3, "Никнейм: минимум 3 символа")
-    .max(20, "Никнейм: максимум 20 символов")
+    .min(2, "Никнейм: минимум 2 символа")
+    .max(30, "Никнейм: максимум 30 символов")
     .regex(
-      /^[a-zA-Z0-9_]+$/,
-      "Никнейм: только латиница, цифры и _ (без пробелов)",
+      /^[a-zA-Z0-9_.-]+$/,
+      "Никнейм: только латиница, цифры и символы _ . - (без пробелов)",
     ),
   email: z
     .string()
@@ -48,7 +53,12 @@ const Schema = z.object({
         .map((t) => "." + t)
         .join(", ")}`,
     ),
-  password: z.string().min(8).max(200).optional(),
+  password: z
+    .string()
+    .min(8)
+    .max(200)
+    .refine(isPasswordWithinBcryptLimit, PASSWORD_TOO_LONG_MESSAGE)
+    .optional(),
   currentPassword: z.string().min(1).max(200).optional(),
 });
 
@@ -286,7 +296,7 @@ export async function PATCH(req: Request) {
         );
       }
 
-      passwordHash = await bcrypt.hash(input.password, 10);
+      passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
     }
 
     const current = await prisma.user.findUnique({
@@ -351,10 +361,16 @@ export async function PATCH(req: Request) {
     }
 
     if (!isMainChanged && isPasswordChanged) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
-      });
+      const otherSessions = await otherSessionsWhere(user.id);
+
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash },
+        }),
+        // A new password signs out every other device (e.g. a stolen session).
+        prisma.session.deleteMany({ where: otherSessions }),
+      ]);
 
       return NextResponse.json({ ok: true }, { status: 200 });
     }
@@ -395,19 +411,37 @@ export async function PATCH(req: Request) {
 
     if (!isEmailChanged) {
       try {
-        const updateRes = await prisma.user.updateMany({
-          where: { id: user.id, profileEditCount: 0 },
-          data: {
-            firstName: input.firstName,
-            lastName: input.lastName,
-            nickname: input.nickname,
-            ...(passwordHash ? { passwordHash } : {}),
-            profileEditCount: 1,
-            profileEditedAt: new Date(),
-          },
-        });
+        const otherSessions = passwordHash
+          ? await otherSessionsWhere(user.id)
+          : null;
 
-        if (updateRes.count !== 1) {
+        await prisma.$transaction(async (tx) => {
+          const updateRes = await tx.user.updateMany({
+            where: { id: user.id, profileEditCount: 0 },
+            data: {
+              firstName: input.firstName,
+              lastName: input.lastName,
+              nickname: input.nickname,
+              ...(passwordHash ? { passwordHash } : {}),
+              profileEditCount: 1,
+              profileEditedAt: new Date(),
+            },
+          });
+
+          if (updateRes.count !== 1) {
+            throw new Error(PROFILE_EDIT_ALREADY_USED_ERROR);
+          }
+
+          // A new password signs out every other device (e.g. a stolen session).
+          if (otherSessions) {
+            await tx.session.deleteMany({ where: otherSessions });
+          }
+        });
+      } catch (e: unknown) {
+        if (
+          e instanceof Error &&
+          e.message === PROFILE_EDIT_ALREADY_USED_ERROR
+        ) {
           return NextResponse.json(
             {
               error:
@@ -416,7 +450,7 @@ export async function PATCH(req: Request) {
             { status: 409 },
           );
         }
-      } catch (e: unknown) {
+
         if (isLikelyPrismaUniqueErr(e)) {
           const target = getPrismaTarget(e);
 
@@ -556,10 +590,7 @@ export async function PATCH(req: Request) {
       }
 
       if (mailErr instanceof Error && mailErr.message.startsWith("Mail: env")) {
-        return NextResponse.json(
-          { error: "Почта не настроена (SMTP env). Изменения не сохранены." },
-          { status: 500 },
-        );
+        console.error("PROFILE MAIL CONFIG ERROR:", mailErr.message);
       }
 
       return NextResponse.json(
@@ -610,8 +641,12 @@ export async function PATCH(req: Request) {
     }
 
     if (err instanceof Error && err.message.startsWith("Mail: env")) {
+      console.error("PROFILE MAIL CONFIG ERROR:", err.message);
       return NextResponse.json(
-        { error: "Почта не настроена (SMTP env)" },
+        {
+          error:
+            "Не удалось отправить код подтверждения. Изменения не сохранены.",
+        },
         { status: 500 },
       );
     }

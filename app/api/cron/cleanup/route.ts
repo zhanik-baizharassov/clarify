@@ -1,8 +1,21 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { runMaintenanceCleanup } from "@/server/maintenance/cleanup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function secureEqual(a: string, b: string) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  // timingSafeEqual throws on length mismatch: compare against self (constant
+  // work) and force a mismatch instead.
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
 
 function isAuthorized(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -15,8 +28,8 @@ function isAuthorized(req: Request) {
     };
   }
 
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${secret}`) {
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (!secureEqual(authHeader, `Bearer ${secret}`)) {
     return {
       ok: false,
       status: 401,
