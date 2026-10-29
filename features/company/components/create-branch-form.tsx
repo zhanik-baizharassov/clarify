@@ -63,11 +63,13 @@ export default function CreateBranchForm({
   const [phone, setPhone] = useState("+7");
 
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    setOk(null);
 
     if (!categories.length) {
       return setErr(
@@ -132,6 +134,7 @@ export default function CreateBranchForm({
       setWeekendClosed(false);
       setWeekendOpenTime("10:00");
       setWeekendCloseTime("18:00");
+      setOk("Филиал создан");
       router.refresh();
     } catch (e: any) {
       setErr(e?.message ?? "Ошибка");
@@ -141,7 +144,11 @@ export default function CreateBranchForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 grid gap-3 rounded-xl border p-5">
+    <form
+      onSubmit={onSubmit}
+      onChange={() => setOk(null)}
+      className="mt-4 grid gap-3 rounded-xl border p-5"
+    >
       <div className="text-sm font-medium">
         Создать филиал (карточку для отзывов)
       </div>
@@ -157,7 +164,7 @@ export default function CreateBranchForm({
         <span className="text-xs text-muted-foreground">Категория</span>
         <select
           disabled={loading || !categories.length}
-          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >
@@ -173,7 +180,7 @@ export default function CreateBranchForm({
         <span className="text-xs text-muted-foreground">Город (только KZ)</span>
         <select
           disabled={loading}
-          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+          className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
           value={city}
           onChange={(e) => {
             setCity(e.target.value);
@@ -235,7 +242,7 @@ export default function CreateBranchForm({
               <span className="text-xs text-muted-foreground">С</span>
               <select
                 disabled={loading}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                 value={weekdayOpenTime}
                 onChange={(e) => setWeekdayOpenTime(e.target.value)}
               >
@@ -251,7 +258,7 @@ export default function CreateBranchForm({
               <span className="text-xs text-muted-foreground">До</span>
               <select
                 disabled={loading}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                 value={weekdayCloseTime}
                 onChange={(e) => setWeekdayCloseTime(e.target.value)}
               >
@@ -292,7 +299,7 @@ export default function CreateBranchForm({
               <span className="text-xs text-muted-foreground">С</span>
               <select
                 disabled={loading || weekendClosed}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                 value={weekendOpenTime}
                 onChange={(e) => setWeekendOpenTime(e.target.value)}
               >
@@ -308,7 +315,7 @@ export default function CreateBranchForm({
               <span className="text-xs text-muted-foreground">До</span>
               <select
                 disabled={loading || weekendClosed}
-                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                 value={weekendCloseTime}
                 onChange={(e) => setWeekendCloseTime(e.target.value)}
               >
@@ -338,6 +345,15 @@ export default function CreateBranchForm({
       </div>
 
       {err ? <div className="text-sm text-red-600">{err}</div> : null}
+
+      {ok ? (
+        <div
+          role="status"
+          className="rounded-xl border border-success-border bg-success-soft p-3 text-sm text-success-text"
+        >
+          {ok}
+        </div>
+      ) : null}
 
       <button
         disabled={loading || !categories.length}

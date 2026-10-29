@@ -94,6 +94,7 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
 
     const safeRating = clampRating(rating);
 
+    let navigating = false;
     setLoading(true);
     try {
       const res = await fetch("/api/reviews", {
@@ -110,12 +111,15 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Не удалось отправить отзыв");
 
+      // Keep the form disabled until navigation unmounts it; re-enabling it
+      // here would allow a second click that fails with a 409 duplicate.
+      navigating = true;
       router.push(`/place/${placeSlug}`);
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Ошибка");
     } finally {
-      setLoading(false);
+      if (!navigating) setLoading(false);
     }
   }
 

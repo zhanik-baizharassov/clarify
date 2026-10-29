@@ -168,18 +168,18 @@ export default function LoginClient() {
     await doLogin(true);
   }
 
-  async function verifyCode() {
+  async function verifyCode(code: string = otpValue) {
     setErr(null);
 
     if (!pendingEmail) return setErr("Email для подтверждения не найден");
-    if (!/^\d{6}$/.test(otpValue)) return setErr("Введите 6-значный код");
+    if (!/^\d{6}$/.test(code)) return setErr("Введите 6-значный код");
 
     setVerifyLoading(true);
     try {
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, code: otpValue }),
+        body: JSON.stringify({ email: pendingEmail, code }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -229,7 +229,7 @@ export default function LoginClient() {
     if (v && i === OTP_LEN - 1) {
       setTimeout(() => {
         const full = [...otp.slice(0, i), v].join("");
-        if (/^\d{6}$/.test(full)) void verifyCode();
+        if (/^\d{6}$/.test(full)) void verifyCode(full);
       }, 0);
     }
   }
@@ -278,7 +278,7 @@ export default function LoginClient() {
     setTimeout(() => focusOtp(nextIndex), 0);
 
     if (digits.length === OTP_LEN) {
-      setTimeout(() => void verifyCode(), 0);
+      setTimeout(() => void verifyCode(digits), 0);
     }
   }
 
@@ -309,7 +309,7 @@ export default function LoginClient() {
           <label className="grid gap-1">
             <span className="text-sm font-medium">Email</span>
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60"
               placeholder="name@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -322,7 +322,7 @@ export default function LoginClient() {
             <span className="text-sm font-medium">Пароль</span>
             <div className="relative">
               <input
-                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60"
                 placeholder=""
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -376,11 +376,12 @@ export default function LoginClient() {
                   ref={(el) => {
                     otpRefs.current[i] = el;
                   }}
-                  className="h-12 w-12 rounded-xl border bg-background text-center text-lg tracking-widest outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  className="h-12 w-12 rounded-xl border bg-background text-center text-lg tracking-widest outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength={1}
-                  type="password"
+                  type="text"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
                   value={otp[i]}
                   onChange={(e) => onOtpChange(i, e.target.value)}
                   onKeyDown={(e) => onOtpKeyDown(i, e)}

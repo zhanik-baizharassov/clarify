@@ -47,12 +47,12 @@ function getReviewStatusLabel(status: string) {
 
 function getReviewStatusClass(status: string) {
   if (status === "PENDING") {
-    return "border-amber-500/25 bg-amber-500/10 text-amber-700";
+    return "border-warm-accent-border bg-warm-accent text-warm-accent-text";
   }
   if (status === "REJECTED") {
     return "border-destructive/25 bg-destructive/10 text-destructive";
   }
-  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700";
+  return "border-success-border bg-success-soft text-success-text";
 }
 
 export default async function ProfilePage({
@@ -141,7 +141,7 @@ export default async function ProfilePage({
   };
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-6xl p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Профиль</h1>
@@ -195,7 +195,7 @@ export default async function ProfilePage({
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {emailVerified ? (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-700">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-success-border bg-success-soft px-3 py-1 text-xs text-success-text">
                     <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                     Email подтверждён
                   </span>
@@ -254,9 +254,9 @@ export default async function ProfilePage({
 
           <div className="mt-5">
             {tab === "main" ? (
-              <ProfileEditForm tab="main" locked={locked} initial={initial} />
+              <ProfileEditForm key="main" tab="main" locked={locked} initial={initial} />
             ) : tab === "security" ? (
-              <ProfileEditForm tab="security" locked={false} initial={initial} />
+              <ProfileEditForm key="security" tab="security" locked={false} initial={initial} />
             ) : tab === "reviews" ? (
               <div className="grid gap-4">
                 <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -370,7 +370,7 @@ export default async function ProfilePage({
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

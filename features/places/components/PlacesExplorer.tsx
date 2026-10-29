@@ -119,7 +119,9 @@ export default function PlacesExplorer({
   const [meta, setMeta] = useState<PlacesMeta>(EMPTY_META);
 
   const placesAbortRef = useRef<AbortController | null>(null);
-  const skipNextAutoSearchRef = useRef(false);
+  // Query string of the most recently started search (explicit or automatic).
+  // The debounced auto-search skips itself when the controls already match it.
+  const lastSearchQsRef = useRef<string | null>(null);
   const initialCategorySlugRef = useRef<string | null>(null);
 
   // Deep links such as /explore?q=кофе&city=Алматы&category=cafe
@@ -207,6 +209,8 @@ export default function PlacesExplorer({
         if (ctrl.signal.aborted) return;
 
         const data = await safeJson(res);
+        if (ctrl.signal.aborted) return;
+
         if (!res.ok) {
           throw new Error((data as any)?.error ?? "Не удалось загрузить места");
         }
@@ -291,18 +295,17 @@ export default function PlacesExplorer({
   useEffect(() => {
     if (!hasInteracted) return;
 
-    if (skipNextAutoSearchRef.current) {
-      skipNextAutoSearchRef.current = false;
-      return;
-    }
+    const qs = buildQueryString({
+      page: 1,
+      limit: DEFAULT_LIMIT,
+    });
 
     const timer = window.setTimeout(() => {
-      setHasSearched(true);
+      // An explicit search (button / Enter / reset) already loaded exactly this.
+      if (lastSearchQsRef.current === qs) return;
+      lastSearchQsRef.current = qs;
 
-      const qs = buildQueryString({
-        page: 1,
-        limit: DEFAULT_LIMIT,
-      });
+      setHasSearched(true);
 
       void loadPlaces({
         qs,
@@ -321,7 +324,6 @@ export default function PlacesExplorer({
   }, []);
 
   async function onSearchClick() {
-    skipNextAutoSearchRef.current = true;
     setHasInteracted(true);
     setHasSearched(true);
 
@@ -329,6 +331,7 @@ export default function PlacesExplorer({
       page: 1,
       limit: DEFAULT_LIMIT,
     });
+    lastSearchQsRef.current = qs;
 
     await loadPlaces({
       qs,
@@ -354,8 +357,6 @@ export default function PlacesExplorer({
   }
 
   async function resetFilters() {
-    skipNextAutoSearchRef.current = true;
-
     setQ("");
     setCity("");
     setCategoryId("");
@@ -371,6 +372,7 @@ export default function PlacesExplorer({
       page: 1,
       limit: DEFAULT_LIMIT,
     });
+    lastSearchQsRef.current = qs;
 
     await loadPlaces({
       qs,
@@ -378,6 +380,10 @@ export default function PlacesExplorer({
       requestedPage: 1,
     });
   }
+
+  // On /explore the first search starts automatically; show the skeleton
+  // instead of the "start your search" hint while it is being scheduled.
+  const awaitingFirstSearch = variant === "catalog" && !hasSearched;
 
   return (
     <section
@@ -601,11 +607,12 @@ export default function PlacesExplorer({
           </Link>
         ))}
 
-        {loading && !loadingMore && items.length === 0
+        {(loading && !loadingMore && items.length === 0) ||
+        (awaitingFirstSearch && items.length === 0)
           ? Array.from({ length: 6 }, (_, i) => <PlaceCardSkeleton key={i} />)
           : null}
 
-        {!loading && !loadingMore && items.length === 0 ? (
+        {!loading && !loadingMore && !awaitingFirstSearch && items.length === 0 ? (
           hasSearched ? (
             <EmptyState
               title="Ничего не найдено"
@@ -743,6 +750,7 @@ function SearchCard({
         {showFilters ? (
           <div className="grid gap-3 md:grid-cols-3">
             <select
+              aria-label="Город"
               className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -757,6 +765,7 @@ function SearchCard({
             </select>
 
             <select
+              aria-label="Категория"
               className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
@@ -771,6 +780,7 @@ function SearchCard({
             </select>
 
             <select
+              aria-label="Сортировка"
               className="clarify-control text-base [color-scheme:light] dark:[color-scheme:dark]"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
@@ -871,6 +881,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={!!active}
       className={[active ? "clarify-chip clarify-chip-active" : "clarify-chip"].join(" ")}
     >
       {text}

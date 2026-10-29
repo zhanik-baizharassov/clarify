@@ -34,6 +34,7 @@ export default function ClaimPlaceButton({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [cooldownSec, setCooldownSec] = useState(retryAfterSec);
 
   const isPending = status === "PENDING";
@@ -61,7 +62,9 @@ export default function ClaimPlaceButton({
   }, [status]);
 
   async function handleClaim() {
-    if (loading || isPending || isApproved || isRejectedCooldown) return;
+    if (loading || submitted || isPending || isApproved || isRejectedCooldown) {
+      return;
+    }
 
     setErr(null);
     setSuccess(null);
@@ -84,6 +87,9 @@ export default function ClaimPlaceButton({
         throw new Error(data?.error ?? "Не удалось отправить заявку");
       }
 
+      // Stay disabled after success: the refreshed status takes over once the
+      // server component re-renders, and a second click would only give a 409.
+      setSubmitted(true);
       setSuccess(
         "Заявка отправлена. После проверки карточку можно будет привязать к вашей компании.",
       );
@@ -134,13 +140,15 @@ export default function ClaimPlaceButton({
 
       <button
         type="button"
-        disabled={loading || isPending || isApproved || isRejectedCooldown}
+        disabled={
+          loading || submitted || isPending || isApproved || isRejectedCooldown
+        }
         onClick={handleClaim}
         className="clarify-button-primary-sm"
       >
         {loading
           ? "Отправка..."
-          : isPending
+          : isPending || submitted
             ? "Заявка уже отправлена"
             : isApproved
               ? "Заявка уже одобрена"
