@@ -200,19 +200,19 @@ export default function SignupPage() {
     await submitSignup(payload);
   }
 
-  async function verifyCode() {
+  async function verifyCode(code: string = otpValue) {
     setErr(null);
     setNotice(null);
 
     if (!pendingEmail) return setErr("Email для подтверждения не найден");
-    if (!/^\d{6}$/.test(otpValue)) return setErr("Введите 6-значный код");
+    if (!/^\d{6}$/.test(code)) return setErr("Введите 6-значный код");
 
     setVerifyLoading(true);
     try {
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, code: otpValue }),
+        body: JSON.stringify({ email: pendingEmail, code }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -325,7 +325,7 @@ export default function SignupPage() {
     if (v && i === OTP_LEN - 1) {
       setTimeout(() => {
         const full = [...otp.slice(0, i), v].join("");
-        if (/^\d{6}$/.test(full)) void verifyCode();
+        if (/^\d{6}$/.test(full)) void verifyCode(full);
       }, 0);
     }
   }
@@ -374,7 +374,7 @@ export default function SignupPage() {
     setTimeout(() => focusOtp(nextIndex), 0);
 
     if (digits.length === OTP_LEN) {
-      setTimeout(() => void verifyCode(), 0);
+      setTimeout(() => void verifyCode(digits), 0);
     }
   }
 
@@ -405,7 +405,7 @@ export default function SignupPage() {
         <form onSubmit={onSubmit} className="grid gap-3">
           <Field label="Имя">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               placeholder=""
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
@@ -416,7 +416,7 @@ export default function SignupPage() {
 
           <Field label="Фамилия">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               placeholder=""
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
@@ -427,7 +427,7 @@ export default function SignupPage() {
 
           <Field label="Никнейм" hint="Только латиница и цифры">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               placeholder=""
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
@@ -438,7 +438,7 @@ export default function SignupPage() {
 
           <Field label="Телефон" hint="Формат: +7XXXXXXXXXX (только KZ оператор)">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               placeholder="+7"
               value={phone}
               onChange={(e) => setPhone(keepKzPhoneInput(e.target.value))}
@@ -450,7 +450,7 @@ export default function SignupPage() {
 
           <Field label="Email">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               placeholder="name@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -462,7 +462,7 @@ export default function SignupPage() {
           <Field label="Пароль" hint="Мин 8 символов, A-z и 0-9">
             <div className="relative">
               <input
-                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                 placeholder=""
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -516,11 +516,12 @@ export default function SignupPage() {
                   ref={(el) => {
                     otpRefs.current[i] = el;
                   }}
-                  className="h-12 w-12 rounded-xl border bg-background text-center text-lg tracking-widest outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  className="h-12 w-12 rounded-xl border bg-background text-center text-lg tracking-widest outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength={1}
-                  type="password"
+                  type="text"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
                   value={otp[i]}
                   onChange={(e) => onOtpChange(i, e.target.value)}
                   onKeyDown={(e) => onOtpKeyDown(i, e)}
