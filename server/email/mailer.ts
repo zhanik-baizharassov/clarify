@@ -14,10 +14,12 @@ function getMailMode(): MailMode {
   return process.env.NODE_ENV === "production" ? "smtp" : "console";
 }
 
+// Checked at send time, never at import time: a build (or any module load)
+// with MAIL_MODE=console/disabled copied into production must not fail.
 function assertSafeMailModeForEnv(mode: MailMode) {
   if (process.env.NODE_ENV === "production" && mode !== "smtp") {
     throw new Error(
-      `Mail: insecure MAIL_MODE="${mode}" is not allowed in production`,
+      `Mail: MAIL_MODE="${mode}" is not allowed in production; set MAIL_MODE=smtp and the SMTP_* variables`,
     );
   }
 }
@@ -47,9 +49,6 @@ function getFromAddress() {
   const fallback = `"${appName}" <${process.env.SMTP_USER}>`;
   return from || fallback;
 }
-
-const mailMode = getMailMode();
-assertSafeMailModeForEnv(mailMode);
 
 let transporter: Transporter | null = null;
 
@@ -83,6 +82,9 @@ export async function sendEmailVerificationCode(
   const safeTo = String(to).trim().replace(/[\r\n]/g, "");
   const safeCode = String(code).replace(/\D/g, "").slice(0, 6);
   if (safeCode.length !== 6) throw new Error("Mail: invalid verification code");
+
+  const mailMode = getMailMode();
+  assertSafeMailModeForEnv(mailMode);
 
   if (mailMode === "disabled") {
     return { ok: true, messageId: "disabled" };

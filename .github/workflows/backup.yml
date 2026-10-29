@@ -1,0 +1,99 @@
+name: Backup database
+
+# Еженедельная логическая копия production-базы (pg_dump).
+# Репозиторий ПУБЛИЧНЫЙ, а дамп содержит email-адреса и хеши паролей, поэтому
+# дамп шифруется (AES-256) и в artifacts попадает только зашифрованный файл.
+#
+# Нужные repository secrets (Settings -> Secrets and variables -> Actions):
+#   NEON_DIRECT_URL    - DIRECT (НЕ pooled, без "-pooler" в хосте) строка подключения Neon
+#   BACKUP_PASSPHRASE  - длинная случайная фраза для шифрования; храните её отдельно
+#                        (без неё бэкап не расшифровать)
+
+on:
+  schedule:
+    - cron: "0 2 * * 0" # воскресенье, 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Mask secrets
+        env:
+          NEON_DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$NEON_DIRECT_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "Secrets NEON_DIRECT_URL and BACKUP_PASSPHRASE must be set" >&2
+            exit 1
+          fi
+          echo "::add-mask::$NEON_DIRECT_URL"
+          echo "::add-mask::$BACKUP_PASSPHRASE"
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump and encrypt
+        env:
+          NEON_DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          STAMP="$(date -u +%Y%m%d-%H%M%S)"
+          DUMP="$RUNNER_TEMP/clarify.dump"
+          OUT="$RUNNER_TEMP/clarify-${STAMP}.dump.enc"
+
+          # Custom format (-Fc): compressed, restorable with pg_restore.
+          # The connection string is passed via env and never echoed.
+          /usr/lib/postgresql/17/bin/pg_dump \
+            --format=custom --no-owner --no-privileges \
+            --dbname="$NEON_DIRECT_URL" \
+            --file="$DUMP"
+
+          # Fail if the dump is empty or suspiciously small.
+          SIZE="$(stat -c %s "$DUMP")"
+          if [ "$SIZE" -lt 1024 ]; then
+            echo "Dump is empty or too small ($SIZE bytes)" >&2
+            exit 1
+          fi
+          # A valid archive must list its table of contents.
+          /usr/lib/postgresql/17/bin/pg_restore --list "$DUMP" > /dev/null
+
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
+            -pass env:BACKUP_PASSPHRASE \
+            -in "$DUMP" -out "$OUT"
+
+          # Remove the plaintext dump before anything can upload it.
+          shred -u "$DUMP" 2>/dev/null || rm -f "$DUMP"
+
+          ENC_SIZE="$(stat -c %s "$OUT")"
+          if [ "$ENC_SIZE" -lt 1024 ]; then
+            echo "Encrypted backup is empty" >&2
+            exit 1
+          fi
+          echo "Encrypted backup created: $(basename "$OUT") ($ENC_SIZE bytes)"
+          echo "BACKUP_FILE=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: clarify-db-backup
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error
