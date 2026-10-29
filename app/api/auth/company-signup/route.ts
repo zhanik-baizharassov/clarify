@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
+import {
+  BCRYPT_COST,
+  PASSWORD_TOO_LONG_MESSAGE,
+  isPasswordWithinBcryptLimit,
+} from "@/server/auth/password";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import { cleanupExpiredPendingSignups } from "@/server/maintenance/cleanup";
@@ -54,7 +59,8 @@ const Schema = z.object({
     .max(200)
     .refine((v) => /[A-Z]/.test(v), "Пароль: нужна хотя бы 1 заглавная буква")
     .refine((v) => /[a-z]/.test(v), "Пароль: нужна хотя бы 1 строчная буква")
-    .refine((v) => /\d/.test(v), "Пароль: нужна хотя бы 1 цифра"),
+    .refine((v) => /\d/.test(v), "Пароль: нужна хотя бы 1 цифра")
+    .refine(isPasswordWithinBcryptLimit, PASSWORD_TOO_LONG_MESSAGE),
 });
 
 function isP2002(e: unknown) {
@@ -284,7 +290,7 @@ export async function POST(req: Request) {
       address: input.address,
     });
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
 
     const code = generate6DigitCode();
     const expiresAt = new Date(now.getTime() + COMPANY_PENDING_TTL_MS);
@@ -383,8 +389,9 @@ export async function POST(req: Request) {
         err.message.includes("MAIL_") ||
         err.message.includes("env")
       ) {
+        console.error("COMPANY SIGNUP MAIL CONFIG ERROR:", err.message);
         return NextResponse.json(
-          { error: "Почта не настроена (SMTP env)" },
+          { error: "Не удалось отправить код подтверждения. Попробуйте позже." },
           { status: 500 },
         );
       }

@@ -12,6 +12,7 @@ import {
   setSessionCookie,
 } from "@/server/auth/session-token";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { BCRYPT_COST, DUMMY_PASSWORD_HASH } from "@/server/auth/password";
 
 export const runtime = "nodejs";
 
@@ -76,7 +77,10 @@ export async function POST(req: Request) {
       },
     });
 
+    // Unknown email: still pay for one bcrypt comparison so the response time
+    // does not reveal whether the account exists.
     if (!user) {
+      await bcrypt.compare(input.password, DUMMY_PASSWORD_HASH);
       return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
     }
 
@@ -84,6 +88,18 @@ export async function POST(req: Request) {
 
     if (!ok) {
       return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
+    }
+
+    // Transparently upgrade older, cheaper hashes (cost 10) after a correct login.
+    if (bcrypt.getRounds(user.passwordHash) < BCRYPT_COST) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash: await bcrypt.hash(input.password, BCRYPT_COST) },
+        });
+      } catch (rehashErr) {
+        console.error("LOGIN REHASH ERROR:", rehashErr);
+      }
     }
 
     if (user.blockedUntil && user.blockedUntil > now) {
