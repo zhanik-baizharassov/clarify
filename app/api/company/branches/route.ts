@@ -8,6 +8,7 @@ import { assertNoProfanity } from "@/server/security/profanity";
 import { assertKzCity, normalizeKzPhone } from "@/shared/kz/kz";
 import { validateKzAddress } from "@/server/address/validate";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 import {
   enforceRateLimits,
   getRequestIp,
@@ -20,7 +21,7 @@ const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Время: формат 0
 
 const Schema = z
   .object({
-    categoryId: z.string().min(1, "Категория обязательна"),
+    categoryId: z.string().min(1, "Категория обязательна").max(64),
     city: z
       .string()
       .trim()
@@ -196,7 +197,7 @@ export async function POST(req: Request) {
       return actorRateLimit;
     }
 
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
 
     const company = await prisma.company.findUnique({
       where: { ownerId: user.id },

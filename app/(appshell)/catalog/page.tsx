@@ -17,7 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default async function CatalogIndexPage() {
-  const cities = await getCitiesWithPlaces();
+  const cities = await getCitiesWithPlaces().catch((err) => {
+    console.error("CatalogIndexPage: getCitiesWithPlaces failed:", err);
+    return [];
+  });
   const origin = getSiteOrigin();
 
   const crumbs = [

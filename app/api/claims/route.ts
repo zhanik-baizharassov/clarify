@@ -4,13 +4,17 @@ import { prisma } from "@/server/db/prisma";
 import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const Schema = z
   .object({
-    placeId: z.string().min(1, "Карточка места обязательна"),
+    placeId: z
+      .string()
+      .min(1, "Карточка места обязательна")
+      .max(64, "Некорректная карточка места"),
   })
   .strict();
 
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
       return ipRateLimit;
     }
 
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
     const user = await getSessionUser();
 
     if (!user) {

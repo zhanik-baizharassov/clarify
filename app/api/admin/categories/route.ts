@@ -1,9 +1,11 @@
 import slugify from "slugify";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,25 +71,44 @@ export async function POST(req: Request) {
     const admin = await requireAdmin();
     if (!admin.ok) return admin.response;
 
-    const input = CreateCategorySchema.parse(await req.json());
+    const input = CreateCategorySchema.parse(await readJsonBody(req));
 
-    const slug = await makeUniqueCategorySlug(input.name);
+    // Проверка slug и вставка не атомарны: при параллельном создании
+    // получаем P2002 — пересчитываем slug и пробуем ещё раз.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const slug = await makeUniqueCategorySlug(input.name);
 
-    const category = await prisma.category.create({
-      data: {
-        name: input.name.trim(),
-        slug,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        isActive: true,
-      },
-    });
+      try {
+        const category = await prisma.category.create({
+          data: {
+            name: input.name.trim(),
+            slug,
+            isActive: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+          },
+        });
 
-    return NextResponse.json(category, { status: 201 });
+        return NextResponse.json(category, { status: 201 });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return NextResponse.json(
+      { error: "Не удалось создать категорию, попробуйте ещё раз" },
+      { status: 409 },
+    );
   } catch (err: any) {
     if (err?.name === "ZodError") {
       const msg = err.issues?.[0]?.message ?? "Неверные данные";

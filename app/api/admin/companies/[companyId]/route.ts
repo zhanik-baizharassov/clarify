@@ -3,13 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 
 const Schema = z
   .object({
     action: z.enum(["block", "unblock"]),
-    blockedUntil: z.string().trim().optional(),
+    blockedUntil: z.string().trim().max(64).optional(),
     reason: z.string().trim().max(200, "Причина слишком длинная").optional(),
   })
   .strict();
@@ -65,7 +66,7 @@ export async function PATCH(
       );
     }
 
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
 
     const target = await prisma.company.findUnique({
       where: { id: companyId },

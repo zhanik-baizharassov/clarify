@@ -9,14 +9,18 @@ import {
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 
 const CreateReviewSchema = z.object({
-  placeSlug: z.string().trim().min(1),
+  placeSlug: z.string().trim().min(1).max(200, "Некорректное место"),
   rating: z.number().int().min(1).max(5),
   text: z.string().trim().min(5).max(5000),
-  tagSlugs: z.array(z.string().trim().min(1)).optional(),
+  tagSlugs: z
+    .array(z.string().trim().min(1).max(100))
+    .max(20, "Слишком много тегов")
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -40,7 +44,7 @@ export async function POST(req: Request) {
       return ipRateLimit;
     }
 
-    const input = CreateReviewSchema.parse(await req.json());
+    const input = CreateReviewSchema.parse(await readJsonBody(req));
     const trimmedText = input.text.trim();
 
     const user = await getSessionUser();

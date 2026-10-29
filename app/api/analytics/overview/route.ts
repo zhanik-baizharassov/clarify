@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
+import { KZ_CITIES } from "@/shared/kz/kz";
 import {
   enforceRateLimits,
   getRequestIp,
@@ -51,7 +52,11 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const selectedCity = searchParams.get("city")?.trim() || null;
+    // Принимаем только известные города: иначе каждый произвольный ?city=
+    // обходит CDN-кэш и запускает полный набор запросов.
+    const cityParam = searchParams.get("city")?.trim() ?? "";
+    const selectedCity =
+      (KZ_CITIES as readonly string[]).find((c) => c === cityParam) ?? null;
 
     const [places, reviews, users, companies, cityAggRaw, topCatRaw, recentPositiveReviews, cityPlacesRaw] =
       await Promise.all([
