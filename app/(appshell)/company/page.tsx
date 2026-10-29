@@ -75,9 +75,9 @@ function claimStatusLabel(status: ClaimStatus) {
 function claimStatusClass(status: ClaimStatus) {
   switch (status) {
     case "PENDING":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return "border-warm-accent-border bg-warm-accent text-warm-accent-text";
     case "APPROVED":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return "border-success-border bg-success-soft text-success-text";
     case "REJECTED":
       return "border-muted-foreground/30 bg-muted/20 text-muted-foreground";
     default:
@@ -359,7 +359,7 @@ export default async function CompanyPage({
           : "У вашей компании пока нет отклонённых заявок.";
 
   return (
-    <main className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto max-w-7xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -1089,7 +1089,7 @@ export default async function CompanyPage({
           </div>
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }
 

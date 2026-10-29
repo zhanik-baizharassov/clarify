@@ -105,7 +105,7 @@ export default function CompanyModerationActions({
           <span className="text-xs text-muted-foreground">Заблокировать до</span>
           <input
             type="datetime-local"
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             value={datetime}
             onChange={(e) => setDatetime(e.target.value)}
             disabled={loading}
@@ -117,7 +117,7 @@ export default function CompanyModerationActions({
             Причина блокировки (необязательно)
           </span>
           <input
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             disabled={loading}

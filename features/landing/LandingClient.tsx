@@ -137,7 +137,7 @@ export function HeroSearch({
           onBlur={() => setFocused(false)}
           aria-label="Поиск мест и компаний"
           placeholder={focused ? "Название, адрес или описание" : typed}
-          className="min-h-12 min-w-0 flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground/70 sm:px-1 sm:text-lg"
+          className="min-h-12 min-w-0 flex-1 bg-transparent px-3 text-base outline-none placeholder:text-[color:var(--text-secondary)] sm:px-1 sm:text-lg"
         />
 
         <button type="submit" className="clarify-button-primary shrink-0">

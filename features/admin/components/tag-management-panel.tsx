@@ -75,7 +75,7 @@ export default function TagManagementPanel({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             />
           </label>
 
@@ -88,7 +88,7 @@ export default function TagManagementPanel({
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
               disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             />
           </label>
         </div>
@@ -188,7 +188,7 @@ function TagRow({
               className={[
                 "rounded-full border px-2.5 py-1 text-[11px]",
                 isActive
-                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700"
+                  ? "border-success-border bg-success-soft text-success-text"
                   : "border-destructive/30 bg-destructive/10 text-destructive",
               ].join(" ")}
             >
@@ -213,7 +213,7 @@ function TagRow({
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={loading}
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           />
         </label>
 
@@ -226,7 +226,7 @@ function TagRow({
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
             disabled={loading}
-            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           />
         </label>
       </div>

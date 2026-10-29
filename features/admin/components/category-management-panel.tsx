@@ -78,7 +78,7 @@ export default function CategoryManagementPanel({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             />
           </label>
         </div>
@@ -177,7 +177,7 @@ function CategoryRow({
             className={[
               "inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition",
               isActive
-                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 opacity-60"
+                ? "border-success-border bg-success-soft text-success-text opacity-60"
                 : "bg-background hover:bg-muted/40",
               loading ? "opacity-60" : "",
             ].join(" ")}
