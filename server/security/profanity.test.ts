@@ -48,12 +48,19 @@ describe("containsProfanity", () => {
     expect(containsProfanity("Ебаный")).toBe(true);
   });
 
-  // Known false positive: the "еб" pattern accepts the one-letter prefix "с",
-  // so "себя" / "Себастьян" are flagged although the comment above the pattern
-  // says they must not be. `it.fails` keeps the suite green while the bug
-  // exists and turns red once it is fixed, so this marker can then be removed.
-  it.fails("does not flag the ordinary word 'себя' (known bug)", () => {
+  // Regression: the "еб" pattern used to accept the one-letter prefix "с", so
+  // the everyday words "себя" / "себе" / "Себастьян" were rejected in reviews.
+  it("does not flag ordinary words that merely contain 'себ'", () => {
     expect(containsProfanity("я чувствую себя отлично")).toBe(false);
+    expect(containsProfanity("взял себе кофе")).toBe(false);
+    expect(containsProfanity("Себастьян принёс заказ")).toBe(false);
+    expect(containsProfanity("лебедь и себестоимость")).toBe(false);
+  });
+
+  it("still catches the prefixed forms, including the hard-sign prefix", () => {
+    expect(containsProfanity("он съебался")).toBe(true);
+    expect(containsProfanity("поебень")).toBe(true);
+    expect(containsProfanity("выебал")).toBe(true);
   });
 });
 

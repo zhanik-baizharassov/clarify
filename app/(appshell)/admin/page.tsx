@@ -8,11 +8,13 @@ import {
   LayoutDashboard,
   PlusSquare,
   Tags,
+  Upload,
   UserRound,
 } from "lucide-react";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import CreateCatalogPlaceForm from "@/features/admin/components/create-catalog-place-form";
+import ImportPlacesPanel from "@/features/admin/components/import-places-panel";
 import ClaimReviewActions from "@/features/admin/components/claim-review-actions";
 import UserModerationActions from "@/features/admin/components/user-moderation-actions";
 import CompanyModerationActions from "@/features/admin/components/company-moderation-actions";
@@ -34,6 +36,7 @@ type AdminSection =
   | "users"
   | "companies"
   | "create-place"
+  | "import-places"
   | "claims"
   | "unclaimed-places"
   | "categories"
@@ -135,6 +138,11 @@ function getWorkspaceMeta(section: Exclude<AdminSection, null>) {
         title: "Создать карточку компании",
         desc: "Создание каталожной карточки места/бизнеса без привязки к company account.",
       };
+    case "import-places":
+      return {
+        title: "Импорт карточек из CSV",
+        desc: "Массовая загрузка каталожных карточек мест из CSV-файла с предварительной проверкой.",
+      };
   }
 }
 
@@ -165,6 +173,7 @@ export default async function AdminPage({
     requestedSection === "users" ||
     requestedSection === "companies" ||
     requestedSection === "create-place" ||
+    requestedSection === "import-places" ||
     requestedSection === "claims" ||
     requestedSection === "unclaimed-places" ||
     requestedSection === "categories" ||
@@ -431,6 +440,13 @@ export default async function AdminPage({
             desc="Создание каталожной карточки места или бизнеса без привязки к company account."
             href={buildAdminHref("create-place")}
             active={activeSection === "create-place"}
+          />
+          <AdminMenuCard
+            icon={<Upload className="h-4 w-4" />}
+            title="Импорт из CSV"
+            desc="Массовая загрузка каталожных карточек из CSV-файла."
+            href={buildAdminHref("import-places")}
+            active={activeSection === "import-places"}
           />
         </div>
       </section>
@@ -722,6 +738,12 @@ export default async function AdminPage({
               </div>
 
               <CreateCatalogPlaceForm categories={createPlaceCategories} />
+            </div>
+          ) : null}
+
+          {activeSection === "import-places" ? (
+            <div className="mt-6">
+              <ImportPlacesPanel />
             </div>
           ) : null}
 
