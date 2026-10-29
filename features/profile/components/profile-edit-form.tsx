@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import UserAvatar from "@/components/ui/UserAvatar";
 
@@ -14,7 +14,8 @@ type InitialVM = {
   email: string;
 };
 
-const NICK_RE = /^[a-zA-Z0-9_]+$/;
+// Same rule as signup.
+const NICK_RE = /^[a-zA-Z0-9_.-]+$/;
 
 export default function ProfileEditForm({
   tab = "main",
@@ -33,7 +34,7 @@ export default function ProfileEditForm({
   const [nickname, setNickname] = useState(initial.nickname ?? "");
   const [email, setEmail] = useState(initial.email ?? "");
 
-  const [changePassword, setChangePassword] = useState(false);
+  const [changePassword, setChangePassword] = useState(tab === "security");
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -45,10 +46,6 @@ export default function ProfileEditForm({
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (tab === "security") setChangePassword(true);
-  }, [tab]);
 
   const normalizedInitialEmail = initial.email.trim().toLowerCase();
   const normalizedNextEmail = email.trim().toLowerCase();
@@ -74,9 +71,9 @@ export default function ProfileEditForm({
     if (tab === "main") {
       if (fn.length < 2) return setErr("Имя: минимум 2 символа");
       if (ln.length < 2) return setErr("Фамилия: минимум 2 символа");
-      if (nn.length < 3) return setErr("Никнейм: минимум 3 символа");
+      if (nn.length < 2) return setErr("Никнейм: минимум 2 символа");
       if (!NICK_RE.test(nn)) {
-        return setErr("Никнейм: только латиница, цифры и _ (без пробелов)");
+        return setErr("Никнейм: только латиница, цифры и . _ - (без пробелов)");
       }
 
       if (isEmailChanged && !cp) {
@@ -178,7 +175,7 @@ export default function ProfileEditForm({
               <Field label="Текущий пароль">
                 <div className="relative">
                   <input
-                    className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                    className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                     type={showCurrentPassword ? "text" : "password"}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
@@ -209,7 +206,7 @@ export default function ProfileEditForm({
                 <Field label="Новый пароль" hint="Мин 8 символов, A-z и 0-9">
                   <div className="relative">
                     <input
-                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -235,7 +232,7 @@ export default function ProfileEditForm({
                 <Field label="Повторите пароль">
                   <div className="relative">
                     <input
-                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                      className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                       type={showPassword2 ? "text" : "password"}
                       value={password2}
                       onChange={(e) => setPassword2(e.target.value)}
@@ -271,7 +268,7 @@ export default function ProfileEditForm({
         ) : null}
 
         {ok ? (
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-700">
+          <div className="rounded-xl border border-success-border bg-success-soft p-3 text-sm text-success-text">
             {ok}
           </div>
         ) : null}
@@ -345,7 +342,7 @@ export default function ProfileEditForm({
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label="Имя">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               disabled={loading || !canEdit}
@@ -355,7 +352,7 @@ export default function ProfileEditForm({
 
           <Field label="Фамилия">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               disabled={loading || !canEdit}
@@ -363,9 +360,9 @@ export default function ProfileEditForm({
             />
           </Field>
 
-          <Field label="Никнейм" hint="Только латиница/цифры/_">
+          <Field label="Никнейм" hint="Латиница, цифры, . _ -">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               disabled={loading || !canEdit}
@@ -375,7 +372,7 @@ export default function ProfileEditForm({
 
           <Field label="Email">
             <input
-              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading || !canEdit}
@@ -394,7 +391,7 @@ export default function ProfileEditForm({
             <Field label="Текущий пароль" hint="Обязателен только для смены email">
               <div className="relative">
                 <input
-                  className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  className="h-11 w-full rounded-xl border bg-background px-4 pr-12 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-60"
                   type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -436,7 +433,7 @@ export default function ProfileEditForm({
       ) : null}
 
       {ok ? (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-700">
+        <div className="rounded-xl border border-success-border bg-success-soft p-3 text-sm text-success-text">
           {ok}
         </div>
       ) : null}
