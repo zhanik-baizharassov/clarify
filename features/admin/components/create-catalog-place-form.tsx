@@ -208,7 +208,7 @@ export default function CreateCatalogPlaceForm({
             <span className="text-xs text-muted-foreground">Категория</span>
             <select
               disabled={loading || !categories.length}
-              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
@@ -224,7 +224,7 @@ export default function CreateCatalogPlaceForm({
             <span className="text-xs text-muted-foreground">Город (только KZ)</span>
             <select
               disabled={loading}
-              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+              className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
               value={city}
               onChange={(e) => {
                 setCity(e.target.value);
@@ -296,7 +296,7 @@ export default function CreateCatalogPlaceForm({
                 <span className="text-xs text-muted-foreground">С</span>
                 <select
                   disabled={loading}
-                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                   value={weekdayOpenTime}
                   onChange={(e) => setWeekdayOpenTime(e.target.value)}
                 >
@@ -312,7 +312,7 @@ export default function CreateCatalogPlaceForm({
                 <span className="text-xs text-muted-foreground">До</span>
                 <select
                   disabled={loading}
-                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                   value={weekdayCloseTime}
                   onChange={(e) => setWeekdayCloseTime(e.target.value)}
                 >
@@ -332,6 +332,7 @@ export default function CreateCatalogPlaceForm({
 
               <button
                 type="button"
+                aria-pressed={weekendClosed}
                 disabled={loading}
                 onClick={() => setWeekendClosed((prev) => !prev)}
                 className={[
@@ -353,7 +354,7 @@ export default function CreateCatalogPlaceForm({
                 <span className="text-xs text-muted-foreground">С</span>
                 <select
                   disabled={loading || weekendClosed}
-                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                   value={weekendOpenTime}
                   onChange={(e) => setWeekendOpenTime(e.target.value)}
                 >
@@ -369,7 +370,7 @@ export default function CreateCatalogPlaceForm({
                 <span className="text-xs text-muted-foreground">До</span>
                 <select
                   disabled={loading || weekendClosed}
-                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:dark] disabled:opacity-60"
+                  className="h-11 rounded-xl border bg-background px-3 text-foreground [color-scheme:light] dark:[color-scheme:dark] disabled:opacity-60"
                   value={weekendCloseTime}
                   onChange={(e) => setWeekendCloseTime(e.target.value)}
                 >

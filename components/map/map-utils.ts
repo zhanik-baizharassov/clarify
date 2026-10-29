@@ -44,6 +44,60 @@ export function followSiteTheme(map: MapLibreMap) {
   return () => observer.disconnect();
 }
 
+/**
+ * MapLibre reports a broken style or dead tile server through `error` events,
+ * not exceptions, so the map just stays blank. This calls `onFail` once when
+ * the initial style cannot be loaded, or when several tiles fail and none ever
+ * loads. Single tile hiccups, sprite/glyph misses and errors after the first
+ * successful render (e.g. a failed theme switch) are ignored.
+ */
+export function watchMapFailure(map: MapLibreMap, onFail: () => void) {
+  const MAX_TILE_ERRORS = 4;
+  let rendered = false;
+  let tileErrors = 0;
+  let tileLoaded = false;
+  let failed = false;
+
+  const fail = () => {
+    if (failed) return;
+    failed = true;
+    onFail();
+  };
+
+  const onLoad = () => {
+    rendered = true;
+  };
+
+  const onData = (e: { dataType?: string; tile?: unknown }) => {
+    if (e.dataType === "source" && e.tile) tileLoaded = true;
+  };
+
+  const onError = (e: { tile?: unknown; error?: unknown }) => {
+    if (e.tile) {
+      tileErrors += 1;
+      if (!tileLoaded && tileErrors >= MAX_TILE_ERRORS) fail();
+      return;
+    }
+    if (rendered) return;
+    // before the first render a non-tile error means the style or a TileJSON
+    // could not be loaded; sprite/glyph misses only degrade labels and icons
+    const err = e.error as { url?: string; message?: string } | undefined;
+    const hint = `${err?.url ?? ""} ${err?.message ?? ""}`;
+    if (/sprite|glyph|font|\.pbf/i.test(hint)) return;
+    fail();
+  };
+
+  map.on("load", onLoad);
+  map.on("data", onData);
+  map.on("error", onError);
+
+  return () => {
+    map.off("load", onLoad);
+    map.off("data", onData);
+    map.off("error", onError);
+  };
+}
+
 /** DOM element used as the map marker (brand-coloured pin). */
 export function createPinElement() {
   const el = document.createElement("div");

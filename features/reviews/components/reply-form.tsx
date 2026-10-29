@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -14,9 +14,21 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descId = useId();
 
   const trimmed = useMemo(() => text.trim(), [text]);
   const canSubmit = !disabled && !loading && trimmed.length >= 2;
+
+  // Нативный <dialog>: showModal() даёт фокус-ловушку, inert для остальной
+  // страницы, закрытие по Escape и возврат фокуса на кнопку «Ответить».
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (confirmOpen && !dialog.open) dialog.showModal();
+    else if (!confirmOpen && dialog.open) dialog.close();
+  }, [confirmOpen]);
 
   async function sendReply() {
     setLoading(true);
@@ -69,7 +81,8 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
       <form onSubmit={onSubmit} className="mt-3 grid gap-2">
         <textarea
           disabled={loading}
-          className="min-h-[80px] rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+          aria-label="Официальный ответ компании"
+          className="min-h-[80px] rounded-md border bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-60"
           placeholder="Напишите официальный ответ компании..."
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -89,11 +102,23 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
         </button>
       </form>
 
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold">Подтверждение ответа</h3>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        onClose={() => setConfirmOpen(false)}
+        onClick={(e) => {
+          // клик по подложке (сам <dialog>, не его содержимое) закрывает окно
+          if (e.target === e.currentTarget) setConfirmOpen(false);
+        }}
+        className="m-auto w-full max-w-md rounded-2xl border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/60"
+      >
+        <div className="p-6">
+          <h3 id={titleId} className="text-lg font-semibold">
+            Подтверждение ответа
+          </h3>
 
+          <div id={descId}>
             <p className="mt-3 text-sm text-muted-foreground">
               Будьте внимательны: официальный ответ нельзя будет изменить после
               отправки.
@@ -103,27 +128,27 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
               После отправки этот отзыв исчезнет из неотвеченных и попадёт во
               вкладку отвеченных.
             </p>
+          </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
-              >
-                Отмена
-              </button>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition hover:bg-muted/30"
+            >
+              Отмена
+            </button>
 
-              <button
-                type="button"
-                onClick={onConfirm}
-                className="clarify-button-primary-sm"
-              >
-                Понятно, отправить
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="clarify-button-primary-sm"
+            >
+              Понятно, отправить
+            </button>
           </div>
         </div>
-      ) : null}
+      </dialog>
     </>
   );
 }

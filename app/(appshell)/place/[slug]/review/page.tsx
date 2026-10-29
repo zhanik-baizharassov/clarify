@@ -72,7 +72,7 @@ export default async function AddReviewPage({
     });
 
     return (
-      <main className="mx-auto max-w-3xl p-6">
+      <div className="mx-auto max-w-3xl p-6">
         <Link
           href={`/place/${place.slug}`}
           className="text-sm text-muted-foreground transition hover:text-foreground hover:underline"
@@ -113,7 +113,7 @@ export default async function AddReviewPage({
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -128,7 +128,7 @@ export default async function AddReviewPage({
   });
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-4xl p-6">
       <Link
         href={`/place/${place.slug}`}
         className="text-sm text-muted-foreground transition hover:text-foreground hover:underline"
@@ -175,7 +175,7 @@ export default async function AddReviewPage({
 
         <ReviewForm placeSlug={place.slug} tags={tags} />
       </section>
-    </main>
+    </div>
   );
 }
 

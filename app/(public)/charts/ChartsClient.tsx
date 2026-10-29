@@ -316,6 +316,7 @@ export default function ChartsClient() {
                   <button
                     key={city.city}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => setSelectedCity(city.city)}
                     className={[
                       "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",

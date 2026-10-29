@@ -444,7 +444,7 @@
   }
 
   .clarify-control::placeholder {
-    color: var(--text-weak);
+    color: var(--text-secondary);
   }
 
   .clarify-control:hover {
