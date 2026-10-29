@@ -23,11 +23,19 @@ export function RotatingWord() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
 
-    const timer = window.setInterval(() => {
-      setIndex((i) => (i + 1) % ROTATING_WORDS.length);
-    }, 2400);
+    // Start rotating only after the page has settled: replacing the element
+    // during load would keep resetting the browser's LCP measurement.
+    let interval = 0;
+    const start = window.setTimeout(() => {
+      interval = window.setInterval(() => {
+        setIndex((i) => (i + 1) % ROTATING_WORDS.length);
+      }, 2600);
+    }, 4500);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(interval);
+    };
   }, []);
 
   return (

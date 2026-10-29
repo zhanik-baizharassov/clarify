@@ -45,11 +45,11 @@ export default function LandingHome({
       <section className="relative mx-auto w-full max-w-7xl px-4 pb-10 pt-10 sm:px-6 md:pt-16 lg:px-8">
         <div
           aria-hidden
-          className="anim-blob pointer-events-none absolute -left-24 top-0 -z-10 h-[420px] w-[420px] rounded-full bg-primary/20 blur-[110px]"
+          className="anim-blob pointer-events-none absolute -left-24 top-0 -z-10 h-[420px] w-[420px] rounded-full bg-primary/20 blur-[60px] md:blur-[110px]"
         />
         <div
           aria-hidden
-          className="anim-blob pointer-events-none absolute -right-20 top-24 -z-10 h-[360px] w-[360px] rounded-full bg-[#ec4899]/15 blur-[110px] [animation-delay:-6s]"
+          className="anim-blob pointer-events-none absolute -right-20 top-24 -z-10 h-[360px] w-[360px] rounded-full bg-[#ec4899]/15 blur-[60px] md:blur-[110px] [animation-delay:-6s]"
         />
 
         <div className="grid items-center gap-12 lg:grid-cols-12">
@@ -68,7 +68,7 @@ export default function LandingHome({
             <h1
               aria-label="Узнайте всё о месте до визита"
               className="anim-rise mt-6 text-[2.15rem] font-semibold leading-[1.1] sm:text-5xl lg:text-[3.4rem]"
-              style={{ "--d": "100ms" } as React.CSSProperties}
+              style={{ "--d": "40ms" } as React.CSSProperties}
             >
               <span aria-hidden>Узнайте всё о</span>{" "}
               <RotatingWord />{" "}
@@ -77,7 +77,7 @@ export default function LandingHome({
 
             <p
               className="anim-rise mt-6 max-w-xl text-base leading-8 text-muted-foreground md:text-lg"
-              style={{ "--d": "220ms" } as React.CSSProperties}
+              style={{ "--d": "80ms" } as React.CSSProperties}
             >
               Реальные отзывы людей, рейтинг и ответы компаний. Находите места
               по опыту других, а бизнес — собирает обратную связь и отвечает
@@ -86,14 +86,14 @@ export default function LandingHome({
 
             <div
               className="anim-rise mt-8 max-w-2xl"
-              style={{ "--d": "340ms" } as React.CSSProperties}
+              style={{ "--d": "120ms" } as React.CSSProperties}
             >
               <HeroSearch popular={popularCategories} />
             </div>
 
             <div
               className="anim-rise mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground"
-              style={{ "--d": "460ms" } as React.CSSProperties}
+              style={{ "--d": "160ms" } as React.CSSProperties}
             >
               <span className="inline-flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-success-text" />
@@ -294,11 +294,11 @@ export default function LandingHome({
           >
             <div
               aria-hidden
-              className="anim-blob pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#6366f1]/40 blur-[90px]"
+              className="anim-blob pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#6366f1]/40 blur-[50px] md:blur-[90px]"
             />
             <div
               aria-hidden
-              className="anim-blob pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-[#ec4899]/25 blur-[90px] [animation-delay:-8s]"
+              className="anim-blob pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-[#ec4899]/25 blur-[50px] md:blur-[90px] [animation-delay:-8s]"
             />
 
             <div className="relative grid gap-10 lg:grid-cols-12 lg:items-center">
@@ -393,7 +393,7 @@ function HeroVisual() {
   return (
     <div
       className="anim-rise relative mx-auto h-[440px] w-full max-w-[420px] lg:col-span-5 lg:max-w-none"
-      style={{ "--d": "300ms" } as React.CSSProperties}
+      style={{ "--d": "100ms" } as React.CSSProperties}
       aria-hidden
     >
       <div className="absolute inset-x-6 top-10 bottom-10 rounded-[40px] bg-gradient-to-br from-primary/15 via-transparent to-[#ec4899]/15 blur-2xl" />
