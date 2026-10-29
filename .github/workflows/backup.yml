@@ -38,15 +38,16 @@ jobs:
           echo "::add-mask::$NEON_DIRECT_URL"
           echo "::add-mask::$BACKUP_PASSPHRASE"
 
-      - name: Install PostgreSQL 17 client
+      # pg_dump должен быть не старше сервера: версия клиента = мажорной версии Postgres в Neon (сейчас 18).
+      - name: Install PostgreSQL 18 client
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           . /etc/os-release
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
-          /usr/lib/postgresql/17/bin/pg_dump --version
+          sudo apt-get install -y -qq postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Dump and encrypt
         env:
@@ -61,7 +62,7 @@ jobs:
 
           # Custom format (-Fc): compressed, restorable with pg_restore.
           # The connection string is passed via env and never echoed.
-          /usr/lib/postgresql/17/bin/pg_dump \
+          /usr/lib/postgresql/18/bin/pg_dump \
             --format=custom --no-owner --no-privileges \
             --dbname="$NEON_DIRECT_URL" \
             --file="$DUMP"
@@ -73,7 +74,7 @@ jobs:
             exit 1
           fi
           # A valid archive must list its table of contents.
-          /usr/lib/postgresql/17/bin/pg_restore --list "$DUMP" > /dev/null
+          /usr/lib/postgresql/18/bin/pg_restore --list "$DUMP" > /dev/null
 
           openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
             -pass env:BACKUP_PASSPHRASE \
