@@ -356,7 +356,7 @@ export default async function AdminPage({
   const workspaceMeta = activeSection ? getWorkspaceMeta(activeSection) : null;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -530,7 +530,7 @@ export default async function AdminPage({
                                     "rounded-full border px-2.5 py-1 text-[11px]",
                                     isBlocked
                                       ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                                      : "border-success-border bg-success-soft text-success-text",
                                   ].join(" ")}
                                 >
                                   {isBlocked ? "Заблокирован" : "Активен"}
@@ -631,7 +631,7 @@ export default async function AdminPage({
                                     "rounded-full border px-2.5 py-1 text-[11px]",
                                     isBlocked
                                       ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                      : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700",
+                                      : "border-success-border bg-success-soft text-success-text",
                                   ].join(" ")}
                                 >
                                   {isBlocked ? "Заблокирована" : "Активна"}
@@ -856,7 +856,7 @@ export default async function AdminPage({
           ) : null}
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }
 

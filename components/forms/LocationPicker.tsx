@@ -9,6 +9,7 @@ import {
   currentMapStyle,
   followSiteTheme,
   loadMapLibre,
+  watchMapFailure,
 } from "@/components/map/map-utils";
 import { KZ_CITY_CENTERS, type KzCity } from "@/shared/kz/kz";
 
@@ -113,13 +114,28 @@ export default function LocationPicker({
 
         const stopTheme = followSiteTheme(map);
 
-        cleanup = () => {
+        let tornDown = false;
+        const teardown = () => {
+          if (tornDown) return;
+          tornDown = true;
+          stopWatch();
           stopTheme();
           markerRef.current?.remove();
           markerRef.current = null;
           map.remove();
           mapRef.current = null;
         };
+
+        // a blank map (style/tiles unreachable) -> show the fallback message;
+        // the form stays submittable because the pin is optional
+        const stopWatch = watchMapFailure(map, () => {
+          setError(
+            "Не удалось загрузить карту. Адрес можно сохранить и без точки.",
+          );
+          queueMicrotask(teardown);
+        });
+
+        cleanup = teardown;
 
         if (destroyed) cleanup();
       } catch (e) {

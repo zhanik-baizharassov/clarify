@@ -125,7 +125,7 @@ export default async function BusinessPage() {
   const bottomCta = getBusinessBottomCta(role);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <section className="clarify-hero relative overflow-hidden px-6 py-8 md:px-8 md:py-10 lg:px-10 lg:py-12">
         <div
           aria-hidden
@@ -245,7 +245,7 @@ export default async function BusinessPage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

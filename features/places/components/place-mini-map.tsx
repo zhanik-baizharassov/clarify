@@ -7,6 +7,7 @@ import {
   currentMapStyle,
   followSiteTheme,
   loadMapLibre,
+  watchMapFailure,
 } from "@/components/map/map-utils";
 
 type PlaceMiniMapProps = {
@@ -50,11 +51,23 @@ export default function PlaceMiniMap({ lat, lng }: PlaceMiniMapProps) {
 
         const stopTheme = followSiteTheme(map);
 
-        cleanup = () => {
+        let tornDown = false;
+        const teardown = () => {
+          if (tornDown) return;
+          tornDown = true;
+          stopWatch();
           stopTheme();
           marker.remove();
           map.remove();
         };
+
+        // a blank map (style/tiles unreachable) -> show the fallback link
+        const stopWatch = watchMapFailure(map, () => {
+          setError("Не удалось загрузить карту.");
+          queueMicrotask(teardown);
+        });
+
+        cleanup = teardown;
 
         if (destroyed) cleanup();
       } catch (e) {
