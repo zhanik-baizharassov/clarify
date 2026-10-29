@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 // HSTS is already set by Vercel. CSP is intentionally not added here: the
-// 2GIS map loads scripts/tiles from several hosts and needs its own testing.
+// map loads vector tiles/styles from tiles.openfreemap.org, so a CSP needs its
+// own testing before it is enabled.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
