@@ -400,14 +400,31 @@ async function loadCompanyState(
   }
 }
 
+const REVIEWS_PAGE_SIZE = 50;
+const REVIEWS_MAX = 500;
+
+function parseReviewsLimit(raw: string | string[] | undefined) {
+  const value = Number.parseInt(Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? ""), 10);
+
+  if (!Number.isFinite(value) || value < REVIEWS_PAGE_SIZE) {
+    return REVIEWS_PAGE_SIZE;
+  }
+
+  return Math.min(value, REVIEWS_MAX);
+}
+
 export default async function PlacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reviews?: string | string[] }>;
 }) {
   const { slug } = await params;
 
   if (!slug) return notFound();
+
+  const reviewsLimit = parseReviewsLimit((await searchParams).reviews);
 
   const [place, sessionUser] = await Promise.all([
     prisma.place.findUnique({
@@ -417,7 +434,8 @@ export default async function PlacePage({
         reviews: {
           where: { status: "PUBLISHED" },
           orderBy: { createdAt: "desc" },
-          take: 50,
+          // +1 — чтобы понять, есть ли ещё отзывы для «Показать ещё»
+          take: reviewsLimit + 1,
           include: {
             author: {
               select: {
@@ -445,6 +463,11 @@ export default async function PlacePage({
   ]);
 
   if (!place) return notFound();
+
+  const hasMoreReviews = place.reviews.length > reviewsLimit;
+  if (hasMoreReviews) {
+    place.reviews = place.reviews.slice(0, reviewsLimit);
+  }
 
   const [ratingDistribution, companyState, hasUserReview, relatedPlaces] =
     await Promise.all([
@@ -499,10 +522,15 @@ export default async function PlacePage({
     ...(isKnownCity
       ? [
           { label: place.city, href: cityPath(place.city as KzCity) },
-          {
-            label: place.category.name,
-            href: `${cityPath(place.city as KzCity)}/${place.category.slug}`,
-          },
+          // Страница категории города открывается только для активных категорий.
+          ...(place.category.isActive
+            ? [
+                {
+                  label: place.category.name,
+                  href: `${cityPath(place.city as KzCity)}/${place.category.slug}`,
+                },
+              ]
+            : []),
         ]
       : []),
     { label: place.name },
@@ -758,7 +786,7 @@ export default async function PlacePage({
               </h2>
               {place.reviews.length > 0 ? (
                 <span className="text-sm text-muted-foreground">
-                  {place.reviews.length < place.ratingCount
+                  {hasMoreReviews
                     ? `Показаны последние ${place.reviews.length} из ${place.ratingCount}`
                     : formatReviewsCount(place.reviews.length)}
                 </span>
@@ -832,6 +860,18 @@ export default async function PlacePage({
                   </article>
                 );
               })}
+
+              {hasMoreReviews && reviewsLimit < REVIEWS_MAX ? (
+                <div className="text-center">
+                  <Link
+                    href={`/place/${place.slug}?reviews=${reviewsLimit + REVIEWS_PAGE_SIZE}#reviews-heading`}
+                    scroll={false}
+                    className="clarify-button-secondary-sm"
+                  >
+                    Показать ещё
+                  </Link>
+                </div>
+              ) : null}
 
               {place.reviews.length === 0 ? (
                 <div className="clarify-empty-state px-6 py-10">

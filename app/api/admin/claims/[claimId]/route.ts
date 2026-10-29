@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,14 @@ const Schema = z
   })
   .strict();
 
+// Бросается внутри транзакции после привязки места, чтобы откатить её:
+// иначе при отказе привязка companyId осталась бы, а заявка — PENDING.
+class ClaimTxAbort extends Error {
+  constructor(readonly reason: "already_processed" | "place_taken") {
+    super(reason);
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ claimId: string }> },
@@ -22,7 +31,7 @@ export async function PATCH(
     const csrf = enforceSameOrigin(req);
     if (csrf) return csrf;
     const { claimId } = await params;
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
 
     const user = await getSessionUser();
 
@@ -122,12 +131,11 @@ export async function PATCH(
       });
 
       if (existingApprovedClaim) {
-        return {
-          type:
-            existingApprovedClaim.companyId === currentClaim.companyId
-              ? ("already_processed" as const)
-              : ("place_taken" as const),
-        };
+        throw new ClaimTxAbort(
+          existingApprovedClaim.companyId === currentClaim.companyId
+            ? "already_processed"
+            : "place_taken",
+        );
       }
 
       const approveResult = await tx.claim.updateMany({
@@ -141,7 +149,7 @@ export async function PATCH(
       });
 
       if (approveResult.count === 0) {
-        return { type: "already_processed" as const };
+        throw new ClaimTxAbort("already_processed");
       }
 
       await tx.claim.updateMany({
@@ -169,6 +177,13 @@ export async function PATCH(
         type: "ok" as const,
         claim: approvedClaim,
       };
+    }).catch((e: unknown) => {
+      if (e instanceof ClaimTxAbort) {
+        return e.reason === "place_taken"
+          ? { type: "place_taken" as const }
+          : { type: "already_processed" as const };
+      }
+      throw e;
     });
 
     if (result.type === "not_found") {

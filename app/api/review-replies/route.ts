@@ -6,11 +6,12 @@ import { enforceRateLimits, getRequestIp } from "@/server/security/rate-limit";
 import { getSessionUser } from "@/server/auth/session";
 import { assertNoProfanity } from "@/server/security/profanity";
 import { enforceSameOrigin } from "@/server/security/csrf";
+import { readJsonBody } from "@/server/security/json";
 
 export const runtime = "nodejs";
 
 const Schema = z.object({
-  reviewId: z.string().min(1),
+  reviewId: z.string().min(1).max(64, "Некорректный отзыв"),
   text: z.string().trim().min(2).max(2000),
 });
 
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       return ipRateLimit;
     }
 
-    const input = Schema.parse(await req.json());
+    const input = Schema.parse(await readJsonBody(req));
 
     const user = await getSessionUser();
     if (!user) {
