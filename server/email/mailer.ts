@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 type SendResult = { ok: true; messageId?: string };
 
@@ -51,7 +51,7 @@ function getFromAddress() {
 const mailMode = getMailMode();
 assertSafeMailModeForEnv(mailMode);
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 
 function getTransporter() {
   if (transporter) return transporter;
