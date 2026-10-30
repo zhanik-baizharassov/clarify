@@ -102,11 +102,9 @@ export default function ChartsClient() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCity) {
-      setCityPlaces(null);
-      setCityErr(null);
-      return;
-    }
+    // Nothing selected: the render branch for "no city" hides any stale
+    // results, and the next fetch resets them.
+    if (!selectedCity) return;
 
     const ctrl = new AbortController();
 

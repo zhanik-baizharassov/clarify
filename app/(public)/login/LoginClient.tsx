@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
+import { errorMessage } from "@/shared/errors";
 
 const OTP_LEN = 6;
 
@@ -139,11 +140,12 @@ export default function LoginClient() {
           setResendLoading(true);
           await requestResendCode(em);
           setErr("Код отправлен. Проверьте почту и введите 6 цифр.");
-        } catch (e: any) {
+        } catch (e) {
           setErr(
-            e?.message ??
-              data?.error ??
-              "Подтвердите email: введите код из письма",
+            errorMessage(
+              e,
+              data?.error ?? "Подтвердите email: введите код из письма",
+            ),
           );
         } finally {
           setResendLoading(false);
@@ -156,8 +158,8 @@ export default function LoginClient() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }
@@ -190,8 +192,8 @@ export default function LoginClient() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
       resetOtp();
     } finally {
       setVerifyLoading(false);
@@ -208,8 +210,8 @@ export default function LoginClient() {
     try {
       await requestResendCode(pendingEmail);
       setErr("Код отправлен. Проверьте почту.");
-    } catch (e: any) {
-      setErr(e?.message ?? "Не удалось отправить код");
+    } catch (e) {
+      setErr(errorMessage(e, "Не удалось отправить код"));
     } finally {
       setResendLoading(false);
     }

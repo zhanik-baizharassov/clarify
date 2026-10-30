@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { errorMessage } from "@/shared/errors";
 
 type ClaimAction = "APPROVE" | "REJECT";
 
@@ -45,8 +46,8 @@ export default function ClaimReviewActions({
       }
 
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
       setLoading(null);
     }
   }
@@ -80,7 +81,7 @@ export default function ClaimReviewActions({
           type="button"
           disabled={!!loading}
           onClick={() => handleAction("REJECT")}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-destructive/30 px-4 text-sm font-medium text-destructive transition hover:bg-destructive/5 disabled:opacity-50"
+          className="inline-flex h-11 items-center justify-center rounded-xl border border-destructive/30 px-4 text-sm font-medium text-destructive transition hover:bg-destructive/5 focus-visible:ring-2 focus-visible:ring-destructive/50 disabled:opacity-50"
         >
           {loading === "REJECT" ? "Отклонение..." : "Отклонить"}
         </button>

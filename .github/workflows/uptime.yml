@@ -1,0 +1,40 @@
+name: Uptime check
+
+# Бесплатный мониторинг без сторонних сервисов: раз в 10 минут запрашиваем
+# облегчённый health-эндпоинт (без обращения к БД). Если сайт не отвечает,
+# запуск падает, и GitHub присылает письмо о неудачном workflow.
+# Полная проверка БД: https://www.clarify.kz/api/health
+# Примечание: расписание GitHub не точное (возможны задержки в несколько минут),
+# и приостанавливается, если в репозитории нет активности 60 дней.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check site health
+        run: |
+          URL="https://www.clarify.kz/api/health?shallow=1"
+          for attempt in 1 2 3; do
+            CODE="$(curl -s -o /tmp/health.json -w '%{http_code}' --max-time 20 "$URL" || true)"
+            if [ "$CODE" = "200" ] && grep -q '"ok":true' /tmp/health.json; then
+              echo "OK (attempt $attempt): $(cat /tmp/health.json)"
+              exit 0
+            fi
+            echo "Attempt $attempt failed: HTTP $CODE"
+            sleep 15
+          done
+          echo "Site is DOWN or unhealthy: $URL" >&2
+          cat /tmp/health.json >&2 || true
+          exit 1

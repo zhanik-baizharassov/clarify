@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { keepKzPhoneInput } from "@/shared/kz/kz";
+import { errorMessage } from "@/shared/errors";
 
 type SignupPayload = {
   firstName: string;
@@ -105,11 +106,17 @@ export default function SignupPage() {
     const normalizedEmail = normalizeEmail(emailFromQuery ?? "");
 
     if (mode === "verify" && isValidEmail(normalizedEmail)) {
+      // Entering the verify step from the URL (?mode=verify&email=...) is a
+      // reaction to external props; the helpers used here are stable enough
+      // that they must not retrigger the effect.
+      /* eslint-disable react-hooks/set-state-in-effect */
       setPendingEmail(normalizedEmail);
       setStep("verify");
       setCooldownSec(60);
       resetOtp();
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, emailFromQuery]);
 
   useEffect(() => {
@@ -153,8 +160,8 @@ export default function SignupPage() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }
@@ -231,8 +238,8 @@ export default function SignupPage() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
       resetOtp();
     } finally {
       setVerifyLoading(false);
@@ -276,8 +283,8 @@ export default function SignupPage() {
           ? data.message
           : "Код отправлен. Проверьте почту.",
       );
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setVerifyLoading(false);
     }
@@ -304,8 +311,8 @@ export default function SignupPage() {
       resetVerifyStep(
         "Можно изменить email или другие данные и отправить форму заново.",
       );
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setCancelLoading(false);
     }

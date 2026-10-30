@@ -5,6 +5,7 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import { readJsonBody } from "@/server/security/json";
+import { isZodError } from "@/shared/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -205,7 +206,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(result.claim);
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       return NextResponse.json(
         { error: "Не удалось обработать заявку" },
@@ -213,8 +214,8 @@ export async function PATCH(
       );
     }
 
-    if (err?.name === "ZodError") {
-      const msg = err.issues?.[0]?.message ?? "Неверные данные";
+    if (isZodError(err)) {
+      const msg = err.issues[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 

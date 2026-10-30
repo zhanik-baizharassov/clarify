@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
-  Building2,
   ShieldCheck,
   Store,
 } from "lucide-react";

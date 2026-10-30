@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/shared/errors";
 
 type TagItem = {
   id: string;
@@ -52,8 +53,8 @@ export default function TagManagementPanel({
       setMsg("Тег создан");
       setMsgTone("success");
       router.refresh();
-    } catch (err: any) {
-      setMsg(err?.message ?? "Ошибка");
+    } catch (err) {
+      setMsg(errorMessage(err, "Ошибка"));
       setMsgTone("error");
     } finally {
       setLoading(false);
@@ -170,8 +171,8 @@ function TagRow({
       setMsg("Тег обновлён");
       setMsgTone("success");
       router.refresh();
-    } catch (err: any) {
-      setMsg(err?.message ?? "Ошибка");
+    } catch (err) {
+      setMsg(errorMessage(err, "Ошибка"));
       setMsgTone("error");
     } finally {
       setLoading(false);

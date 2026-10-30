@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/shared/errors";
 
 type CategoryItem = {
   id: string;
@@ -54,8 +55,8 @@ export default function CategoryManagementPanel({
       setMsg("Категория создана");
       setMsgTone("success");
       router.refresh();
-    } catch (err: any) {
-      setMsg(err?.message ?? "Ошибка");
+    } catch (err) {
+      setMsg(errorMessage(err, "Ошибка"));
       setMsgTone("error");
     } finally {
       setLoading(false);
@@ -155,8 +156,8 @@ function CategoryRow({
 
       setIsActive(nextIsActive);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

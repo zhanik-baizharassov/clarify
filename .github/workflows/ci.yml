@@ -96,13 +96,9 @@ jobs:
         run: npm run build
 
   lint:
-    name: Lint (non-blocking)
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # The repo has known pre-existing eslint errors (no-explicit-any,
-    # set-state-in-effect). Report them without failing the workflow; remove
-    # continue-on-error once they are fixed.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
