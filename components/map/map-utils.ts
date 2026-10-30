@@ -47,8 +47,9 @@ export function followSiteTheme(map: MapLibreMap) {
 /**
  * MapLibre reports a broken style or dead tile server through `error` events,
  * not exceptions, so the map just stays blank. This calls `onFail` once when
- * the initial style cannot be loaded, or when several tiles fail and none ever
- * loads. Single tile hiccups, sprite/glyph misses and errors after the first
+ * the initial style cannot be loaded, or when tiles fail and none ever loads
+ * (several errors, or any error by the time the map goes idle). Single tile
+ * hiccups, sprite/glyph misses and errors after the first
  * successful render (e.g. a failed theme switch) are ignored.
  */
 export function watchMapFailure(map: MapLibreMap, onFail: () => void) {
@@ -87,14 +88,23 @@ export function watchMapFailure(map: MapLibreMap, onFail: () => void) {
     fail();
   };
 
+  // A small map can need just one tile, so the error threshold above may never
+  // be reached. Once the map has settled with tile errors and not a single
+  // tile loaded, the base map is blank for good.
+  const onIdle = () => {
+    if (!tileLoaded && tileErrors > 0) fail();
+  };
+
   map.on("load", onLoad);
   map.on("data", onData);
   map.on("error", onError);
+  map.on("idle", onIdle);
 
   return () => {
     map.off("load", onLoad);
     map.off("data", onData);
     map.off("error", onError);
+    map.off("idle", onIdle);
   };
 }
 
