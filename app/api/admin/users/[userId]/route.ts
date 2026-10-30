@@ -4,6 +4,7 @@ import { prisma } from "@/server/db/prisma";
 import { getSessionUser } from "@/server/auth/session";
 import { enforceSameOrigin } from "@/server/security/csrf";
 import { readJsonBody } from "@/server/security/json";
+import { isZodError } from "@/shared/errors";
 
 export const runtime = "nodejs";
 
@@ -119,9 +120,9 @@ export async function PATCH(
     });
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    if (err?.name === "ZodError") {
-      const msg = err.issues?.[0]?.message ?? "Неверные данные";
+  } catch (err) {
+    if (isZodError(err)) {
+      const msg = err.issues[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/shared/errors";
 
 type Props = {
   placeId: string;
@@ -36,14 +37,18 @@ export default function ClaimPlaceButton({
   const [success, setSuccess] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [cooldownSec, setCooldownSec] = useState(retryAfterSec);
+  const [prevRetryAfterSec, setPrevRetryAfterSec] = useState(retryAfterSec);
+
+  // Follow the server-provided cooldown when it changes (adjusting state
+  // during render, instead of an effect, avoids an extra commit).
+  if (retryAfterSec !== prevRetryAfterSec) {
+    setPrevRetryAfterSec(retryAfterSec);
+    setCooldownSec(retryAfterSec);
+  }
 
   const isPending = status === "PENDING";
   const isApproved = status === "APPROVED";
   const isRejectedCooldown = status === "REJECTED" && cooldownSec > 0;
-
-  useEffect(() => {
-    setCooldownSec(retryAfterSec);
-  }, [retryAfterSec]);
 
   useEffect(() => {
     if (cooldownSec <= 0) return;
@@ -55,11 +60,8 @@ export default function ClaimPlaceButton({
     return () => clearInterval(t);
   }, [cooldownSec]);
 
-  useEffect(() => {
-    if (status === "PENDING" || status === "APPROVED") {
-      setSuccess(null);
-    }
-  }, [status]);
+  // Once the refreshed status takes over, the local confirmation is redundant.
+  const visibleSuccess = isPending || isApproved ? null : success;
 
   async function handleClaim() {
     if (loading || submitted || isPending || isApproved || isRejectedCooldown) {
@@ -94,8 +96,8 @@ export default function ClaimPlaceButton({
         "Заявка отправлена. После проверки карточку можно будет привязать к вашей компании.",
       );
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }
@@ -132,9 +134,9 @@ export default function ClaimPlaceButton({
         </div>
       ) : null}
 
-      {success ? (
+      {visibleSuccess ? (
         <div className="rounded-lg border bg-primary/5 p-4 text-sm text-primary">
-          {success}
+          {visibleSuccess}
         </div>
       ) : null}
 

@@ -13,6 +13,7 @@ import {
   enforceRateLimits,
   getRequestIp,
 } from "@/server/security/rate-limit";
+import { isZodError } from "@/shared/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -285,7 +286,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(place, { status: 201 });
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
         return NextResponse.json(
@@ -295,8 +296,8 @@ export async function POST(req: Request) {
       }
     }
 
-    if (err?.name === "ZodError") {
-      const msg = err.issues?.[0]?.message ?? "Неверные данные";
+    if (isZodError(err)) {
+      const msg = err.issues[0]?.message ?? "Неверные данные";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 

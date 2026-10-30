@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/shared/errors";
 
 type Props = {
   reviewId: string;
@@ -46,8 +47,8 @@ export default function ReplyForm({ reviewId, disabled }: Props) {
 
       setText("");
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

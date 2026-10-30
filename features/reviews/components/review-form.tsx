@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquareText, SendHorizontal, Sparkles, Star } from "lucide-react";
+import { errorMessage } from "@/shared/errors";
 
 type Tag = { id: string; name: string; slug: string };
 
@@ -116,8 +117,8 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
       navigating = true;
       router.push(`/place/${placeSlug}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message ?? "Ошибка");
+    } catch (err) {
+      setError(errorMessage(err, "Ошибка"));
     } finally {
       if (!navigating) setLoading(false);
     }
@@ -208,7 +209,7 @@ export default function ReviewForm({ placeSlug, tags }: Props) {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card p-3">
+        <div className="rounded-2xl border bg-card p-3 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/60">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

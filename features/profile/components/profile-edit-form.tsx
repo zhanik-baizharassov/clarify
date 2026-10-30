@@ -4,6 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { errorMessage } from "@/shared/errors";
 
 type TabKey = "main" | "security";
 
@@ -134,8 +135,8 @@ export default function ProfileEditForm({
       setShowCurrentPassword(false);
       setShowPassword(false);
       setShowPassword2(false);
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

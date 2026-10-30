@@ -14,6 +14,7 @@ import {
 import StarRating from "@/components/ui/StarRating";
 import { formatReviewsCount } from "@/shared/format";
 import { KZ_CITIES } from "@/shared/kz/kz";
+import { errorMessage } from "@/shared/errors";
 
 type Category = {
   id: string;
@@ -58,11 +59,19 @@ const EMPTY_META: PlacesMeta = {
   hasPrevPage: false,
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 function parsePlacesMeta(
-  raw: any,
+  rawMeta: unknown,
   requestedPage: number,
   itemCount: number,
 ): PlacesMeta {
+  const raw = asRecord(rawMeta);
+
   const page =
     typeof raw?.page === "number" && raw.page > 0 ? raw.page : requestedPage;
 
@@ -133,6 +142,9 @@ export default function PlacesExplorer({
 
     if (!urlQ && !urlCity && !urlCategory) return;
 
+    // One-time read of the deep link after mount: window.location is not
+    // available during SSR, so this cannot be derived during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (urlQ) setQ(urlQ);
     if (urlCity && (KZ_CITIES as readonly string[]).includes(urlCity)) {
       setCity(urlCity);
@@ -211,16 +223,22 @@ export default function PlacesExplorer({
         const data = await safeJson(res);
         if (ctrl.signal.aborted) return;
 
+        const body = asRecord(data);
+
         if (!res.ok) {
-          throw new Error((data as any)?.error ?? "Не удалось загрузить места");
+          throw new Error(
+            typeof body.error === "string"
+              ? body.error
+              : "Не удалось загрузить места",
+          );
         }
 
-        const nextItems = Array.isArray((data as any)?.items)
-          ? ((data as any).items as PlaceCard[])
+        const nextItems = Array.isArray(body.items)
+          ? (body.items as PlaceCard[])
           : [];
 
         const nextMeta = parsePlacesMeta(
-          (data as any)?.meta,
+          body.meta,
           requestedPage,
           nextItems.length,
         );
@@ -229,9 +247,9 @@ export default function PlacesExplorer({
         setItems((prev) =>
           mode === "append" ? [...prev, ...nextItems] : nextItems,
         );
-      } catch (e: any) {
+      } catch (e) {
         if (ctrl.signal.aborted) return;
-        setErr(e?.message ?? "Ошибка");
+        setErr(errorMessage(e, "Ошибка"));
 
         if (mode === "replace") {
           setItems([]);
@@ -259,10 +277,10 @@ export default function PlacesExplorer({
 
         if (ctrl.signal.aborted) return;
 
-        const catsData = await safeJson(catsRes);
+        const catsData = asRecord(await safeJson(catsRes));
         const list =
-          catsRes.ok && Array.isArray((catsData as any)?.items)
-            ? ((catsData as any).items as Category[])
+          catsRes.ok && Array.isArray(catsData.items)
+            ? (catsData.items as Category[])
             : [];
 
         setCategories(list);
@@ -284,16 +302,14 @@ export default function PlacesExplorer({
 
   const allCategories = useMemo(() => categories, [categories]);
 
-  useEffect(() => {
-    if (variant !== "hero" || hasInteracted) return;
-
-    if (q.trim() || city || categoryId || sort !== "rating_desc") {
-      setHasInteracted(true);
-    }
-  }, [variant, hasInteracted, q, city, categoryId, sort]);
+  // The hero variant stays idle until the visitor touches a control.
+  const interacted =
+    hasInteracted ||
+    (variant === "hero" &&
+      Boolean(q.trim() || city || categoryId || sort !== "rating_desc"));
 
   useEffect(() => {
-    if (!hasInteracted) return;
+    if (!interacted) return;
 
     const qs = buildQueryString({
       page: 1,
@@ -315,7 +331,7 @@ export default function PlacesExplorer({
     }, AUTO_SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [hasInteracted, q, city, categoryId, sort, buildQueryString, loadPlaces]);
+  }, [interacted, q, city, categoryId, sort, buildQueryString, loadPlaces]);
 
   useEffect(() => {
     return () => {

@@ -9,6 +9,7 @@ import {
   keepKzPhoneInput,
   normalizeKzPhone,
 } from "@/shared/kz/kz";
+import { errorMessage } from "@/shared/errors";
 
 type Category = { id: string; name: string };
 type TimeOption = { label: string; value: string };
@@ -110,8 +111,8 @@ export default function CreateCatalogPlaceForm({
     let phoneNorm = "";
     try {
       phoneNorm = normalizeKzPhone(phone, "Телефон");
-    } catch (e: any) {
-      setErr(e?.message ?? "Телефон: некорректный формат");
+    } catch (e) {
+      setErr(errorMessage(e, "Телефон: некорректный формат"));
       return;
     }
 
@@ -169,8 +170,8 @@ export default function CreateCatalogPlaceForm({
       setCategoryId(categories[0]?.id ?? "");
       setCity(KZ_CITIES[0] ?? "Алматы");
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

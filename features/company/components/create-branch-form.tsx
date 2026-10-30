@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import KzAddressInput from "@/components/forms/KzAddressInput";
 import LocationPicker, { type MapPoint } from "@/components/forms/LocationPicker";
 import { KZ_CITIES, keepKzPhoneInput, normalizeKzPhone } from "@/shared/kz/kz";
+import { errorMessage } from "@/shared/errors";
 
 type Category = { id: string; name: string };
 type TimeOption = { label: string; value: string };
@@ -88,8 +89,8 @@ export default function CreateBranchForm({
     let phoneNorm = "";
     try {
       phoneNorm = normalizeKzPhone(phone, "Телефон");
-    } catch (e: any) {
-      return setErr(e?.message ?? "Телефон: некорректный формат");
+    } catch (e) {
+      return setErr(errorMessage(e, "Телефон: некорректный формат"));
     }
 
     if (toMinutes(weekdayOpenTime) >= toMinutes(weekdayCloseTime)) {
@@ -136,8 +137,8 @@ export default function CreateBranchForm({
       setWeekendCloseTime("18:00");
       setOk("Филиал создан");
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

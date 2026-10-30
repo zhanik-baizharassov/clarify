@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/shared/errors";
 
 function getDefaultDateTimeLocal(hoursAhead = 24) {
   const date = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
@@ -89,8 +90,8 @@ export default function UserModerationActions({
           : "Блокировка снята",
       );
       router.refresh();
-    } catch (e: any) {
-      setMsg(e?.message ?? "Ошибка");
+    } catch (e) {
+      setMsg(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }

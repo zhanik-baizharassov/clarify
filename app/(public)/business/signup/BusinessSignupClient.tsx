@@ -11,6 +11,7 @@ import {
   keepKzPhoneInput,
   normalizeKzPhone,
 } from "@/shared/kz/kz";
+import { errorMessage } from "@/shared/errors";
 
 type CompanySignupPayload = {
   companyName: string;
@@ -143,8 +144,8 @@ export default function BusinessSignupPage() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setLoading(false);
     }
@@ -174,8 +175,8 @@ export default function BusinessSignupPage() {
     let phoneNorm = "";
     try {
       phoneNorm = normalizeKzPhone(ph, "Телефон");
-    } catch (e: any) {
-      return setErr(e?.message ?? "Телефон: некорректный формат");
+    } catch (e) {
+      return setErr(errorMessage(e, "Телефон: некорректный формат"));
     }
 
     if (password.length < 8) return setErr("Пароль: минимум 8 символов");
@@ -231,8 +232,8 @@ export default function BusinessSignupPage() {
 
       router.push(next);
       router.refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
       resetOtp();
     } finally {
       setVerifyLoading(false);
@@ -276,8 +277,8 @@ export default function BusinessSignupPage() {
           ? data.message
           : "Код отправлен. Проверьте почту.",
       );
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setVerifyLoading(false);
     }
@@ -305,8 +306,8 @@ export default function BusinessSignupPage() {
         undefined,
         "Можно изменить email или другие данные и отправить форму заново.",
       );
-    } catch (e: any) {
-      setErr(e?.message ?? "Ошибка");
+    } catch (e) {
+      setErr(errorMessage(e, "Ошибка"));
     } finally {
       setCancelLoading(false);
     }
